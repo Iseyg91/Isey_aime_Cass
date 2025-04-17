@@ -94,7 +94,7 @@ async def on_ready():
     activity_types = [
         discord.Activity(type=discord.ActivityType.watching, name=f"{member_count} Membres"),
         discord.Activity(type=discord.ActivityType.streaming, name=f"{guild_count} Serveurs"),
-        discord.Activity(type=discord.ActivityType.streaming, name="Aquamoon"),
+        discord.Activity(type=discord.ActivityType.streaming, name="Etherya"),
     ]
     
     # Sélection d'une activité au hasard
@@ -140,6 +140,25 @@ async def on_error(event, *args, **kwargs):
         color=discord.Color.red()
     )
     await args[0].response.send_message(embed=embed)
+
+@bot.hybrid_command(
+    name="uptime",
+    description="Affiche l'uptime du bot."
+)
+async def uptime(ctx):
+    uptime_seconds = round(time.time() - start_time)
+    days = uptime_seconds // (24 * 3600)
+    hours = (uptime_seconds % (24 * 3600)) // 3600
+    minutes = (uptime_seconds % 3600) // 60
+    seconds = uptime_seconds % 60
+    embed = discord.Embed(
+        title="Uptime du bot",
+        description=f"Le bot est en ligne depuis : {days} jours, {hours} heures, {minutes} minutes, {seconds} secondes",
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"♥️by Iseyg", icon_url=ctx.author.avatar.url)
+    await ctx.send(embed=embed)
+
 
 @bot.hybrid_command(name="bal", aliases=["balance", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
 async def bal(ctx: commands.Context, user: discord.User = None):
