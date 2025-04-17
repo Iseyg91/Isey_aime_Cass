@@ -163,7 +163,11 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
-async def deposit(ctx: commands.Context, amount: str):
+@app_commands.describe(amount="Montant à déposer (ou 'all')")
+async def deposit(ctx: commands.Context, amount: str = None):
+    if amount is None:
+        return await ctx.send("❌ Tu dois spécifier un montant ou `all`.")
+
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
