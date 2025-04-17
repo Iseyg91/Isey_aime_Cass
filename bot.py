@@ -152,17 +152,26 @@ async def uptime(ctx):
 
 @bot.hybrid_command(name="bal", aliases=["balance", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
 async def bal(ctx: commands.Context, user: discord.User = None):
-    # Utilise l'utilisateur appelant si aucun utilisateur n'est précisé
     user = user or ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Cherche les données de l'utilisateur dans la collection ether_eco
+    # Cherche les données de l'utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
 
-    # Récupère les valeurs ou 0 si non trouvées
-    balance = data.get("wallet", 0) if data else 0
-    bank = data.get("bank", 0) if data else 0
+    # Si l'utilisateur n'a pas de données, on initialise avec 1500 coins en portefeuille
+    if not data:
+        data = {
+            "guild_id": guild_id,
+            "user_id": user_id,
+            "wallet": 1500,
+            "bank": 0
+        }
+        collection.insert_one(data)
+
+    # Récupération des données à afficher
+    balance = data.get("wallet", 0)
+    bank = data.get("bank", 0)
     total = balance + bank
 
     # Création de l'embed
@@ -172,7 +181,6 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     embed.add_field(name="Total", value=f"{total} 💵", inline=False)
     embed.set_footer(text=f"Demandé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-    # Envoi du message avec l'embed
     await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
@@ -830,35 +838,33 @@ async def cock_fight(ctx, amount: int):
         await ctx.send(f"{user.mention}, la mise est limitée à **20 000 🪙**.")
         return
 
-    # Récupérer la streak
+    # Récupérer la probabilité actuelle
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
-    win_streak = win_data.get("win_streak", 0) if win_data else 0
+    win_chance = win_data.get("win_chance", 50) if win_data else 50
 
-    # Calcul de la probabilité de victoire
-    win_probability = min(50 + win_streak, 100)
-    await ctx.send(f"⚔️ **Probabilité de victoire : {win_probability}%**")
+    await ctx.send(f"⚔️ **Probabilité de victoire : {win_chance}%**")
 
     # Combat
-    if random.randint(1, 100) <= win_probability:
+    if random.randint(1, 100) <= win_chance:
         win_amount = amount * 2
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": win_amount}},
             upsert=True
         )
+        new_chance = min(win_chance + 1, 100)
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"win_streak": 1}},
+            {"$set": {"win_chance": new_chance}},
             upsert=True
         )
-        
-        # Message de victoire avec Embed
+
         embed = discord.Embed(
             title="🐓 Victoire !",
-            description=f"{user.mention}, tu as gagné **{win_amount} 🪙** ! Ta streak est maintenant de **{win_streak + 1}**.",
+            description=f"{user.mention}, tu as gagné **{win_amount} 🪙** ! Ta chance est maintenant de **{new_chance}%**.",
             color=discord.Color.green()
         )
-        embed.set_footer(text="Bravo, continue sur ta lancée !")
+        embed.set_footer(text="Ton poulet devient de plus en plus fort !")
         await ctx.send(embed=embed)
     else:
         collection.update_one(
@@ -868,19 +874,17 @@ async def cock_fight(ctx, amount: int):
         )
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"win_streak": 0}},
+            {"$set": {"win_chance": 50}},
             upsert=True
         )
-        
-        # Message de défaite avec Embed
+
         embed = discord.Embed(
             title="💀 Défaite...",
-            description=f"{user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta streak est maintenant de **0**.",
+            description=f"{user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta chance est maintenant de **50%**.",
             color=discord.Color.red()
         )
-        embed.set_footer(text="La chance reviendra la prochaine fois !")
+        embed.set_footer(text="Tu repars de zéro, bon courage !")
         await ctx.send(embed=embed)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
