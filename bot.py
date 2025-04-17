@@ -162,6 +162,42 @@ async def bal(ctx: commands.Context, user: discord.User = None):
 
     await ctx.send(embed=embed)
 
+@bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
+async def deposit(ctx: commands.Context, amount: str):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Chercher les données actuelles
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+
+    wallet = data.get("wallet", 0)
+    bank = data.get("bank", 0)
+
+    # Gérer le cas "all"
+    if amount.lower() == "all":
+        if wallet == 0:
+            return await ctx.send(f"💸 Tu n'as rien à déposer.")
+        deposited_amount = wallet
+    else:
+        # Vérifie que c'est un nombre valide
+        if not amount.isdigit():
+            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
+        deposited_amount = int(amount)
+        if deposited_amount <= 0:
+            return await ctx.send("❌ Tu dois déposer un montant supérieur à zéro.")
+        if deposited_amount > wallet:
+            return await ctx.send("❌ Tu n'as pas assez d'argent dans ton portefeuille.")
+
+    # Mise à jour dans la base de données
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"wallet": -deposited_amount, "bank": deposited_amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ Tu as déposé **{deposited_amount} 🪙** dans ta banque.")
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
