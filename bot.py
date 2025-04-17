@@ -673,7 +673,7 @@ import random
 from discord.ext import commands
 import discord
 
-@bot.command(name="buy")
+@bot.command(name="buy", aliases=["chicken", "c", "h", "i", "k", "e", "n"])
 async def buy_item(ctx, item: str):
     user = ctx.author
     guild_id = ctx.guild.id
@@ -683,7 +683,7 @@ async def buy_item(ctx, item: str):
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = data.get("wallet", 0) if data else 0
 
-    if item.lower() in ["chicken", "c", "poulet"]:
+    if item.lower() in ["chicken", "c", "poulet", "h", "i", "k", "e", "n"]:
         if balance >= 100:
             # Retirer 100 coins
             collection.update_one(
@@ -705,6 +705,7 @@ async def buy_item(ctx, item: str):
     else:
         await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
 
+
 @bot.command(name="cock-fight", aliases=["cf"])
 async def cock_fight(ctx, amount: int):
     user = ctx.author
@@ -714,14 +715,19 @@ async def cock_fight(ctx, amount: int):
     # Vérifier si l'utilisateur a un poulet
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
     if not data or not data.get("chicken", False):
-        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `/buy chicken` pour en acheter un.")
+        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!buy chicken` pour en acheter un.")
         return
+
+    # Supprimer le poulet utilisé
+    collection7.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"chicken": False}}
+    )
 
     # Vérifier le solde de l'utilisateur
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = balance_data.get("wallet", 0) if balance_data else 0
 
-    # Vérifier que l'utilisateur mise une somme valide
     if amount > balance:
         await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour cette mise.")
         return
@@ -732,19 +738,14 @@ async def cock_fight(ctx, amount: int):
         await ctx.send(f"{user.mention}, la mise est limitée à **20 000 🪙**.")
         return
 
-    # Vérifier les données de la victoire précédente
+    # Récupérer la streak
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
     win_streak = win_data.get("win_streak", 0) if win_data else 0
 
-    # Calcul de la probabilité de gagner
-    win_probability = 50 + win_streak  # 50% de base +1% par victoire
-    if win_probability > 100:
-        win_probability = 100
+    win_probability = min(50 + win_streak, 100)
 
-    # Vérifier si l'utilisateur gagne
-    win_roll = random.randint(1, 100)
-    if win_roll <= win_probability:
-        # Gagné
+    # Combat
+    if random.randint(1, 100) <= win_probability:
         win_amount = amount * 2
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
@@ -758,7 +759,6 @@ async def cock_fight(ctx, amount: int):
         )
         await ctx.send(f"🐓 Victoire ! {user.mention}, tu as gagné **{win_amount} 🪙** ! Ta streak est maintenant de `{win_streak + 1}`.")
     else:
-        # Perdu, on retire uniquement la mise
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": -amount}},
@@ -769,7 +769,7 @@ async def cock_fight(ctx, amount: int):
             {"$set": {"win_streak": 0}},
             upsert=True
         )
-        await ctx.send(f"💀 Défaite... {user.mention}, tu as perdu **{amount} 🪙**. Ta streak a été réinitialisée.")
+        await ctx.send(f"💀 Défaite... {user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta streak est maintenant de `0`.")
 
 
 # Token pour démarrer le bot (à partir des secrets)
