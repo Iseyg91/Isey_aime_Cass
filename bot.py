@@ -762,9 +762,15 @@ async def buy_item(ctx, item: str = "chicken"):
     # Forcer l'achat d'un chicken pour toutes les aliases
     item = "chicken"
 
+    # Vérifier si l'utilisateur possède déjà un poulet
+    data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
+    if data and data.get("chicken", False):
+        await ctx.send(f"{user.mention}, tu as déjà un poulet ! Tu ne peux pas en acheter un autre tant que tu n'as pas perdu le précédent.")
+        return
+
     # Vérifier le solde de l'utilisateur
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    balance = data.get("wallet", 0) if data else 0
+    balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    balance = balance_data.get("wallet", 0) if balance_data else 0
 
     # Liste des objets à acheter et leurs prix
     items_for_sale = {
@@ -804,7 +810,6 @@ async def buy_item(ctx, item: str = "chicken"):
 
     else:
         await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
-
 
 @bot.command(name="cock-fight", aliases=["cf"])
 async def cock_fight(ctx, amount: int):
