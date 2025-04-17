@@ -78,36 +78,11 @@ def load_guild_settings(guild_id):
 async def on_ready():
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
-    # Initialisation de l'uptime du bot
-    bot.uptime = time.time()
-    
-    # Récupération du nombre de serveurs et d'utilisateurs
-    guild_count = len(bot.guilds)
-    member_count = sum(guild.member_count for guild in bot.guilds)
-    
-    # Affichage des statistiques du bot dans la console
-    print(f"\n📊 **Statistiques du bot :**")
-    print(f"➡️ **Serveurs** : {guild_count}")
-    print(f"➡️ **Utilisateurs** : {member_count}")
-    
-    # Liste des activités dynamiques
-    activity_types = [
-        discord.Activity(type=discord.ActivityType.watching, name=f"{member_count} Membres"),
-        discord.Activity(type=discord.ActivityType.streaming, name=f"{guild_count} Serveurs"),
-        discord.Activity(type=discord.ActivityType.streaming, name="Etherya"),
-    ]
-    
-    # Sélection d'une activité au hasard
-    activity = random.choice(activity_types)
-    
-    # Choix d'un statut aléatoire
-    status_types = [discord.Status.online, discord.Status.idle, discord.Status.dnd]
-    status = random.choice(status_types)
-    
-    # Mise à jour du statut et de l'activité
-    await bot.change_presence(activity=activity, status=status)
-    
-    print(f"\n🎉 **{bot.user}** est maintenant connecté et affiche ses statistiques dynamiques avec succès !")
+    # Mise à jour du statut avec l'activité de stream "Etherya"
+    activity = discord.Activity(type=discord.ActivityType.streaming, name="Etherya", url="https://www.twitch.tv/tonstream")
+    await bot.change_presence(activity=activity, status=discord.Status.online)
+
+    print(f"🎉 **{bot.user}** est maintenant connecté et affiche son activité de stream avec succès !")
 
     # Afficher les commandes chargées
     print("📌 Commandes disponibles 😊")
@@ -121,15 +96,6 @@ async def on_ready():
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
 
-    # Jongler entre différentes activités et statuts
-    while True:
-        for activity in activity_types:
-            for status in status_types:
-                await bot.change_presence(status=status, activity=activity)
-                await asyncio.sleep(10)  # Attente de 10 secondes avant de changer l'activité et le statut
-    for guild in bot.guilds:
-        GUILD_SETTINGS[guild.id] = load_guild_settings(guild.id)
-
 # Gestion des erreurs globales pour toutes les commandes
 @bot.event
 async def on_error(event, *args, **kwargs):
@@ -140,6 +106,33 @@ async def on_error(event, *args, **kwargs):
         color=discord.Color.red()
     )
     await args[0].response.send_message(embed=embed)
+
+@bot.event
+async def on_message(message):
+    # Ignorer les messages du bot lui-même
+    if message.author.bot:
+        return
+
+    # Obtenir les informations de l'utilisateur
+    user = message.author
+    guild_id = message.guild.id
+    user_id = user.id
+
+    # Générer un montant aléatoire entre 5 et 20 coins
+    coins_to_add = random.randint(5, 20)
+
+    # Ajouter les coins au portefeuille de l'utilisateur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"wallet": coins_to_add}},
+        upsert=True
+    )
+
+    # Informer l'utilisateur que des coins ont été ajoutés
+    await message.channel.send(f"{user.mention}, tu as gagné **{coins_to_add} 🪙** pour ton message !")
+
+    # Appeler le traitement habituel des commandes
+    await bot.process_commands(message)
 
 @bot.hybrid_command(
     name="uptime",
@@ -328,6 +321,357 @@ async def remove_money_error(ctx, error):
     else:
         await ctx.send("❌ Une erreur est survenue.")
 
+@bot.hybrid_command(name="set-money", description="Définit un montant exact dans le wallet ou la bank d’un utilisateur.")
+@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à définir", location="Choisis entre wallet ou bank")
+@app_commands.choices(location=[
+    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Bank", value="bank"),
+])
+@commands.has_permissions(administrator=True)
+async def set_money(ctx: commands.Context, user: discord.User, amount: int, location: app_commands.Choice[str]):
+    if amount < 0:
+        return await ctx.send("❌ Le montant ne peut pas être négatif.")
+
+    guild_id = ctx.guild.id
+    user_id = user.id
+    field = location.value
+
+    # Met à jour la base de données
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {field: amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ Tu as défini le montant de **{field}** de {user.mention} à **{amount} 🪙**.")
+
+@set_money.error
+async def set_money_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Tu dois être administrateur pour utiliser cette commande.")
+    else:
+        await ctx.send("❌ Une erreur est survenue.")
+
+@bot.hybrid_command(name="pay", description="Paie un utilisateur avec tes coins.")
+@app_commands.describe(user="L'utilisateur à qui envoyer de l'argent", amount="Montant à transférer")
+async def pay(ctx: commands.Context, user: discord.User, amount: int):
+    sender = ctx.author
+    if user.id == sender.id:
+        return await ctx.send("❌ Tu ne peux pas te payer toi-même.")
+    if amount <= 0:
+        return await ctx.send("❌ Le montant doit être supérieur à zéro.")
+
+    guild_id = ctx.guild.id
+
+    # Récupère les données de l'expéditeur
+    sender_data = collection.find_one({"guild_id": guild_id, "user_id": sender.id}) or {"wallet": 0}
+    if sender_data["wallet"] < amount:
+        return await ctx.send("❌ Tu n’as pas assez d'argent dans ton wallet.")
+
+    # Déduit les fonds de l'expéditeur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": sender.id},
+        {"$inc": {"wallet": -amount}},
+        upsert=True
+    )
+
+    # Ajoute les fonds au destinataire
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user.id},
+        {"$inc": {"wallet": amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ {sender.mention} a payé **{amount} 🪙** à {user.mention}.")
+
+# Gestion des erreurs
+@pay.error
+async def pay_error(ctx, error):
+    await ctx.send("❌ Une erreur est survenue lors du paiement.")
+
+@bot.hybrid_command(name="work", aliases=["wk"], description="Travaille et gagne de l'argent !")
+async def work(ctx: commands.Context):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Vérifier le cooldown de 30 minutes
+    now = datetime.utcnow()
+    cooldown_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    last_work_time = cooldown_data.get("last_work_time", None)
+
+    if last_work_time:
+        time_diff = now - last_work_time
+        if time_diff < timedelta(minutes=30):
+            remaining_time = timedelta(minutes=30) - time_diff
+            minutes_left = remaining_time.total_seconds() // 60
+            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir retravailler.")
+
+    # Gagner de l'argent entre 200 et 2000
+    amount = random.randint(200, 2000)
+
+    # Liste de 20 messages possibles
+    messages = [
+        f"Tu as travaillé dur et gagné **{amount} 🪙**. Bien joué !",
+        f"Bravo ! Tu as gagné **{amount} 🪙** après ton travail.",
+        f"Tu as travaillé avec assiduité et tu récoltes **{amount} 🪙**.",
+        f"Du bon travail ! Voici **{amount} 🪙** pour toi.",
+        f"Félicitations, tu as gagné **{amount} 🪙** pour ton travail.",
+        f"Grâce à ton travail, tu as gagné **{amount} 🪙**.",
+        f"Tu as gagné **{amount} 🪙** après une journée de travail bien remplie !",
+        f"Un bon travail mérite **{amount} 🪙**. Félicitations !",
+        f"Après une journée difficile, tu récoltes **{amount} 🪙**.",
+        f"Tu as travaillé dur et mérites tes **{amount} 🪙**.",
+        f"Tu as fait un excellent travail et gagné **{amount} 🪙**.",
+        f"Un travail acharné rapporte **{amount} 🪙**.",
+        f"Bien joué ! **{amount} 🪙** ont été ajoutés à ta balance.",
+        f"Ton travail t'a rapporté **{amount} 🪙**.",
+        f"Tu as bien bossé et gagné **{amount} 🪙**.",
+        f"Les fruits de ton travail : **{amount} 🪙**.",
+        f"Un travail bien fait t'a rapporté **{amount} 🪙**.",
+        f"Tu es payé pour ton dur labeur : **{amount} 🪙**.",
+        f"Voici ta récompense pour ton travail : **{amount} 🪙**.",
+        f"Ton travail t'a rapporté une belle somme de **{amount} 🪙**.",
+        f"Tu as gagné **{amount} 🪙** pour ta persévérance et ton travail.",
+    ]
+
+    # Sélectionner un message au hasard
+    message = random.choice(messages)
+
+    # Mettre à jour le cooldown et l'argent de l'utilisateur
+    collection6.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_work_time": now}},
+        upsert=True
+    )
+
+    # Ajouter de l'argent au wallet de l'utilisateur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"wallet": amount}},
+        upsert=True
+    )
+
+    # Envoyer le message de succès
+    await ctx.send(message)
+
+# Gestion des erreurs
+@work.error
+async def work_error(ctx, error):
+    await ctx.send("❌ Une erreur est survenue lors de la commande de travail.")
+
+@bot.hybrid_command(name="slut", description="Essaie ta chance et gagne ou perds de l'argent.")
+async def slut(ctx: commands.Context):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Vérifier le cooldown de 30 minutes
+    now = datetime.utcnow()
+    cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    last_slut_time = cooldown_data.get("last_slut_time", None)
+
+    if last_slut_time:
+        time_diff = now - last_slut_time
+        if time_diff < timedelta(minutes=30):
+            remaining_time = timedelta(minutes=30) - time_diff
+            minutes_left = remaining_time.total_seconds() // 60
+            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
+
+    # Gagner ou perdre de l'argent
+    gain_or_loss = random.choice(["gain", "loss"])
+
+    if gain_or_loss == "gain":
+        amount = random.randint(250, 2000)
+        # Liste de 20 messages de succès
+        messages = [
+            f"Tu as eu de la chance et gagné **{amount} 🪙**.",
+            f"Félicitations ! Tu as gagné **{amount} 🪙**.",
+            f"Bravo, tu as gagné **{amount} 🪙** grâce à ta chance.",
+            f"Tu as réussi à gagner **{amount} 🪙**.",
+            f"Bien joué ! Tu as gagné **{amount} 🪙**.",
+            f"Une grande chance t'a souri, tu as gagné **{amount} 🪙**.",
+            f"Tu as gagné **{amount} 🪙**. Continue comme ça !",
+            f"Tu as gagné **{amount} 🪙**. Bien joué !",
+            f"Chanceux, tu as gagné **{amount} 🪙**.",
+            f"Une belle récompense ! **{amount} 🪙** pour toi.",
+            f"Tu as récolté **{amount} 🪙** grâce à ta chance.",
+            f"Tu es vraiment chanceux, tu as gagné **{amount} 🪙**.",
+            f"Tu as fait un gros coup, **{amount} 🪙** pour toi.",
+            f"Tu as de la chance, tu as gagné **{amount} 🪙**.",
+            f"Tu as fait le bon choix, tu as gagné **{amount} 🪙**.",
+            f"Ta chance t'a permis de gagner **{amount} 🪙**.",
+            f"Voici ta récompense de **{amount} 🪙** pour ta chance.",
+            f"Bravo, tu es maintenant plus riche de **{amount} 🪙**.",
+            f"Tu as gagné **{amount} 🪙**. Félicitations !",
+            f"Ta chance t'a permis de remporter **{amount} 🪙**."
+        ]
+        # Sélectionner un message au hasard
+        message = random.choice(messages)
+
+        # Ajouter de l'argent au wallet de l'utilisateur
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": amount}},
+            upsert=True
+        )
+
+    else:
+        amount = random.randint(250, 2000)
+        # Liste de 20 messages de perte
+        messages = [
+            f"Malheureusement, tu as perdu **{amount} 🪙**.",
+            f"Désolé, tu perds **{amount} 🪙**.",
+            f"La chance ne t'a pas souri cette fois, tu as perdu **{amount} 🪙**.",
+            f"T'as perdu **{amount} 🪙**. Mieux vaut retenter une autre fois.",
+            f"Ah non, tu as perdu **{amount} 🪙**.",
+            f"Pas de chance, tu perds **{amount} 🪙**.",
+            f"Oups, tu perds **{amount} 🪙** cette fois.",
+            f"Pas de chance, tu viens de perdre **{amount} 🪙**.",
+            f"Tu as perdu **{amount} 🪙**. C'est dommage.",
+            f"Tu as fait une mauvaise chance, tu perds **{amount} 🪙**.",
+            f"Ce coup-ci, tu perds **{amount} 🪙**.",
+            f"Malheureusement, tu perds **{amount} 🪙**.",
+            f"T'es tombé sur une mauvaise chance, tu perds **{amount} 🪙**.",
+            f"Tu perds **{amount} 🪙**. Retente ta chance !",
+            f"T'as perdu **{amount} 🪙**. La prochaine sera la bonne.",
+            f"Pas de chance, tu perds **{amount} 🪙**.",
+            f"Tu as perdu **{amount} 🪙** cette fois.",
+            f"Tu perds **{amount} 🪙**. Essaye encore !",
+            f"Tu n'as pas eu de chance, tu perds **{amount} 🪙**.",
+            f"Tu perds **{amount} 🪙**. La chance reviendra !"
+        ]
+        # Sélectionner un message de perte au hasard
+        message = random.choice(messages)
+
+        # Déduire de l'argent du wallet de l'utilisateur
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": -amount}},
+            upsert=True
+        )
+
+    # Mettre à jour le cooldown
+    collection3.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_slut_time": now}},
+        upsert=True
+    )
+
+    # Envoyer le message de résultat
+    await ctx.send(message)
+
+# Gestion des erreurs
+@slut.error
+async def slut_error(ctx, error):
+    await ctx.send("❌ Une erreur est survenue lors de la commande.")
+
+@bot.hybrid_command(name="crime", description="Participe à un crime pour essayer de gagner de l'argent, mais attention, tu pourrais perdre !")
+async def crime(ctx: commands.Context):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Vérifier le cooldown de 30 minutes
+    now = datetime.utcnow()
+    cooldown_data = collection4.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    last_crime_time = cooldown_data.get("last_crime_time", None)
+
+    if last_crime_time:
+        time_diff = now - last_crime_time
+        if time_diff < timedelta(minutes=30):
+            remaining_time = timedelta(minutes=30) - time_diff
+            minutes_left = remaining_time.total_seconds() // 60
+            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
+
+    # Gagner ou perdre de l'argent
+    gain_or_loss = random.choice(["gain", "loss"])
+
+    if gain_or_loss == "gain":
+        amount = random.randint(250, 2000)
+        # Liste de 20 messages de succès
+        messages = [
+            f"Tu as réussi ton crime et gagné **{amount} 🪙**.",
+            f"Félicitations ! Tu as gagné **{amount} 🪙** après ton crime.",
+            f"Bien joué, tu as gagné **{amount} 🪙** grâce à ton coup de maître.",
+            f"Tu as réussi à te faire un joli gain de **{amount} 🪙**.",
+            f"Bravo, ton crime t'a rapporté **{amount} 🪙**.",
+            f"Tu as récolté **{amount} 🪙** grâce à ton crime.",
+            f"Ton crime a porté ses fruits, tu gagnes **{amount} 🪙**.",
+            f"Félicitations, tu as gagné **{amount} 🪙** après ton braquage.",
+            f"Ton crime a été couronné de succès, tu gagnes **{amount} 🪙**.",
+            f"Tu as bien joué ! **{amount} 🪙** sont à toi.",
+            f"Ton crime t'a rapporté **{amount} 🪙**.",
+            f"Tu as bien tiré ton épingle du jeu avec **{amount} 🪙**.",
+            f"Un joli gain de **{amount} 🪙** pour toi !",
+            f"Tu as fait un coup de maître, tu as gagné **{amount} 🪙**.",
+            f"Tu as gagné **{amount} 🪙** grâce à ta stratégie parfaite.",
+            f"Bravo, tu as réussi à obtenir **{amount} 🪙**.",
+            f"Ton crime a payé, tu as gagné **{amount} 🪙**.",
+            f"Le butin est à toi ! **{amount} 🪙**.",
+            f"Tu es un criminel chanceux, tu as gagné **{amount} 🪙**.",
+            f"Ton coup a payé, tu gagnes **{amount} 🪙**."
+        ]
+        # Sélectionner un message de succès au hasard
+        message = random.choice(messages)
+
+        # Ajouter de l'argent au wallet de l'utilisateur
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": amount}},
+            upsert=True
+        )
+
+    else:
+        amount = random.randint(250, 2000)
+        # Liste de 20 messages de perte
+        messages = [
+            f"Malheureusement, ton crime a échoué et tu as perdu **{amount} 🪙**.",
+            f"Pas de chance, tu perds **{amount} 🪙** après ton crime.",
+            f"Ton crime a échoué et tu perds **{amount} 🪙**.",
+            f"Oups, tu as perdu **{amount} 🪙** en tentant un crime.",
+            f"Tu as fait une erreur et perdu **{amount} 🪙**.",
+            f"Ton coup n'a pas fonctionné, tu perds **{amount} 🪙**.",
+            f"Tu as perdu **{amount} 🪙** à cause de ton crime raté.",
+            f"Dommage, tu perds **{amount} 🪙** cette fois.",
+            f"Ton crime n'a pas payé, tu perds **{amount} 🪙**.",
+            f"Tu as raté, tu perds **{amount} 🪙**.",
+            f"Le crime ne paie pas, tu perds **{amount} 🪙**.",
+            f"Tu perds **{amount} 🪙** après ton crime échoué.",
+            f"Ce coup a échoué, tu perds **{amount} 🪙**.",
+            f"Tu as perdu **{amount} 🪙** à cause d'un crime mal exécuté.",
+            f"Pas de chance, tu perds **{amount} 🪙**.",
+            f"Tu as perdu **{amount} 🪙** dans ce crime.",
+            f"Le crime ne t'a pas souri, tu perds **{amount} 🪙**.",
+            f"Tu perds **{amount} 🪙** à cause de ton erreur.",
+            f"Ce crime ne t'a rien rapporté, tu perds **{amount} 🪙**.",
+            f"Oups, tu perds **{amount} 🪙** dans ce crime.",
+            f"Ton crime a échoué, tu perds **{amount} 🪙**."
+        ]
+        # Sélectionner un message de perte au hasard
+        message = random.choice(messages)
+
+        # Déduire de l'argent du wallet de l'utilisateur
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": -amount}},
+            upsert=True
+        )
+
+    # Mettre à jour le cooldown
+    collection4.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_crime_time": now}},
+        upsert=True
+    )
+
+    # Envoyer le message de résultat
+    await ctx.send(message)
+
+# Gestion des erreurs
+@crime.error
+async def crime_error(ctx, error):
+    await ctx.send("❌ Une erreur est survenue lors de la commande.")
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
