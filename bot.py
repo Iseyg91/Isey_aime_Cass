@@ -673,9 +673,8 @@ import random
 from discord.ext import commands
 import discord
 
-# Commande buy chicken
-@bot.command(name="buy chicken", aliases=["buy c"])
-async def buy_chicken(ctx):
+@bot.command(name="buy")
+async def buy_item(ctx, item: str):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
@@ -684,24 +683,27 @@ async def buy_chicken(ctx):
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = data.get("wallet", 0) if data else 0
 
-    if balance >= 100:
-        # Acheter un poulet en retirant 100 coins
-        collection.update_one(
-            {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": -100}},
-            upsert=True
-        )
+    if item.lower() in ["chicken", "c", "poulet"]:
+        if balance >= 100:
+            # Retirer 100 coins
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$inc": {"wallet": -100}},
+                upsert=True
+            )
 
-        # Ajouter le poulet à l'inventaire de l'utilisateur
-        collection7.update_one(
-            {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"chicken": True}},
-            upsert=True
-        )
+            # Ajouter le poulet à l'inventaire
+            collection7.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$set": {"chicken": True}},
+                upsert=True
+            )
 
-        await ctx.send(f"{user.mention} a acheté un poulet pour **100 🪙** et peut maintenant participer au Cock-Fight !")
+            await ctx.send(f"{user.mention} a acheté un poulet pour **100 🪙** et peut maintenant participer au Cock-Fight !")
+        else:
+            await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un poulet !")
     else:
-        await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un poulet !")
+        await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
 
 # Commande cock-fight
 @bot.command(name="cock-fight", aliases=["cf"])
