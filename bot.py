@@ -39,6 +39,41 @@ print("Mongo URI :", mongo_uri)  # Cela affichera l'URI de connexion (assure-toi
 client = MongoClient(mongo_uri)
 db = client['Cass-Eco2']
 
+# Collections
+collection = db['ether_eco']  #Stock les Bal
+collection2 = db['ether_daily']  #Stock les cd de daily
+collection3 = db['ether_slut']  #Stock les cd de slut
+collection4 = db['ether_crime']  #Stock les cd de slut
+collection5 = db['ether_collect'] #Stock les cd de collect
+collection6 = db['ether_work'] #Stock les cd de Work
+collection7 = db['ether_inventory'] #Stock les inventaires
+
+def load_guild_settings(guild_id):
+    # Charger les données de la collection principale
+    ether_eco_data = collection.find_one({"guild_id": guild_id}) or {}
+    ether_daily_data = collection2.find_one({"guild_id": guild_id}) or {}
+    ether_slut_data = collection3.find_one({"guild_id": guild_id}) or {}
+    ether_crime_data = collection4.find_one({"guild_id": guild_id}) or {}
+    ether_collect = collection5.find_one({"guild_id": guild_id}) or {}
+    ether_work_data = collection6.find_one({"guild_id": guild_id}) or {}
+    ether_inventory_data = collection7.find_one({"guild_id": guild_id}) or {}
+
+    # Débogage : Afficher les données de setup
+    print(f"Setup data for guild {guild_id}: {setup_data}")
+
+    combined_data = {
+        "ether_eco": ether_eco_data,
+        "ether_daily": ether_daily_data,
+        "ether_slut": ether_slut_data,
+        "ether_crime": ether_crime_data,
+        "ether_collect": ether_collect_data,
+        "ether_work": ether_work_data,
+        "ether_inventory": ether_inventory_data
+
+    }
+
+    return combined_data
+
 @bot.event
 async def on_ready():
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
@@ -105,6 +140,27 @@ async def on_error(event, *args, **kwargs):
         color=discord.Color.red()
     )
     await args[0].response.send_message(embed=embed)
+
+@bot.hybrid_command(name="bal", aliases=["balance", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
+async def bal(ctx: commands.Context, user: discord.User = None):
+    user = user or ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Cherche les données de l'utilisateur dans la collection ether_eco
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+
+    balance = data.get("wallet", 0) if data else 0
+    bank = data.get("bank", 0) if data else 0
+    total = balance + bank
+
+    embed = discord.Embed(title=f"💰 Balance de {user.display_name}", color=discord.Color.gold())
+    embed.add_field(name="Portefeuille", value=f"{balance} 🪙", inline=True)
+    embed.add_field(name="Banque", value=f"{bank} 🏦", inline=True)
+    embed.add_field(name="Total", value=f"{total} 💵", inline=False)
+    embed.set_footer(text=f"Demandé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
