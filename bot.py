@@ -705,7 +705,6 @@ async def buy_item(ctx, item: str):
     else:
         await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
 
-# Commande cock-fight
 @bot.command(name="cock-fight", aliases=["cf"])
 async def cock_fight(ctx, amount: int):
     user = ctx.author
@@ -738,44 +737,39 @@ async def cock_fight(ctx, amount: int):
     win_streak = win_data.get("win_streak", 0) if win_data else 0
 
     # Calcul de la probabilité de gagner
-    win_probability = 50 + win_streak  # 50% de chance de base, +1% par victoire
+    win_probability = 50 + win_streak  # 50% de base +1% par victoire
     if win_probability > 100:
-        win_probability = 100  # Limiter à 100%
+        win_probability = 100
 
-    # Vérifier si l'utilisateur gagne ou perd
+    # Vérifier si l'utilisateur gagne
     win_roll = random.randint(1, 100)
     if win_roll <= win_probability:
-        # L'utilisateur gagne
-        win_amount = amount * 2  # Double la mise
+        # Gagné
+        win_amount = amount * 2
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": win_amount}},
             upsert=True
         )
-        # Incrémenter la streak de victoires
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"win_streak": 1}},
             upsert=True
         )
-
-        await ctx.send(f"Félicitations {user.mention} ! Tu as gagné **{win_amount} 🪙** grâce à ton poulet ! Ta streak de victoires est maintenant de {win_streak + 1}.")
+        await ctx.send(f"🐓 Victoire ! {user.mention}, tu as gagné **{win_amount} 🪙** ! Ta streak est maintenant de `{win_streak + 1}`.")
     else:
-        # L'utilisateur perd
-        loss_amount = random.randint(250, 2000)  # L'utilisateur perd entre 250 et 2000 coins
+        # Perdu, on retire uniquement la mise
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": -loss_amount}},
+            {"$inc": {"wallet": -amount}},
             upsert=True
         )
-        # Réinitialiser la streak de victoires
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"win_streak": 0}},
             upsert=True
         )
-
-        await ctx.send(f"Désolé {user.mention}, tu as perdu **{loss_amount} 🪙**. Ta streak de victoires est maintenant réinitialisée.")
+        await ctx.send(f"💀 Défaite... {user.mention}, tu as perdu **{amount} 🪙**. Ta streak a été réinitialisée.")
 
 
 # Token pour démarrer le bot (à partir des secrets)
