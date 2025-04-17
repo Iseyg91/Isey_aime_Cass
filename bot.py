@@ -221,6 +221,114 @@ async def deposit(ctx: commands.Context, amount: str = None):
 
     await ctx.send(f"✅ Tu as déposé **{deposited_amount} 🪙** dans ta banque.")
 
+@bot.hybrid_command(name="withdraw", aliases=["with"], description="Retire de l'argent de ta banque vers ton portefeuille.")
+async def withdraw(ctx: commands.Context, amount: str):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Chercher les données actuelles
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+
+    wallet = data.get("wallet", 0)
+    bank = data.get("bank", 0)
+
+    # Gérer le cas "all"
+    if amount.lower() == "all":
+        if bank == 0:
+            return await ctx.send(f"💸 Tu n'as rien à retirer.")
+        withdrawn_amount = bank
+    else:
+        # Vérifie que c'est un nombre valide
+        if not amount.isdigit():
+            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
+        withdrawn_amount = int(amount)
+        if withdrawn_amount <= 0:
+            return await ctx.send("❌ Tu dois retirer un montant supérieur à zéro.")
+        if withdrawn_amount > bank:
+            return await ctx.send("❌ Tu n'as pas assez d'argent dans ta banque.")
+
+    # Mise à jour dans la base de données
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"wallet": withdrawn_amount, "bank": -withdrawn_amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ Tu as retiré **{withdrawn_amount} 🪙** de ta banque vers ton portefeuille.")
+
+@bot.hybrid_command(name="add-money", description="Ajoute de l'argent à un utilisateur (réservé aux administrateurs).")
+@app_commands.describe(
+    user="L'utilisateur à créditer",
+    amount="Le montant à ajouter",
+    account="Choisis où ajouter l'argent : bank ou wallet"
+)
+@commands.has_permissions(administrator=True)
+async def add_money(ctx: commands.Context, user: discord.User, amount: int, account: str):
+    if account.lower() not in ["wallet", "bank"]:
+        return await ctx.send("❌ Veuillez choisir `wallet` ou `bank` comme compte cible.")
+
+    if amount <= 0:
+        return await ctx.send("❌ Le montant doit être supérieur à zéro.")
+
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Mise à jour MongoDB
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {account.lower(): amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ Tu as ajouté **{amount} 🪙** à {user.mention} dans son **{account.lower()}**.")
+
+# Gestion des erreurs de permissions
+@add_money.error
+async def add_money_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("🚫 Tu n'as pas la permission d'utiliser cette commande.")
+
+@bot.hybrid_command(name="remove-money", description="Retire de l'argent à un utilisateur.")
+@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à retirer", location="Choisis entre wallet ou bank")
+@app_commands.choices(location=[
+    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Bank", value="bank"),
+])
+@commands.has_permissions(administrator=True)
+async def remove_money(ctx: commands.Context, user: discord.User, amount: int, location: app_commands.Choice[str]):
+    if amount <= 0:
+        return await ctx.send("❌ Le montant doit être supérieur à 0.")
+
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    field = location.value
+
+    # Vérifie le solde actuel
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    current_balance = data.get(field, 0)
+
+    if current_balance < amount:
+        return await ctx.send(f"❌ {user.display_name} n'a pas assez de fonds dans son `{field}` pour retirer {amount} 🪙.")
+
+    # Met à jour la base de données
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {field: -amount}},
+        upsert=True
+    )
+
+    await ctx.send(f"✅ Tu as retiré **{amount} 🪙** de la **{field}** de {user.mention}.")
+
+@remove_money.error
+async def remove_money_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Tu dois être administrateur pour utiliser cette commande.")
+    else:
+        await ctx.send("❌ Une erreur est survenue.")
+
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
