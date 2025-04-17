@@ -674,7 +674,7 @@ from discord.ext import commands
 import discord
 
 # Commande buy chicken
-@bot.command(name="buy chicken", aliases=["buy c", "buy h", "buy i", "buy k", "buy e", "buy n"])
+@bot.command(name="buy chicken", aliases=["buy c"])
 async def buy_chicken(ctx):
     user = ctx.author
     guild_id = ctx.guild.id
