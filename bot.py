@@ -152,6 +152,7 @@ async def uptime(ctx):
 
 @bot.hybrid_command(name="bal", aliases=["balance", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
 async def bal(ctx: commands.Context, user: discord.User = None):
+    # Utilise l'utilisateur appelant si aucun utilisateur n'est précisé
     user = user or ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
@@ -159,16 +160,19 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     # Cherche les données de l'utilisateur dans la collection ether_eco
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
 
+    # Récupère les valeurs ou 0 si non trouvées
     balance = data.get("wallet", 0) if data else 0
     bank = data.get("bank", 0) if data else 0
     total = balance + bank
 
+    # Création de l'embed
     embed = discord.Embed(title=f"💰 Balance de {user.display_name}", color=discord.Color.gold())
-    embed.add_field(name="Portefeuille", value=f"{balance} 🪙", inline=True)
+    embed.add_field(name="Portefeuille", value=f"{balance} <:ecoEther:1341862366249357374>", inline=True)
     embed.add_field(name="Banque", value=f"{bank} 🏦", inline=True)
     embed.add_field(name="Total", value=f"{total} 💵", inline=False)
     embed.set_footer(text=f"Demandé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
+    # Envoi du message avec l'embed
     await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
@@ -190,7 +194,7 @@ async def deposit(ctx: commands.Context, amount: str = None):
     # Gérer le cas "all"
     if amount.lower() == "all":
         if wallet == 0:
-            return await ctx.send(f"💸 Tu n'as rien à déposer.")
+            return await ctx.send("💸 Tu n'as rien à déposer.")
         deposited_amount = wallet
     else:
         # Vérifie que c'est un nombre valide
@@ -209,7 +213,15 @@ async def deposit(ctx: commands.Context, amount: str = None):
         upsert=True
     )
 
-    await ctx.send(f"✅ Tu as déposé **{deposited_amount} 🪙** dans ta banque.")
+    # Création de l'embed de succès
+    embed = discord.Embed(
+        title="✅ Dépôt effectué avec succès!",
+        description=f"Tu as déposé **{deposited_amount} <:ecoEther:1341862366249357374>** dans ta banque.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="withdraw", aliases=["with"], description="Retire de l'argent de ta banque vers ton portefeuille.")
 async def withdraw(ctx: commands.Context, amount: str):
@@ -226,7 +238,7 @@ async def withdraw(ctx: commands.Context, amount: str):
     # Gérer le cas "all"
     if amount.lower() == "all":
         if bank == 0:
-            return await ctx.send(f"💸 Tu n'as rien à retirer.")
+            return await ctx.send("💸 Tu n'as rien à retirer.")
         withdrawn_amount = bank
     else:
         # Vérifie que c'est un nombre valide
@@ -245,7 +257,15 @@ async def withdraw(ctx: commands.Context, amount: str):
         upsert=True
     )
 
-    await ctx.send(f"✅ Tu as retiré **{withdrawn_amount} 🪙** de ta banque vers ton portefeuille.")
+    # Création de l'embed de succès
+    embed = discord.Embed(
+        title="✅ Retrait effectué avec succès!",
+        description=f"Tu as retiré **{withdrawn_amount} <:ecoEther:1341862366249357374>** de ta banque vers ton portefeuille.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="add-money", description="Ajoute de l'argent à un utilisateur (réservé aux administrateurs).")
 @app_commands.describe(
@@ -271,7 +291,15 @@ async def add_money(ctx: commands.Context, user: discord.User, amount: int, acco
         upsert=True
     )
 
-    await ctx.send(f"✅ Tu as ajouté **{amount} 🪙** à {user.mention} dans son **{account.lower()}**.")
+    # Création de l'embed de confirmation
+    embed = discord.Embed(
+        title="✅ Argent ajouté avec succès !",
+        description=f"**{amount} <:ecoEther:1341862366249357374>** a été ajouté à {user.mention} dans son **{account.lower()}**.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs de permissions
 @add_money.error
@@ -300,17 +328,26 @@ async def remove_money(ctx: commands.Context, user: discord.User, amount: int, l
     current_balance = data.get(field, 0)
 
     if current_balance < amount:
-        return await ctx.send(f"❌ {user.display_name} n'a pas assez de fonds dans son `{field}` pour retirer {amount} 🪙.")
+        return await ctx.send(f"❌ {user.display_name} n'a pas assez de fonds dans son `{field}` pour retirer {amount} <:ecoEther:1341862366249357374>.")
 
-    # Met à jour la base de données
+    # Mise à jour dans la base de données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {field: -amount}},
         upsert=True
     )
 
-    await ctx.send(f"✅ Tu as retiré **{amount} 🪙** de la **{field}** de {user.mention}.")
+    # Création de l'embed de confirmation
+    embed = discord.Embed(
+        title="✅ Retrait effectué avec succès !",
+        description=f"**{amount} <:ecoEther:1341862366249357374>** a été retiré de la **{field}** de {user.mention}.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
+    await ctx.send(embed=embed)
+
+# Gestion des erreurs de permissions
 @remove_money.error
 async def remove_money_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
@@ -333,15 +370,24 @@ async def set_money(ctx: commands.Context, user: discord.User, amount: int, loca
     user_id = user.id
     field = location.value
 
-    # Met à jour la base de données
+    # Mise à jour de la base de données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {field: amount}},
         upsert=True
     )
 
-    await ctx.send(f"✅ Tu as défini le montant de **{field}** de {user.mention} à **{amount} 🪙**.")
+    # Création de l'embed de confirmation
+    embed = discord.Embed(
+        title="✅ Montant défini avec succès !",
+        description=f"Le montant de **{field}** de {user.mention} a été défini à **{amount} <:ecoEther:1341862366249357374>**.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
+    await ctx.send(embed=embed)
+
+# Gestion des erreurs de permissions
 @set_money.error
 async def set_money_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
@@ -379,7 +425,15 @@ async def pay(ctx: commands.Context, user: discord.User, amount: int):
         upsert=True
     )
 
-    await ctx.send(f"✅ {sender.mention} a payé **{amount} 🪙** à {user.mention}.")
+    # Création de l'embed de confirmation
+    embed = discord.Embed(
+        title="✅ Paiement effectué avec succès !",
+        description=f"{sender.mention} a payé **{amount} <:ecoEther:1341862366249357374>** à {user.mention}.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @pay.error
@@ -409,27 +463,27 @@ async def work(ctx: commands.Context):
 
     # Liste de 20 messages possibles
     messages = [
-        f"Tu as travaillé dur et gagné **{amount} 🪙**. Bien joué !",
-        f"Bravo ! Tu as gagné **{amount} 🪙** après ton travail.",
-        f"Tu as travaillé avec assiduité et tu récoltes **{amount} 🪙**.",
-        f"Du bon travail ! Voici **{amount} 🪙** pour toi.",
-        f"Félicitations, tu as gagné **{amount} 🪙** pour ton travail.",
-        f"Grâce à ton travail, tu as gagné **{amount} 🪙**.",
-        f"Tu as gagné **{amount} 🪙** après une journée de travail bien remplie !",
-        f"Un bon travail mérite **{amount} 🪙**. Félicitations !",
-        f"Après une journée difficile, tu récoltes **{amount} 🪙**.",
-        f"Tu as travaillé dur et mérites tes **{amount} 🪙**.",
-        f"Tu as fait un excellent travail et gagné **{amount} 🪙**.",
-        f"Un travail acharné rapporte **{amount} 🪙**.",
-        f"Bien joué ! **{amount} 🪙** ont été ajoutés à ta balance.",
-        f"Ton travail t'a rapporté **{amount} 🪙**.",
-        f"Tu as bien bossé et gagné **{amount} 🪙**.",
-        f"Les fruits de ton travail : **{amount} 🪙**.",
-        f"Un travail bien fait t'a rapporté **{amount} 🪙**.",
-        f"Tu es payé pour ton dur labeur : **{amount} 🪙**.",
-        f"Voici ta récompense pour ton travail : **{amount} 🪙**.",
-        f"Ton travail t'a rapporté une belle somme de **{amount} 🪙**.",
-        f"Tu as gagné **{amount} 🪙** pour ta persévérance et ton travail.",
+        f"Tu as travaillé dur et gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
+        f"Bravo ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton travail.",
+        f"Tu as travaillé avec assiduité et tu récoltes **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Du bon travail ! Voici **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+        f"Félicitations, tu as gagné **{amount} <:ecoEther:1341862366249357374>** pour ton travail.",
+        f"Grâce à ton travail, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après une journée de travail bien remplie !",
+        f"Un bon travail mérite **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
+        f"Après une journée difficile, tu récoltes **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu as travaillé dur et mérites tes **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu as fait un excellent travail et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Un travail acharné rapporte **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Bien joué ! **{amount} <:ecoEther:1341862366249357374>** ont été ajoutés à ta balance.",
+        f"Ton travail t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu as bien bossé et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Les fruits de ton travail : **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Un travail bien fait t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu es payé pour ton dur labeur : **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Voici ta récompense pour ton travail : **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Ton travail t'a rapporté une belle somme de **{amount} <:ecoEther:1341862366249357374>**.",
+        f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>** pour ta persévérance et ton travail.",
     ]
 
     # Sélectionner un message au hasard
@@ -449,8 +503,15 @@ async def work(ctx: commands.Context):
         upsert=True
     )
 
-    # Envoyer le message de succès
-    await ctx.send(message)
+    # Création de l'embed de confirmation
+    embed = discord.Embed(
+        title="✅ Travail accompli avec succès !",
+        description=f"{user.mention}, tu as gagné **{amount} <:ecoEther:1341862366249357374>** pour ton travail.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @work.error
@@ -482,26 +543,26 @@ async def slut(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de succès
         messages = [
-            f"Tu as eu de la chance et gagné **{amount} 🪙**.",
-            f"Félicitations ! Tu as gagné **{amount} 🪙**.",
-            f"Bravo, tu as gagné **{amount} 🪙** grâce à ta chance.",
-            f"Tu as réussi à gagner **{amount} 🪙**.",
-            f"Bien joué ! Tu as gagné **{amount} 🪙**.",
-            f"Une grande chance t'a souri, tu as gagné **{amount} 🪙**.",
-            f"Tu as gagné **{amount} 🪙**. Continue comme ça !",
-            f"Tu as gagné **{amount} 🪙**. Bien joué !",
-            f"Chanceux, tu as gagné **{amount} 🪙**.",
-            f"Une belle récompense ! **{amount} 🪙** pour toi.",
-            f"Tu as récolté **{amount} 🪙** grâce à ta chance.",
-            f"Tu es vraiment chanceux, tu as gagné **{amount} 🪙**.",
-            f"Tu as fait un gros coup, **{amount} 🪙** pour toi.",
-            f"Tu as de la chance, tu as gagné **{amount} 🪙**.",
-            f"Tu as fait le bon choix, tu as gagné **{amount} 🪙**.",
-            f"Ta chance t'a permis de gagner **{amount} 🪙**.",
-            f"Voici ta récompense de **{amount} 🪙** pour ta chance.",
-            f"Bravo, tu es maintenant plus riche de **{amount} 🪙**.",
-            f"Tu as gagné **{amount} 🪙**. Félicitations !",
-            f"Ta chance t'a permis de remporter **{amount} 🪙**."
+            f"Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
+            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
+            f"Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
+            f"Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
+            f"Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
         ]
         # Sélectionner un message au hasard
         message = random.choice(messages)
@@ -517,26 +578,26 @@ async def slut(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de perte
         messages = [
-            f"Malheureusement, tu as perdu **{amount} 🪙**.",
-            f"Désolé, tu perds **{amount} 🪙**.",
-            f"La chance ne t'a pas souri cette fois, tu as perdu **{amount} 🪙**.",
-            f"T'as perdu **{amount} 🪙**. Mieux vaut retenter une autre fois.",
-            f"Ah non, tu as perdu **{amount} 🪙**.",
-            f"Pas de chance, tu perds **{amount} 🪙**.",
-            f"Oups, tu perds **{amount} 🪙** cette fois.",
-            f"Pas de chance, tu viens de perdre **{amount} 🪙**.",
-            f"Tu as perdu **{amount} 🪙**. C'est dommage.",
-            f"Tu as fait une mauvaise chance, tu perds **{amount} 🪙**.",
-            f"Ce coup-ci, tu perds **{amount} 🪙**.",
-            f"Malheureusement, tu perds **{amount} 🪙**.",
-            f"T'es tombé sur une mauvaise chance, tu perds **{amount} 🪙**.",
-            f"Tu perds **{amount} 🪙**. Retente ta chance !",
-            f"T'as perdu **{amount} 🪙**. La prochaine sera la bonne.",
-            f"Pas de chance, tu perds **{amount} 🪙**.",
-            f"Tu as perdu **{amount} 🪙** cette fois.",
-            f"Tu perds **{amount} 🪙**. Essaye encore !",
-            f"Tu n'as pas eu de chance, tu perds **{amount} 🪙**.",
-            f"Tu perds **{amount} 🪙**. La chance reviendra !"
+            f"Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
+            f"Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
+            f"Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
+            f"T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
+            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
+            f"Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
         ]
         # Sélectionner un message de perte au hasard
         message = random.choice(messages)
@@ -555,8 +616,15 @@ async def slut(ctx: commands.Context):
         upsert=True
     )
 
-    # Envoyer le message de résultat
-    await ctx.send(message)
+    # Création de l'embed de résultat
+    embed = discord.Embed(
+        title="🎰 Résultat de ta chance",
+        description=message,
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @slut.error
@@ -588,26 +656,26 @@ async def crime(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de succès
         messages = [
-            f"Tu as réussi ton crime et gagné **{amount} 🪙**.",
-            f"Félicitations ! Tu as gagné **{amount} 🪙** après ton crime.",
-            f"Bien joué, tu as gagné **{amount} 🪙** grâce à ton coup de maître.",
-            f"Tu as réussi à te faire un joli gain de **{amount} 🪙**.",
-            f"Bravo, ton crime t'a rapporté **{amount} 🪙**.",
-            f"Tu as récolté **{amount} 🪙** grâce à ton crime.",
-            f"Ton crime a porté ses fruits, tu gagnes **{amount} 🪙**.",
-            f"Félicitations, tu as gagné **{amount} 🪙** après ton braquage.",
-            f"Ton crime a été couronné de succès, tu gagnes **{amount} 🪙**.",
-            f"Tu as bien joué ! **{amount} 🪙** sont à toi.",
-            f"Ton crime t'a rapporté **{amount} 🪙**.",
-            f"Tu as bien tiré ton épingle du jeu avec **{amount} 🪙**.",
-            f"Un joli gain de **{amount} 🪙** pour toi !",
-            f"Tu as fait un coup de maître, tu as gagné **{amount} 🪙**.",
-            f"Tu as gagné **{amount} 🪙** grâce à ta stratégie parfaite.",
-            f"Bravo, tu as réussi à obtenir **{amount} 🪙**.",
-            f"Ton crime a payé, tu as gagné **{amount} 🪙**.",
-            f"Le butin est à toi ! **{amount} 🪙**.",
-            f"Tu es un criminel chanceux, tu as gagné **{amount} 🪙**.",
-            f"Ton coup a payé, tu gagnes **{amount} 🪙**."
+            f"Tu as réussi ton crime et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
+            f"Bien joué, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ton coup de maître.",
+            f"Tu as réussi à te faire un joli gain de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Bravo, ton crime t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ton crime.",
+            f"Ton crime a porté ses fruits, tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Félicitations, tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton braquage.",
+            f"Ton crime a été couronné de succès, tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as bien joué ! **{amount} <:ecoEther:1341862366249357374>** sont à toi.",
+            f"Ton crime t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as bien tiré ton épingle du jeu avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Un joli gain de **{amount} <:ecoEther:1341862366249357374>** pour toi !",
+            f"Tu as fait un coup de maître, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta stratégie parfaite.",
+            f"Bravo, tu as réussi à obtenir **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton crime a payé, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Le butin est à toi ! **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu es un criminel chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton coup a payé, tu gagnes **{amount} <:ecoEther:1341862366249357374>**."
         ]
         # Sélectionner un message de succès au hasard
         message = random.choice(messages)
@@ -623,27 +691,27 @@ async def crime(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de perte
         messages = [
-            f"Malheureusement, ton crime a échoué et tu as perdu **{amount} 🪙**.",
-            f"Pas de chance, tu perds **{amount} 🪙** après ton crime.",
-            f"Ton crime a échoué et tu perds **{amount} 🪙**.",
-            f"Oups, tu as perdu **{amount} 🪙** en tentant un crime.",
-            f"Tu as fait une erreur et perdu **{amount} 🪙**.",
-            f"Ton coup n'a pas fonctionné, tu perds **{amount} 🪙**.",
-            f"Tu as perdu **{amount} 🪙** à cause de ton crime raté.",
-            f"Dommage, tu perds **{amount} 🪙** cette fois.",
-            f"Ton crime n'a pas payé, tu perds **{amount} 🪙**.",
-            f"Tu as raté, tu perds **{amount} 🪙**.",
-            f"Le crime ne paie pas, tu perds **{amount} 🪙**.",
-            f"Tu perds **{amount} 🪙** après ton crime échoué.",
-            f"Ce coup a échoué, tu perds **{amount} 🪙**.",
-            f"Tu as perdu **{amount} 🪙** à cause d'un crime mal exécuté.",
-            f"Pas de chance, tu perds **{amount} 🪙**.",
-            f"Tu as perdu **{amount} 🪙** dans ce crime.",
-            f"Le crime ne t'a pas souri, tu perds **{amount} 🪙**.",
-            f"Tu perds **{amount} 🪙** à cause de ton erreur.",
-            f"Ce crime ne t'a rien rapporté, tu perds **{amount} 🪙**.",
-            f"Oups, tu perds **{amount} 🪙** dans ce crime.",
-            f"Ton crime a échoué, tu perds **{amount} 🪙**."
+            f"Malheureusement, ton crime a échoué et tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
+            f"Ton crime a échoué et tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Oups, tu as perdu **{amount} <:ecoEther:1341862366249357374>** en tentant un crime.",
+            f"Tu as fait une erreur et perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton coup n'a pas fonctionné, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** à cause de ton crime raté.",
+            f"Dommage, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"Ton crime n'a pas payé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as raté, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Le crime ne paie pas, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu perds **{amount} <:ecoEther:1341862366249357374>** après ton crime échoué.",
+            f"Ce coup a échoué, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** à cause d'un crime mal exécuté.",
+            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** dans ce crime.",
+            f"Le crime ne t'a pas souri, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu perds **{amount} <:ecoEther:1341862366249357374>** à cause de ton erreur.",
+            f"Ce crime ne t'a rien rapporté, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** dans ce crime.",
+            f"Ton crime a échoué, tu perds **{amount} <:ecoEther:1341862366249357374>**."
         ]
         # Sélectionner un message de perte au hasard
         message = random.choice(messages)
@@ -662,16 +730,20 @@ async def crime(ctx: commands.Context):
         upsert=True
     )
 
-    # Envoyer le message de résultat
-    await ctx.send(message)
+    # Création de l'embed de résultat
+    embed = discord.Embed(
+        title="💥 Résultat de ton crime",
+        description=message,
+        color=discord.Color.red()
+    )
+    embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @crime.error
 async def crime_error(ctx, error):
     await ctx.send("❌ Une erreur est survenue lors de la commande.")
-import random
-from discord.ext import commands
-import discord
 
 @bot.command(name="buy", aliases=["chicken", "c", "h", "i", "k", "e", "n"])
 async def buy_item(ctx, item: str):
@@ -683,25 +755,45 @@ async def buy_item(ctx, item: str):
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = data.get("wallet", 0) if data else 0
 
-    if item.lower() in ["chicken", "c", "poulet", "h", "i", "k", "e", "n"]:
-        if balance >= 100:
-            # Retirer 100 coins
+    # Liste des objets à acheter et leurs prix
+    items_for_sale = {
+        "chicken": 100,
+        # Vous pouvez ajouter d'autres objets ici avec leurs prix
+        # "item_name": price
+    }
+
+    # Vérification de l'objet choisi
+    item = item.lower()
+    if item in items_for_sale:
+        price = items_for_sale[item]
+
+        if balance >= price:
+            # Retirer l'argent du wallet de l'utilisateur
             collection.update_one(
                 {"guild_id": guild_id, "user_id": user_id},
-                {"$inc": {"wallet": -100}},
+                {"$inc": {"wallet": -price}},
                 upsert=True
             )
 
-            # Ajouter le poulet à l'inventaire
+            # Ajouter l'objet au profil de l'utilisateur (ici, un poulet)
             collection7.update_one(
                 {"guild_id": guild_id, "user_id": user_id},
-                {"$set": {"chicken": True}},
+                {"$set": {item: True}},
                 upsert=True
             )
 
-            await ctx.send(f"{user.mention} a acheté un poulet pour **100 🪙** et peut maintenant participer au Cock-Fight !")
+            # Création d'un embed pour rendre l'achat plus visuel
+            embed = discord.Embed(
+                title=f"Achat réussi !",
+                description=f"{user.mention} a acheté un **{item}** pour **{price} <:ecoEther:1341862366249357374>** !",
+                color=discord.Color.green()
+            )
+            embed.set_footer(text=f"Merci pour ton achat !")
+            await ctx.send(embed=embed)
+
         else:
-            await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un poulet !")
+            await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un **{item}** !")
+
     else:
         await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
 
@@ -742,7 +834,9 @@ async def cock_fight(ctx, amount: int):
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
     win_streak = win_data.get("win_streak", 0) if win_data else 0
 
+    # Calcul de la probabilité de victoire
     win_probability = min(50 + win_streak, 100)
+    await ctx.send(f"⚔️ **Probabilité de victoire : {win_probability}%**")
 
     # Combat
     if random.randint(1, 100) <= win_probability:
@@ -757,7 +851,15 @@ async def cock_fight(ctx, amount: int):
             {"$inc": {"win_streak": 1}},
             upsert=True
         )
-        await ctx.send(f"🐓 Victoire ! {user.mention}, tu as gagné **{win_amount} 🪙** ! Ta streak est maintenant de `{win_streak + 1}`.")
+        
+        # Message de victoire avec Embed
+        embed = discord.Embed(
+            title="🐓 Victoire !",
+            description=f"{user.mention}, tu as gagné **{win_amount} 🪙** ! Ta streak est maintenant de **{win_streak + 1}**.",
+            color=discord.Color.green()
+        )
+        embed.set_footer(text="Bravo, continue sur ta lancée !")
+        await ctx.send(embed=embed)
     else:
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
@@ -769,7 +871,15 @@ async def cock_fight(ctx, amount: int):
             {"$set": {"win_streak": 0}},
             upsert=True
         )
-        await ctx.send(f"💀 Défaite... {user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta streak est maintenant de `0`.")
+        
+        # Message de défaite avec Embed
+        embed = discord.Embed(
+            title="💀 Défaite...",
+            description=f"{user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta streak est maintenant de **0**.",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text="La chance reviendra la prochaine fois !")
+        await ctx.send(embed=embed)
 
 
 # Token pour démarrer le bot (à partir des secrets)
