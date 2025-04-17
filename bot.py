@@ -746,10 +746,13 @@ async def crime_error(ctx, error):
     await ctx.send("❌ Une erreur est survenue lors de la commande.")
 
 @bot.command(name="buy", aliases=["chicken", "c", "h", "i", "k", "e", "n"])
-async def buy_item(ctx, item: str):
+async def buy_item(ctx, item: str = "chicken"):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
+
+    # Forcer l'achat d'un chicken pour toutes les aliases
+    item = "chicken"
 
     # Vérifier le solde de l'utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -758,12 +761,9 @@ async def buy_item(ctx, item: str):
     # Liste des objets à acheter et leurs prix
     items_for_sale = {
         "chicken": 100,
-        # Vous pouvez ajouter d'autres objets ici avec leurs prix
-        # "item_name": price
     }
 
     # Vérification de l'objet choisi
-    item = item.lower()
     if item in items_for_sale:
         price = items_for_sale[item]
 
@@ -807,7 +807,7 @@ async def cock_fight(ctx, amount: int):
     # Vérifier si l'utilisateur a un poulet
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
     if not data or not data.get("chicken", False):
-        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!buy chicken` pour en acheter un.")
+        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
         return
 
     # Supprimer le poulet utilisé
