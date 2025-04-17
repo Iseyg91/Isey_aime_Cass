@@ -842,8 +842,6 @@ async def cock_fight(ctx, amount: int):
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
     win_chance = win_data.get("win_chance", 50) if win_data else 50
 
-    await ctx.send(f"⚔️ **Probabilité de victoire : {win_chance}%**")
-
     # Combat
     if random.randint(1, 100) <= win_chance:
         win_amount = amount * 2
