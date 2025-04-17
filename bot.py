@@ -128,9 +128,6 @@ async def on_message(message):
         upsert=True
     )
 
-    # Informer l'utilisateur que des coins ont été ajoutés
-    await message.channel.send(f"{user.mention}, tu as gagné **{coins_to_add} 🪙** pour ton message !")
-
     # Appeler le traitement habituel des commandes
     await bot.process_commands(message)
 
@@ -672,6 +669,112 @@ async def crime(ctx: commands.Context):
 @crime.error
 async def crime_error(ctx, error):
     await ctx.send("❌ Une erreur est survenue lors de la commande.")
+import random
+from discord.ext import commands
+import discord
+
+# Commande buy chicken
+@bot.command(name="buy chicken", aliases=["buy c", "buy h", "buy i", "buy k", "buy e", "buy n"])
+async def buy_chicken(ctx):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Vérifier le solde de l'utilisateur
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    balance = data.get("wallet", 0) if data else 0
+
+    if balance >= 100:
+        # Acheter un poulet en retirant 100 coins
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": -100}},
+            upsert=True
+        )
+
+        # Ajouter le poulet à l'inventaire de l'utilisateur
+        collection7.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$set": {"chicken": True}},
+            upsert=True
+        )
+
+        await ctx.send(f"{user.mention} a acheté un poulet pour **100 🪙** et peut maintenant participer au Cock-Fight !")
+    else:
+        await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un poulet !")
+
+# Commande cock-fight
+@bot.command(name="cock-fight", aliases=["cf"])
+async def cock_fight(ctx, amount: int):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Vérifier si l'utilisateur a un poulet
+    data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not data or not data.get("chicken", False):
+        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `/buy chicken` pour en acheter un.")
+        return
+
+    # Vérifier le solde de l'utilisateur
+    balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    balance = balance_data.get("wallet", 0) if balance_data else 0
+
+    # Vérifier que l'utilisateur mise une somme valide
+    if amount > balance:
+        await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour cette mise.")
+        return
+    if amount <= 0:
+        await ctx.send(f"{user.mention}, la mise doit être positive.")
+        return
+    if amount > 20000:
+        await ctx.send(f"{user.mention}, la mise est limitée à **20 000 🪙**.")
+        return
+
+    # Vérifier les données de la victoire précédente
+    win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
+    win_streak = win_data.get("win_streak", 0) if win_data else 0
+
+    # Calcul de la probabilité de gagner
+    win_probability = 50 + win_streak  # 50% de chance de base, +1% par victoire
+    if win_probability > 100:
+        win_probability = 100  # Limiter à 100%
+
+    # Vérifier si l'utilisateur gagne ou perd
+    win_roll = random.randint(1, 100)
+    if win_roll <= win_probability:
+        # L'utilisateur gagne
+        win_amount = amount * 2  # Double la mise
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": win_amount}},
+            upsert=True
+        )
+        # Incrémenter la streak de victoires
+        collection6.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"win_streak": 1}},
+            upsert=True
+        )
+
+        await ctx.send(f"Félicitations {user.mention} ! Tu as gagné **{win_amount} 🪙** grâce à ton poulet ! Ta streak de victoires est maintenant de {win_streak + 1}.")
+    else:
+        # L'utilisateur perd
+        loss_amount = random.randint(250, 2000)  # L'utilisateur perd entre 250 et 2000 coins
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"wallet": -loss_amount}},
+            upsert=True
+        )
+        # Réinitialiser la streak de victoires
+        collection6.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$set": {"win_streak": 0}},
+            upsert=True
+        )
+
+        await ctx.send(f"Désolé {user.mention}, tu as perdu **{loss_amount} 🪙**. Ta streak de victoires est maintenant réinitialisée.")
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
