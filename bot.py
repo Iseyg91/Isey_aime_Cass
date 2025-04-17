@@ -818,12 +818,6 @@ async def cock_fight(ctx, amount: int):
         await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
         return
 
-    # Supprimer le poulet utilisé
-    collection7.update_one(
-        {"guild_id": guild_id, "user_id": user_id},
-        {"$set": {"chicken": False}}
-    )
-
     # Vérifier le solde de l'utilisateur
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = balance_data.get("wallet", 0) if balance_data else 0
@@ -865,6 +859,12 @@ async def cock_fight(ctx, amount: int):
         embed.set_footer(text="Ton poulet devient de plus en plus fort !")
         await ctx.send(embed=embed)
     else:
+        # La personne perd son poulet uniquement si elle perd
+        collection7.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$set": {"chicken": False}}
+        )
+
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": -amount}},
