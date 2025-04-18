@@ -1464,96 +1464,102 @@ async def set_max_bj_mise_error(ctx, error):
 
 @bot.hybrid_command(name="rob", description="Voler entre 1% et 50% du portefeuille d'un autre utilisateur.")
 async def rob(ctx, user: discord.User):
-    # Récupérer l'ID du serveur et l'utilisateur
     guild_id = ctx.guild.id
     user_id = ctx.author.id
     target_id = user.id
 
-    # Vérifier si l'utilisateur cible et l'attaquant sont différents
     if user_id == target_id:
         embed = discord.Embed(
-            title="❌ Action interdite",
             description="Tu ne peux pas voler des coins à toi-même.",
             color=discord.Color.red()
         )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Vérification du cooldown pour cette action
     cooldown_data = collection14.find_one({"guild_id": guild_id, "user_id": user_id, "target_id": target_id})
     if cooldown_data:
         last_rob_time = cooldown_data.get("last_rob", datetime.utcnow())
         if datetime.utcnow() - last_rob_time < timedelta(hours=1):
             remaining_time = (timedelta(hours=1) - (datetime.utcnow() - last_rob_time)).seconds
             embed = discord.Embed(
-                title="❌ Cooldown en cours",
-                description=f"Tu dois attendre encore **{remaining_time // 60} minutes** avant de pouvoir voler à nouveau.",
+                description=f"<:classic_x_mark:1362711858829725729> You attempted to rob {user.display_name}, but they had no money in cash for you to take.",
                 color=discord.Color.red()
             )
+            embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
             return await ctx.send(embed=embed)
 
-    # Chercher les données des utilisateurs
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
 
-    # Si l'utilisateur ou la cible n'ont pas de données, initialiser les données
     if not user_data:
         user_data = {
-            "guild_id": guild_id,
-            "user_id": user_id,
-            "wallet": 1500,
-            "bank": 0
+            "guild_id": guild_id, "user_id": user_id, "wallet": 1500, "bank": 0
         }
         collection.insert_one(user_data)
 
     if not target_data:
         target_data = {
-            "guild_id": guild_id,
-            "user_id": target_id,
-            "wallet": 1500,
-            "bank": 0
+            "guild_id": guild_id, "user_id": target_id, "wallet": 1500, "bank": 0
         }
         collection.insert_one(target_data)
 
-    # Vérifier si la cible a des fonds disponibles
     target_wallet = target_data.get("wallet", 0)
     if target_wallet <= 0:
         embed = discord.Embed(
-            title="❌ Solde insuffisant",
-            description=f"**{user.display_name}**, la cible n'a pas de coins à voler.",
+            description=f"<:classic_x_mark:1362711858829725729> You attempted to rob {user.display_name}, but they had no money in cash for you to take.",
             color=discord.Color.red()
         )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Calcul du montant à voler entre 1% et 50%
-    steal_percentage = random.randint(1, 50)
-    amount_stolen = (steal_percentage / 100) * target_wallet
+    # 1 chance sur 2 de réussir
+    success = random.choice([True, False])
 
-    # Mise à jour des balances
-    new_user_wallet = user_data["wallet"] + amount_stolen
-    new_target_wallet = target_wallet - amount_stolen
+    if success:
+        steal_percentage = random.randint(1, 50)
+        amount_stolen = (steal_percentage / 100) * target_wallet
 
-    # Mise à jour des données dans la base
-    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
-    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"wallet": new_target_wallet}})
+        new_user_wallet = user_data["wallet"] + amount_stolen
+        new_target_wallet = target_wallet - amount_stolen
 
-    # Enregistrement de l'action dans la collection des CDs
-    collection14.update_one(
-        {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
-        {"$set": {"last_rob": datetime.utcnow()}},
-        upsert=True
-    )
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
+        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"wallet": new_target_wallet}})
 
-    # Log de l'action dans le salon approprié
-    await log_eco_channel(bot, guild_id, ctx.author, "Vol", amount_stolen, user_data["wallet"], new_user_wallet, f"Volé à {user.display_name}")
+        collection14.update_one(
+            {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
+            {"$set": {"last_rob": datetime.utcnow()}},
+            upsert=True
+        )
 
-    # Création de l'embed de résultat
-    embed = discord.Embed(
-        title="💰 Vol réussi !",
-        description=f"**{user.display_name}** a volé **{amount_stolen:.2f} <:ecoEther:1341862366249357374>** de **{user.display_name}** !",
-        color=discord.Color.green()
-    )
-    embed.add_field(name="Solde actuel", value=f"**{user.display_name}**: {new_user_wallet:.2f} <:ecoEther:1341862366249357374>\n**{user.display_name}**: {new_target_wallet:.2f} <:ecoEther:1341862366249357374>", inline=False)
-    await ctx.send(embed=embed)
+        await log_eco_channel(bot, guild_id, ctx.author, "Vol", amount_stolen, user_data["wallet"], new_user_wallet, f"Volé à {user.display_name}")
+
+        embed = discord.Embed(
+            description=f"<:Check:1362710665663615147> You robbed <:ecoEther:1341862366249357374> **{amount_stolen:.2f}** from **{user.display_name}**",
+            color=discord.Color.green()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+        return await ctx.send(embed=embed)
+
+    else:
+        loss_percentage = random.uniform(1, 3)
+        loss_amount = (loss_percentage / 100) * user_data["wallet"]
+        loss_amount = min(loss_amount, user_data["wallet"])
+
+        new_user_wallet = user_data["wallet"] - loss_amount
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
+
+        collection14.update_one(
+            {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
+            {"$set": {"last_rob": datetime.utcnow()}},
+            upsert=True
+        )
+
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> You were caught attempting to rob {user.display_name}, and have been fined <:ecoEther:1341862366249357374> **{loss_amount:.2f}**",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+        return await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
