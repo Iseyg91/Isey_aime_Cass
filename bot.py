@@ -383,46 +383,68 @@ async def deposit(ctx: commands.Context, amount: str = None):
 
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="withdraw", aliases=["with"], description="Retire de l'argent de ta banque vers ton portefeuille.")
-async def withdraw(ctx: commands.Context, amount: str):
+@bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
+@app_commands.describe(amount="Montant à déposer (ou 'all')")
+async def deposit(ctx: commands.Context, amount: str):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Chercher les données actuelles
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
-
     cash = data.get("cash", 0)
     bank = data.get("bank", 0)
 
-    # Gérer le cas "all"
+    # Cas "all"
     if amount.lower() == "all":
-        if bank == 0:
-            return await ctx.send("💸 Tu n'as rien à retirer.")
-        withdrawn_amount = bank
-    else:
-        # Vérifie que c'est un nombre valide
-        if not amount.isdigit():
-            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
-        withdrawn_amount = int(amount)
-        if withdrawn_amount <= 0:
-            return await ctx.send("❌ Tu dois retirer un montant supérieur à zéro.")
-        if withdrawn_amount > bank:
-            return await ctx.send(
-                f"<:classic_x_mark:1362711858829725729> You don't have that much money to withdraw. "
-                f"You currently have <:ecoEther:1341862366249357374> {bank} in the bank."
+        if cash == 0:
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, tu n'as rien à déposer.",
+                color=discord.Color.red()
             )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+        deposit_amount = cash
 
-    # Mise à jour dans la base de données
+    else:
+        if not amount.isdigit():
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, montant invalide. Utilise un nombre ou `all`.",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+        deposit_amount = int(amount)
+
+        if deposit_amount <= 0:
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, tu dois déposer un montant supérieur à zéro.",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+        if deposit_amount > cash:
+            embed = discord.Embed(
+                description=(
+                    f"<:classic_x_mark:1362711858829725729> {user.mention}, tu n'as pas assez de cash à déposer. "
+                    f"Tu as actuellement <:ecoEther:1341862366249357374> **{cash}** dans ton portefeuille."
+                ),
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+    # Mise à jour des données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"cash": withdrawn_amount, "bank": -withdrawn_amount}},
+        {"$inc": {"cash": -deposit_amount, "bank": deposit_amount}},
         upsert=True
     )
 
-    # Création de l'embed de succès
+    # Embed de succès
     embed = discord.Embed(
-        description=f"<:Check:1362710665663615147> Withdrew <:ecoEther:1341862366249357374> {withdrawn_amount} from your bank!",
+        description=f"<:Check:1362710665663615147> Tu as déposé <:ecoEther:1341862366249357374> **{deposit_amount}** dans ta banque !",
         color=discord.Color.green()
     )
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
@@ -618,86 +640,111 @@ async def set_money_error(ctx, error):
 @app_commands.describe(user="L'utilisateur à qui envoyer de l'argent", amount="Montant à transférer")
 async def pay(ctx: commands.Context, user: discord.User, amount: int):
     sender = ctx.author
-    if user.id == sender.id:
-        return await ctx.send("<:classic_x_mark:1362711858829725729> Tu ne peux pas te payer toi-même.")
-    if amount <= 0:
-        return await ctx.send("<:classic_x_mark:1362711858829725729> Le montant doit être supérieur à zéro.")
-
     guild_id = ctx.guild.id
 
-    # Récupère les données de l'expéditeur
-    sender_data = collection.find_one({"guild_id": guild_id, "user_id": sender.id}) or {"cash": 0}
-    if sender_data["cash"] < amount:
-        return await ctx.send(
-            f"<:classic_x_mark:1362711858829725729> You don't have that much money to give. "
-            f"You currently have <:ecoEther:1341862366249357374> {sender_data['cash']} on hand."
+    if user.id == sender.id:
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {sender.mention}, tu ne peux pas te payer toi-même.",
+            color=discord.Color.red()
         )
+        embed.set_author(name=sender.display_name, icon_url=sender.display_avatar.url)
+        return await ctx.send(embed=embed)
 
-    # Déduit les fonds de l'expéditeur
+    if amount <= 0:
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {sender.mention}, le montant doit être supérieur à zéro.",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=sender.display_name, icon_url=sender.display_avatar.url)
+        return await ctx.send(embed=embed)
+
+    sender_data = collection.find_one({"guild_id": guild_id, "user_id": sender.id}) or {"cash": 0}
+    sender_cash = sender_data.get("cash", 0)
+
+    if sender_cash < amount:
+        embed = discord.Embed(
+            description=(
+                f"<:classic_x_mark:1362711858829725729> {sender.mention}, tu n'as pas assez de cash. "
+                f"Tu as actuellement <:ecoEther:1341862366249357374> **{sender_cash}** dans ton portefeuille."
+            ),
+            color=discord.Color.red()
+        )
+        embed.set_author(name=sender.display_name, icon_url=sender.display_avatar.url)
+        return await ctx.send(embed=embed)
+
+    # Mise à jour des soldes
     collection.update_one(
         {"guild_id": guild_id, "user_id": sender.id},
         {"$inc": {"cash": -amount}},
         upsert=True
     )
 
-    # Ajoute les fonds au destinataire
     collection.update_one(
         {"guild_id": guild_id, "user_id": user.id},
         {"$inc": {"cash": amount}},
         upsert=True
     )
 
-    # Log dans le salon de logs économiques
+    # Log dans le salon économique
     await log_eco_channel(
         bot,
         guild_id,
         user,
         "Paiement reçu",
         amount,
-        None,  # Pas besoin ici
+        None,
         None,
         f"{user.mention} a reçu **{amount} <:ecoEther:1341862366249357374>** de la part de {sender.mention}."
     )
 
-    # Embed de confirmation
+    # Embed de succès
     embed = discord.Embed(
-        description=f"<:Check:1362710665663615147> {user.mention} has received your <:ecoEther:1341862366249357374> {amount}",
+        description=(
+            f"<:Check:1362710665663615147> {user.mention} a reçu **{amount}** <:ecoEther:1341862366249357374> de ta part."
+        ),
         color=discord.Color.green()
     )
-    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.set_footer(text=f"Envoyé par {sender}", icon_url=sender.display_avatar.url)
+    embed.set_author(name=sender.display_name, icon_url=sender.display_avatar.url)
+    embed.set_footer(text=f"Paiement effectué à {user.display_name}", icon_url=user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @pay.error
 async def pay_error(ctx, error):
-    await ctx.send("<:classic_x_mark:1362711858829725729> Une erreur est survenue lors du paiement.")
+    embed = discord.Embed(
+        description="<:classic_x_mark:1362711858829725729> Une erreur est survenue lors du paiement.",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="work", aliases=["wk"], description="Travaille et gagne de l'argent !")
 async def work(ctx: commands.Context):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
-
-    # Vérifier le cooldown de 30 minutes
     now = datetime.utcnow()
+
     cooldown_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     last_work_time = cooldown_data.get("last_work_time", None)
 
     if last_work_time:
         time_diff = now - last_work_time
         if time_diff < timedelta(minutes=30):
-            remaining_time = timedelta(minutes=30) - time_diff
-            minutes_left = int(remaining_time.total_seconds() // 60)
-            return await ctx.send(
-                f"❌ Tu dois attendre encore **{minutes_left} minutes** avant de pouvoir retravailler."
-            )
+            remaining = timedelta(minutes=30) - time_diff
+            minutes_left = int(remaining.total_seconds() // 60)
 
-    # Gagner de l'argent entre 200 et 2000
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, tu dois attendre encore **{minutes_left} minutes** avant de pouvoir retravailler.",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+    # Gain entre 200 et 2000
     amount = random.randint(200, 2000)
 
-    # Liste de 20 messages possibles
+    # Liste des messages dynamiques
     messages = [
         f"Tu as travaillé dur et gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
         f"Bravo ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton travail.",
@@ -721,29 +768,26 @@ async def work(ctx: commands.Context):
         f"Ton travail t'a rapporté une belle somme de **{amount} <:ecoEther:1341862366249357374>**.",
         f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>** pour ta persévérance et ton travail.",
     ]
-
-    # Sélectionner un message au hasard
     message = random.choice(messages)
 
-    # Récupérer le solde avant l'ajout d'argent
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0}
-    initial_balance = user_data["cash"]
+    initial_balance = user_data.get("cash", 0)
 
-    # Mettre à jour le cooldown
+    # Mise à jour du cooldown
     collection6.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_work_time": now}},
         upsert=True
     )
 
-    # Ajouter de l'argent au cash de l'utilisateur
+    # Mise à jour du cash
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {"cash": amount}},
         upsert=True
     )
 
-    # Log dans le salon de logs économiques
+    # Log
     await log_eco_channel(
         bot,
         guild_id,
@@ -755,20 +799,24 @@ async def work(ctx: commands.Context):
         f"{user.mention} a gagné **{amount} <:ecoEther:1341862366249357374>** pour son travail."
     )
 
-    # Embed de confirmation
+    # Embed final
     embed = discord.Embed(
         description=message,
         color=discord.Color.green()
     )
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.set_footer(text=f"Commande exécutée par {user}", icon_url=user.display_avatar.url)
+    embed.set_footer(text="Commande de travail", icon_url=user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @work.error
 async def work_error(ctx, error):
-    await ctx.send("❌ Une erreur est survenue lors de la commande de travail.")
+    embed = discord.Embed(
+        description="<:classic_x_mark:1362711858829725729> Une erreur est survenue lors de l'utilisation de la commande `work`.",
+        color=discord.Color.red()
+    )
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="slut", description="Essaie ta chance et gagne ou perds de l'argent.")
 async def slut(ctx: commands.Context):
@@ -786,7 +834,7 @@ async def slut(ctx: commands.Context):
         if time_diff < timedelta(minutes=30):
             remaining_time = timedelta(minutes=30) - time_diff
             minutes_left = remaining_time.total_seconds() // 60
-            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
+            return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
 
     # Gagner ou perdre de l'argent
     gain_or_loss = random.choice(["gain", "loss"])
@@ -795,26 +843,26 @@ async def slut(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de succès
         messages = [
-            f"Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
-            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
-            f"Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
-            f"Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
-            f"Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
+            f"<:Check:1362710665663615147> Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"<:Check:1362710665663615147> Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
+            f"<:Check:1362710665663615147> Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"<:Check:1362710665663615147> Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"<:Check:1362710665663615147> Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"<:Check:1362710665663615147> Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
+            f"<:Check:1362710665663615147> Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
+            f"<:Check:1362710665663615147> Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
         ]
         # Sélectionner un message au hasard
         message = random.choice(messages)
@@ -830,26 +878,26 @@ async def slut(ctx: commands.Context):
         amount = random.randint(250, 2000)
         # Liste de 20 messages de perte
         messages = [
-            f"Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
-            f"Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
-            f"Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
-            f"T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
-            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
-            f"Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
+            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
+            f"<:classic_x_mark:1362711858829725729> Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
+            f"<:classic_x_mark:1362711858829725729> Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
+            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
+            f"<:classic_x_mark:1362711858829725729> Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
         ]
         # Sélectionner un message de perte au hasard
         message = random.choice(messages)
@@ -893,7 +941,14 @@ async def slut(ctx: commands.Context):
 # Gestion des erreurs
 @slut.error
 async def slut_error(ctx, error):
-    await ctx.send("❌ Une erreur est survenue lors de la commande.")
+    embed = discord.Embed(
+        title="<:classic_x_mark:1362711858829725729> Une erreur est survenue",
+        description="Une erreur est survenue lors de l'exécution de la commande. Veuillez réessayer plus tard.",
+        color=discord.Color.red()
+    )
+    embed.set_footer(text=f"Erreur générée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="crime", description="Participe à un crime pour essayer de gagner de l'argent, mais attention, tu pourrais perdre !")
 async def crime(ctx: commands.Context):
@@ -911,7 +966,7 @@ async def crime(ctx: commands.Context):
         if time_diff < timedelta(minutes=30):
             remaining_time = timedelta(minutes=30) - time_diff
             minutes_left = remaining_time.total_seconds() // 60
-            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
+            return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir recommencer.")
 
     # Gagner ou perdre de l'argent
     gain_or_loss = random.choice(["gain", "loss"])
@@ -939,7 +994,7 @@ async def crime(ctx: commands.Context):
             f"Tu as braqué un fourgon blindé et fuis avec **{amount} <:ecoEther:1341862366249357374>**.",
             f"Ton hacking dans une crypto-plateforme a payé : **{amount} <:ecoEther:1341862366249357374>**.",
             f"Tu as trouvé un vieux magot caché par un ancien criminel. Tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
-]
+        ]
 
         message = random.choice(messages)
 
@@ -982,7 +1037,7 @@ async def crime(ctx: commands.Context):
             f"La cachette d’argent a été découverte. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
             f"Un garde t’a mis K.O. et t’a tout volé : **{amount} <:ecoEther:1341862366249357374>**.",
             f"Tu as confondu le bâtiment... ce n'était pas la bonne cible. Pertes : **{amount} <:ecoEther:1341862366249357374>**.",
-]
+        ]
 
         message = random.choice(messages)
 
@@ -1020,7 +1075,7 @@ async def crime(ctx: commands.Context):
 
 @crime.error
 async def crime_error(ctx, error):
-    await ctx.send("❌ Une erreur est survenue lors de la commande.")
+    await ctx.send("<:classic_x_mark:1362711858829725729> Une erreur est survenue lors de la commande.")
 
 @bot.command(name="buy", aliases=["chicken", "c", "h", "i", "k", "e", "n"])
 async def buy_item(ctx, item: str = "chicken"):
@@ -1474,10 +1529,27 @@ def calculate_hand(hand):
 # ============================
 
 @bot.command(aliases=["bj"])
-async def blackjack(ctx, mise: int):
-    if mise <= 0:
-        return await ctx.send("❌ La mise doit être supérieure à 0.")
+async def blackjack(ctx, mise: str):
+    # Récupère le solde de l'utilisateur en cash
+    user_data = await get_user_data(ctx.author.id)
+    cash_balance = user_data["cash"]
+    
+    if mise == "all":
+        mise = cash_balance
+    elif mise == "half":
+        mise = cash_balance / 2
+    else:
+        try:
+            mise = int(mise)
+        except ValueError:
+            return await ctx.send(f"{emoji_error} La mise doit être un nombre valide.")
 
+    # Vérifie si la mise est valide
+    if mise <= 0:
+        return await ctx.send(f"{emoji_error} La mise doit être supérieure à 0.")
+    elif mise > cash_balance:
+        return await ctx.send(f"{emoji_error} Tu n'as pas assez de cash pour cette mise.")
+    
     player_hand = [get_card(), get_card()]
     dealer_hand = [get_card(), get_card()]
     player_value = calculate_hand(player_hand)
@@ -1490,7 +1562,7 @@ async def blackjack(ctx, mise: int):
 
         async def interaction_check(self, interaction: discord.Interaction) -> bool:
             if interaction.user.id != self.author.id:
-                await interaction.response.send_message("❌ Tu ne peux pas jouer cette partie !", ephemeral=True)
+                await interaction.response.send_message(f"{emoji_error} Tu ne peux pas jouer cette partie !", ephemeral=True)
                 return False
             return True
 
