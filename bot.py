@@ -1236,19 +1236,31 @@ async def set_eco_log(ctx, channel: discord.TextChannel):
 
 @bot.command(aliases=["bj"])
 async def blackjack(ctx, mise: int):
-    MAX_MISE = 30000
-    if mise <= 0 or mise > MAX_MISE:
+    # Récupération de la configuration du Blackjack dans la base de données
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Charger ou initialiser la configuration de la mise maximale
+    bj_config = collection10.find_one({"guild_id": guild_id})
+    if not bj_config:
+        bj_config = {
+            "guild_id": guild_id,
+            "max_mise": 30000  # Valeur par défaut de la mise maximale
+        }
+        collection10.insert_one(bj_config)
+
+    max_mise = bj_config["max_mise"]
+
+    # Vérification que la mise est valide
+    if mise <= 0 or mise > max_mise:
         embed = discord.Embed(
             title="❌ Mise invalide",
-            description=f"La mise doit être comprise entre `1` et `{MAX_MISE}` coins.",
+            description=f"La mise doit être comprise entre `1` et `{max_mise}` coins.",
             color=discord.Color.red()
         )
         return await ctx.send(embed=embed)
 
-    guild_id = ctx.guild.id
-    user_id = ctx.author.id
-
-    # Récupération ou initialisation des données utilisateur
+    # Récupération ou initialisation des données de l'utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     if not data:
         data = {
@@ -1259,6 +1271,7 @@ async def blackjack(ctx, mise: int):
         }
         collection.insert_one(data)
 
+    # Vérification si l'utilisateur a assez de coins
     if data["wallet"] < mise:
         embed = discord.Embed(
             title="💸 Fonds insuffisants",
@@ -1267,11 +1280,12 @@ async def blackjack(ctx, mise: int):
         )
         return await ctx.send(embed=embed)
 
-    # Fonctions du Blackjack
+    # Fonction pour tirer une carte
     def get_card():
         cartes = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         return random.choice(cartes)
 
+    # Fonction pour calculer la valeur d'une main
     def get_value(main):
         value = 0
         aces = 0
@@ -1295,10 +1309,10 @@ async def blackjack(ctx, mise: int):
     joueur_val = get_value(joueur)
     croupier_val = get_value(croupier)
 
-    # Initialisation du bouton View
+    # Vue du Blackjack avec les boutons
     class BlackjackView(View):
         def __init__(self):
-            super().__init__(timeout=60)  # 60s pour jouer
+            super().__init__(timeout=60)  # 60 secondes pour jouer
 
         @discord.ui.button(label="🃏 Hit", style=discord.ButtonStyle.primary)
         async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1325,7 +1339,7 @@ async def blackjack(ctx, mise: int):
         @discord.ui.button(label="✋ Stand", style=discord.ButtonStyle.danger)
         async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
             nonlocal croupier, croupier_val
-            # Croupier joue après le joueur
+            # Le croupier joue après le joueur
             while croupier_val < 17:
                 carte = get_card()
                 croupier.append(carte)
@@ -1363,6 +1377,56 @@ async def blackjack(ctx, mise: int):
     embed.add_field(name="🎲 Croupier", value=f"`{'  '.join(croupier[:1])}` → **?**", inline=True)
     embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
     await ctx.send(embed=embed, view=view)
+
+@bot.command(name="bj-max-mise", aliases=["set-max-bj"])
+@commands.has_permissions(administrator=True)  # La commande est réservée aux admins
+async def set_max_bj_mise(ctx, mise_max: int):
+    # Vérification que la mise max est un entier et supérieure à 0
+    if not isinstance(mise_max, int) or mise_max <= 0:
+        embed = discord.Embed(
+            title="❌ Mise maximale invalide",
+            description="La mise maximale doit être un nombre entier positif.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    guild_id = ctx.guild.id
+
+    # Charger les paramètres de Blackjack depuis la collection info_bj
+    bj_config = collection10.find_one({"guild_id": guild_id})
+
+    # Si la configuration n'existe pas, en créer une avec la mise max par défaut
+    if not bj_config:
+        bj_config = {
+            "guild_id": guild_id,
+            "max_mise": 30000  # Valeur par défaut
+        }
+        collection10.insert_one(bj_config)
+
+    # Mise à jour de la mise maximale
+    collection10.update_one(
+        {"guild_id": guild_id},
+        {"$set": {"max_mise": mise_max}},
+        upsert=True
+    )
+
+    embed = discord.Embed(
+        title="✅ Mise maximale mise à jour",
+        description=f"La mise maximale pour le Blackjack a été changée à {mise_max} coins.",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed)
+
+# Gestion de l'erreur si l'utilisateur n'est pas administrateur
+@set_max_bj_mise.error
+async def set_max_bj_mise_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        embed = discord.Embed(
+            title="❌ Accès refusé",
+            description="Tu n'as pas les permissions nécessaires pour changer la mise maximale.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
