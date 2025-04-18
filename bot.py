@@ -335,56 +335,6 @@ async def bal(ctx: commands.Context, user: discord.User = None):
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
 @app_commands.describe(amount="Montant à déposer (ou 'all')")
-async def deposit(ctx: commands.Context, amount: str = None):
-    if amount is None:
-        return await ctx.send("❌ Tu dois spécifier un montant ou `all`.")
-
-    user = ctx.author
-    guild_id = ctx.guild.id
-    user_id = user.id
-
-    # Chercher les données actuelles
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
-
-    cash = data.get("cash", 0)
-    bank = data.get("bank", 0)
-
-    # Gérer le cas "all"
-    if amount.lower() == "all":
-        if cash == 0:
-            return await ctx.send("💸 Tu n'as rien à déposer.")
-        deposited_amount = cash
-    else:
-        # Vérifie que c'est un nombre valide
-        if not amount.isdigit():
-            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
-        deposited_amount = int(amount)
-        if deposited_amount <= 0:
-            return await ctx.send("❌ Tu dois déposer un montant supérieur à zéro.")
-        if deposited_amount > cash:
-            return await ctx.send(
-                f"<:classic_x_mark:1362711858829725729> You don't have that much money to deposit. "
-                f"You currently have <:ecoEther:1341862366249357374> {cash} on hand."
-            )
-
-    # Mise à jour dans la base de données
-    collection.update_one(
-        {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"cash": -deposited_amount, "bank": deposited_amount}},
-        upsert=True
-    )
-
-    # Création de l'embed de succès
-    embed = discord.Embed(
-        description=f"<:Check:1362710665663615147> Deposited <:ecoEther:1341862366249357374> {deposited_amount} to your bank!",
-        color=discord.Color.green()
-    )
-    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-
-    await ctx.send(embed=embed)
-
-@bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
-@app_commands.describe(amount="Montant à déposer (ou 'all')")
 async def deposit(ctx: commands.Context, amount: str):
     user = ctx.author
     guild_id = ctx.guild.id
