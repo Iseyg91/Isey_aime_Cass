@@ -242,19 +242,24 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     # Emoji de monnaie
     emoji = "<:ecoEther:1341862366249357374>"
 
-    # Aligner les montants pour un affichage propre
+    # Formatage des montants avec des virgules
     cash_str = f"{cash:,}"
     bank_str = f"{bank:,}"
     total_str = f"{total:,}"
 
+    # Calcul de la largeur maximale pour que tout soit bien aligné
+    max_length = max(len(cash_str), len(bank_str), len(total_str))
+
     # Créer la ligne d'affichage alignée
     balance_line = (
         f"Cash:          Bank:      Total:\n"
-        f"{emoji} {cash_str:<10} {emoji} {bank_str:<10} {emoji} {total_str:<10}"
+        f"{emoji} {cash_str.rjust(max_length)}    "
+        f"{emoji} {bank_str.rjust(max_length)}    "
+        f"{emoji} {total_str.rjust(max_length)}"
     )
 
-    # Embed stylé
-    embed = discord.Embed(color=discord.Color.gold())
+    # Embed stylé en bleu
+    embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
     embed.description = f"Leaderboard Rank: #{rank}\n\n{balance_line}"
 
