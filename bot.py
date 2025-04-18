@@ -49,6 +49,10 @@ collection6 = db['ether_work'] #Stock les cd de Work
 collection7 = db['ether_inventory'] #Stock les inventaires
 collection8 = db['info_cf'] #Stock les Info du cf
 collection9 = db['info_logs'] #Stock le Salon logs
+collection10 = db['info_bj'] #Stock les Info du Bj
+collection11 = db['info_rr'] #Stock les Info de RR
+collection12 = db['info_roulette'] #Stock les Info de SM
+collection13 = db['info_sm'] #Stock les Info de SM
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -100,6 +104,10 @@ def load_guild_settings(guild_id):
     ether_inventory_data = collection7.find_one({"guild_id": guild_id}) or {}
     info_cf_data = collection8.find_one({"guild_id": guild_id}) or {}
     info_logs_data = collection9.find_one({"guild_id": guild_id}) or {}
+    info_bj_data = collection10.find_one({"guild_id": guild_id}) or {}
+    info_rr_data = collection11.find_one({"guild_id": guild_id}) or {}
+    info_roulette_data = collection12.find_one({"guild_id": guild_id}) or {}
+    info_sm_roulette_data = collection13.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -113,7 +121,11 @@ def load_guild_settings(guild_id):
         "ether_work": ether_work_data,
         "ether_inventory": ether_inventory_data,
         "info_cf": info_cf_data,
-        "info_logs": info_logs_data
+        "info_logs": info_logs_data,
+        "info_bj": info_bj_data,
+        "info_rr": info_rr_data,
+        "info_roulette": info_roulette_data,
+        "info_sm": info_sm_data
 
     }
 
@@ -195,7 +207,7 @@ async def uptime(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.hybrid_command(name="balancel", aliases=["bal", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
+@bot.hybrid_command(name="balance", aliases=["bal", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
 async def bal(ctx: commands.Context, user: discord.User = None):
     user = user or ctx.author
     guild_id = ctx.guild.id
@@ -1221,6 +1233,136 @@ async def set_eco_log(ctx, channel: discord.TextChannel):
         upsert=True
     )
     await ctx.send(f"✅ Les logs économiques seront envoyés dans {channel.mention}")
+
+@bot.command(aliases=["bj"])
+async def blackjack(ctx, mise: int):
+    MAX_MISE = 30000
+    if mise <= 0 or mise > MAX_MISE:
+        embed = discord.Embed(
+            title="❌ Mise invalide",
+            description=f"La mise doit être comprise entre `1` et `{MAX_MISE}` coins.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Récupération ou initialisation des données utilisateur
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not data:
+        data = {
+            "guild_id": guild_id,
+            "user_id": user_id,
+            "wallet": 1500,
+            "bank": 0
+        }
+        collection.insert_one(data)
+
+    if data["wallet"] < mise:
+        embed = discord.Embed(
+            title="💸 Fonds insuffisants",
+            description="Tu n'as pas assez de coins dans ton portefeuille pour cette mise.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Fonctions du Blackjack
+    def get_card():
+        cartes = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+        return random.choice(cartes)
+
+    def get_value(main):
+        value = 0
+        aces = 0
+        for carte in main:
+            if carte in ['J', 'Q', 'K']:
+                value += 10
+            elif carte == 'A':
+                aces += 1
+                value += 11
+            else:
+                value += int(carte)
+        while value > 21 and aces:
+            value -= 10
+            aces -= 1
+        return value
+
+    # Création des mains initiales
+    joueur = [get_card(), get_card()]
+    croupier = [get_card(), get_card()]
+
+    joueur_val = get_value(joueur)
+    croupier_val = get_value(croupier)
+
+    # Initialisation du bouton View
+    class BlackjackView(View):
+        def __init__(self):
+            super().__init__(timeout=60)  # 60s pour jouer
+
+        @discord.ui.button(label="🃏 Hit", style=discord.ButtonStyle.primary)
+        async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+            nonlocal joueur, joueur_val
+            carte = get_card()
+            joueur.append(carte)
+            joueur_val = get_value(joueur)
+
+            embed = discord.Embed(
+                title="🎰 Blackjack",
+                description=f"Tu as tiré une carte : {carte}.",
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="🧑‍💼 Ta main", value=f"`{'  '.join(joueur)}` → **{joueur_val}**", inline=True)
+            embed.add_field(name="🎲 Croupier", value=f"`{'  '.join(croupier)}` → **{croupier_val}**", inline=True)
+
+            if joueur_val > 21:
+                embed.add_field(name="💥 Résultat", value="Tu as dépassé 21. Tu perds ta mise.", inline=False)
+                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
+                self.stop()
+
+            await interaction.response.edit_message(embed=embed, view=self)
+
+        @discord.ui.button(label="✋ Stand", style=discord.ButtonStyle.danger)
+        async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
+            nonlocal croupier, croupier_val
+            # Croupier joue après le joueur
+            while croupier_val < 17:
+                carte = get_card()
+                croupier.append(carte)
+                croupier_val = get_value(croupier)
+
+            embed = discord.Embed(
+                title="🎰 Blackjack",
+                description="Le croupier a fini de jouer.",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="🧑‍💼 Ta main", value=f"`{'  '.join(joueur)}` → **{joueur_val}**", inline=True)
+            embed.add_field(name="🎲 Croupier", value=f"`{'  '.join(croupier)}` → **{croupier_val}**", inline=True)
+
+            if croupier_val > 21 or joueur_val > croupier_val:
+                embed.add_field(name="💰 Résultat", value="Tu gagnes ! Ta mise est doublée.", inline=False)
+                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": mise}})
+            elif joueur_val < croupier_val:
+                embed.add_field(name="💥 Résultat", value="Tu perds ta mise.", inline=False)
+                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
+            else:
+                embed.add_field(name="🤝 Résultat", value="Égalité ! Ta mise est remboursée.", inline=False)
+
+            self.stop()
+
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    # Envoi de l'embed initial avec les boutons
+    view = BlackjackView()
+    embed = discord.Embed(
+        title="🎰 Blackjack",
+        description="Bienvenue dans le jeu de Blackjack ! Choisis `Hit` pour tirer une carte ou `Stand` pour rester.",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="🧑‍💼 Ta main", value=f"`{'  '.join(joueur)}` → **{joueur_val}**", inline=True)
+    embed.add_field(name="🎲 Croupier", value=f"`{'  '.join(croupier[:1])}` → **?**", inline=True)
+    embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
+    await ctx.send(embed=embed, view=view)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
