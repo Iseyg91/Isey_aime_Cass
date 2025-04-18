@@ -135,6 +135,12 @@ def load_guild_settings(guild_id):
 
     return combined_data
 
+TOP_ROLES = {
+    1: 1362832820417855699,  # ID du rôle Top 1
+    2: 1362735276090327080,  # ID du rôle Top 2
+    3: 1362832919789572178,  # ID du rôle Top 3
+}
+
 @tasks.loop(seconds=5)  # vérifie toutes les 60 secondes
 async def update_top_roles():
     for guild in bot.guilds:
