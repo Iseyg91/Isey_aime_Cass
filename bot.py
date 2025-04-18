@@ -35,9 +35,9 @@ start_time = time.time()
 bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
 
 TOP_ROLES = {
-    1: "[𝑺ץ]  Top 1",
-    2: "[𝑺ץ]  Top 2",
-    3: "[𝑺ץ]  Top 3",
+    1: 1362832820417855699,  # ID du rôle Top 1
+    2: 1362735276090327080,  # ID du rôle Top 2
+    3: 1362832919789572178,  # ID du rôle Top 3
 }
 
 # Connexion MongoDB
@@ -288,6 +288,16 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     )
     top_users = sorted_users[:3]  # Top 3
 
+    # Déterminer le rôle de l'utilisateur
+    rank = next(
+        (index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id),
+        None
+    )
+    
+    role_name = None
+    if rank in TOP_ROLES:
+        role_name = f"Tu as le rôle **[𝑺ץ] Top {rank}** ! Félicitations !"  # Affiche le rôle
+
     # Création de l'embed avec les informations
     currency_emoji = "<:ecoEther:1341862366249357374>"
     embed = discord.Embed(color=discord.Color.gold())
@@ -304,30 +314,17 @@ async def bal(ctx: commands.Context, user: discord.User = None):
         inline=False
     )
 
-    # Ajouter le classement
-    rank = next(
-        (index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id),
-        "N/A"
-    )
-    embed.add_field(
-        name=f"🏆 Classement : #{rank}",
-        value=f"Tu es actuellement dans la position #{rank} dans la richesse totale !",
-        inline=False
-    )
-
-    # Affichage des 3 premiers avec leur rôle
-    top_text = ""
-    for rank, user_data in enumerate(top_users, start=1):
-        top_user_id = user_data["user_id"]
-        top_user = ctx.guild.get_member(top_user_id)
-        if top_user:
-            role_name = TOP_ROLES[rank]
-            top_text += f"**{rank}.** {top_user.display_name} - **{role_name}**\n"
-
-    if top_text:
+    # Ajouter le classement de l'utilisateur
+    if rank:
         embed.add_field(
-            name="🏅 Classement des 3 premiers",
-            value=top_text,
+            name=f"🏆 Tu es dans le top #{rank} !",
+            value=role_name,
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="🏆 Classement :",
+            value="Tu n'es actuellement pas dans le top 3.",
             inline=False
         )
 
