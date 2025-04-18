@@ -1111,7 +1111,11 @@ async def cock_fight(ctx, amount: str):
 
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
     if not data or not data.get("chicken", False):
-        await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -1119,37 +1123,69 @@ async def cock_fight(ctx, amount: str):
 
     if amount.lower() == "all":
         if balance == 0:
-            await ctx.send(f"{user.mention}, ton cash est vide.")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, ton cash est vide.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
         if balance > max_bet:
-            await ctx.send(f"{user.mention}, ta mise dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, ta mise dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
         amount = balance
 
     elif amount.lower() == "half":
         if balance == 0:
-            await ctx.send(f"{user.mention}, ton cash est vide.")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, ton cash est vide.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
         amount = balance // 2
         if amount > max_bet:
-            await ctx.send(f"{user.mention}, la moitié de ton cash dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, la moitié de ton cash dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
     else:
         try:
             amount = int(amount)
         except ValueError:
-            await ctx.send(f"{user.mention}, entre un montant valide, ou utilise `all` ou `half`.")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> {user.mention}, entre un montant valide, ou utilise `all` ou `half`.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
             return
 
     if amount > balance:
-        await ctx.send(f"{user.mention}, tu n'as pas assez de cash pour cette mise.")
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {user.mention}, tu n'as pas assez de cash pour cette mise.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
     if amount <= 0:
-        await ctx.send(f"{user.mention}, la mise doit être positive.")
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {user.mention}, la mise doit être positive.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
     if amount > max_bet:
-        await ctx.send(f"{user.mention}, la mise est limitée à **{max_bet} <:ecoEther:1341862366249357374>**.")
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> {user.mention}, la mise est limitée à **{max_bet} <:ecoEther:1341862366249357374>**.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
         return
 
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -1170,7 +1206,7 @@ async def cock_fight(ctx, amount: str):
         )
 
         embed = discord.Embed(
-            description=f"Your lil chicken won the fight, and made you <:ecoEther:1341862366249357374> **{win_amount}** richer! 🐓",
+            description=f"<:Check:1362710665663615147> {user.mention}, ton poulet a **gagné** le combat et t’a rapporté <:ecoEther:1341862366249357374> **{win_amount}** ! 🐓",
             color=discord.Color.green()
         )
         embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
@@ -1200,11 +1236,10 @@ async def cock_fight(ctx, amount: str):
         )
 
         embed = discord.Embed(
-            description="Your chicken died <:imageremovebgpreview53:1362693948702855360>",
+            description=f"<:classic_x_mark:1362711858829725729> {user.mention}, ton poulet est **mort** au combat... <:imageremovebgpreview53:1362693948702855360>",
             color=discord.Color.red()
         )
         embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
-        # Le footer a été supprimé ici
         await ctx.send(embed=embed)
 
         balance_after = balance - amount
