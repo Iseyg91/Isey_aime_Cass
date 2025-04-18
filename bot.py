@@ -217,51 +217,41 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Cherche les données de l'utilisateur
+    # Récupération ou création des données utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-
-    # Si l'utilisateur n'a pas de données, on initialise avec 1500 coins
     if not data:
-        data = {
-            "guild_id": guild_id,
-            "user_id": user_id,
-            "cash": 1500,
-            "bank": 0
-        }
+        data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
         collection.insert_one(data)
 
     cash = data.get("cash", 0)
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Récupération du leaderboard
+    # Leaderboard & classement
     all_data = list(collection.find({"guild_id": guild_id}))
     sorted_data = sorted(all_data, key=lambda x: x.get("cash", 0) + x.get("bank", 0), reverse=True)
     rank = next((i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id), None)
 
-    # Emoji de monnaie
-    emoji = "<:ecoEther:1341862366249357374>"
+    # Formatage des nombres avec des espaces
+    def format_amount(amount):
+        return f"{amount:,}".replace(",", " ")
 
-    # Formatage des montants avec des virgules
-    cash_str = f"{cash:,}"
-    bank_str = f"{bank:,}"
-    total_str = f"{total:,}"
+    # Icône de monnaie type UnbelievaBoat
+    coin_emoji = "<:ecoEther:1341862366249357374>"
 
-    # Calcul de la largeur maximale pour que tout soit bien aligné
-    max_length = max(len(cash_str), len(bank_str), len(total_str))
-
-    # Créer la ligne d'affichage alignée
-    balance_line = (
-        f"Cash:          Bank:      Total:\n"
-        f"{emoji} {cash_str.rjust(max_length)}    "
-        f"{emoji} {bank_str.rjust(max_length)}    "
-        f"{emoji} {total_str.rjust(max_length)}"
+    # Embed propre façon UnbelievaBoat avec labels sur la même ligne
+    embed = discord.Embed(
+        title=f"{user.name}'s Balance",
+        color=discord.Color.from_rgb(243, 201, 87)  # doré comme l’original
     )
+    embed.set_thumbnail(url=user.display_avatar.url)
 
-    # Embed stylé en bleu
-    embed = discord.Embed(color=discord.Color.blue())
-    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.description = f"Leaderboard Rank: #{rank}\n\n{balance_line}"
+    # Affichage aligné avec les labels sur la même ligne et montants sous chaque label
+    embed.description = (
+        f"Leaderboard Rank: #{rank}\n\n"
+        f"**Cash:**   **Bank:**   **Total:**\n"
+        f"{coin_emoji} {format_amount(cash).rjust(10)}   {coin_emoji} {format_amount(bank).rjust(10)}   {coin_emoji} {format_amount(total).rjust(10)}"
+    )
 
     await ctx.send(embed=embed)
 
