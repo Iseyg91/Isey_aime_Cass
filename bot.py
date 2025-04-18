@@ -1469,6 +1469,7 @@ async def blackjack(ctx, mise: int):
                 embed = discord.Embed(title="💥 Tu as perdu !", color=discord.Color.red())
                 embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
                 embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
+                embed.add_field(name="💸 Perte", value=f"-{mise} <:ecoEther:1341862366249357374>", inline=False)
                 self.stop()
                 return await interaction.response.edit_message(embed=embed, view=None)
 
@@ -1484,16 +1485,24 @@ async def blackjack(ctx, mise: int):
                 dealer_hand.append(get_card())
                 dealer_value = calculate_hand(dealer_hand)
 
-            embed = discord.Embed(title="🎰 Résultat", color=discord.Color.green())
+            # Résultat de la partie
+            if dealer_value > 21 or player_value > dealer_value:
+                result_title = "🏆 Tu as gagné !"
+                color = discord.Color.green()
+                result_field = ("✅ Gagné", f"Tu gagnes **{mise}** <:ecoEther:1341862366249357374> !")
+            elif player_value < dealer_value:
+                result_title = "💥 Tu as perdu !"
+                color = discord.Color.red()
+                result_field = ("❌ Perdu", f"Le croupier gagne.\nPerte de **{mise}** <:ecoEther:1341862366249357374>")
+            else:
+                result_title = "🤝 Égalité"
+                color = discord.Color.gold()
+                result_field = ("🤝 Égalité", "Personne ne gagne, mise remboursée.")
+
+            embed = discord.Embed(title=result_title, color=color)
             embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
             embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
-
-            if dealer_value > 21 or player_value > dealer_value:
-                embed.add_field(name="✅ Gagné", value="Tu gagnes ta mise !", inline=False)
-            elif player_value < dealer_value:
-                embed.add_field(name="❌ Perdu", value="Le croupier gagne.", inline=False)
-            else:
-                embed.add_field(name="🤝 Égalité", value="Personne ne gagne, mise remboursée.", inline=False)
+            embed.add_field(name=result_field[0], value=result_field[1], inline=False)
 
             self.stop()
             await interaction.response.edit_message(embed=embed, view=None)
