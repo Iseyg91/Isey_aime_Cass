@@ -135,6 +135,15 @@ def load_guild_settings(guild_id):
 
     return combined_data
 
+# Exemple : à placer quelque part dans ton fichier, après la connexion MongoDB
+async def get_user_data(user_id: int):
+    user_data = await collection10.find_one({"_id": user_id})
+    if not user_data:
+        # Si l'utilisateur n'existe pas encore, on l'initialise
+        user_data = {"_id": user_id, "cash": 0, "bank": 0}
+        await collection10.insert_one(user_data)
+    return user_data
+
 TOP_ROLES = {
     1: 1362832820417855699,  # ID du rôle Top 1
     2: 1362735276090327080,  # ID du rôle Top 2
