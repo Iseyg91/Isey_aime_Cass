@@ -247,21 +247,14 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     bank_str = f"{bank:,}"
     total_str = f"{total:,}"
 
-    # Calcul de la largeur maximale pour que tout soit bien aligné
-    max_length = max(len(cash_str), len(bank_str), len(total_str))
+    # On aligne les colonnes
+    label_line = f"{'Cash':^12}{'Bank':^12}{'Total':^12}"
+    amount_line = f"{emoji} {cash_str:>9}{emoji} {bank_str:>9}{emoji} {total_str:>9}"
 
-    # Créer la ligne d'affichage alignée
-    balance_line = (
-        f"Cash:          Bank:      Total:\n"
-        f"{emoji} {cash_str.rjust(max_length)}    "
-        f"{emoji} {bank_str.rjust(max_length)}    "
-        f"{emoji} {total_str.rjust(max_length)}"
-    )
-
-    # Embed stylé en bleu
+    # Création de l'embed
     embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.description = f"Leaderboard Rank: #{rank}\n\n{balance_line}"
+    embed.description = f"Leaderboard Rank: #{rank}\n{label_line}\n{amount_line}"
 
     await ctx.send(embed=embed)
 
