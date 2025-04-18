@@ -225,22 +225,25 @@ async def bal(ctx: commands.Context, user: discord.User = None):
         data = {
             "guild_id": guild_id,
             "user_id": user_id,
-            "wallet": 1500,
+            "cash": 1500,  # Remplacer wallet par cash ici
             "bank": 0
         }
         collection.insert_one(data)
 
     # Récupération des données à afficher
-    balance = data.get("wallet", 0)
+    cash = data.get("cash", 0)  # Remplacer wallet par cash ici
     bank = data.get("bank", 0)
-    total = balance + bank
+    total = cash + bank
 
     # Création de l'embed
-    embed = discord.Embed(title=f"💰 Balance de {user.display_name}", color=discord.Color.gold())
-    embed.add_field(name="Portefeuille", value=f"{balance} <:ecoEther:1341862366249357374>", inline=True)
-    embed.add_field(name="Banque", value=f"{bank} 🏦", inline=True)
-    embed.add_field(name="Total", value=f"{total} 💵", inline=False)
-    embed.set_footer(text=f"Demandé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed = discord.Embed(
+        title=f"{user.display_name}",  # Juste le pseudo
+        color=discord.Color.gold()
+    )
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)  # PP + pseudo
+    embed.add_field(name="Cash", value=f"{cash} <:ecoEther:1341862366249357374>", inline=True)  # Remplacer wallet par cash ici
+    embed.add_field(name="Banque", value=f"{bank} <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="Total", value=f"{total} <:ecoEther:1341862366249357374>", inline=False)
 
     await ctx.send(embed=embed)
 
@@ -255,16 +258,16 @@ async def deposit(ctx: commands.Context, amount: str = None):
     user_id = user.id
 
     # Chercher les données actuelles
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
 
-    wallet = data.get("wallet", 0)
+    cash = data.get("cash", 0)
     bank = data.get("bank", 0)
 
     # Gérer le cas "all"
     if amount.lower() == "all":
-        if wallet == 0:
+        if cash == 0:
             return await ctx.send("💸 Tu n'as rien à déposer.")
-        deposited_amount = wallet
+        deposited_amount = cash
     else:
         # Vérifie que c'est un nombre valide
         if not amount.isdigit():
@@ -272,23 +275,25 @@ async def deposit(ctx: commands.Context, amount: str = None):
         deposited_amount = int(amount)
         if deposited_amount <= 0:
             return await ctx.send("❌ Tu dois déposer un montant supérieur à zéro.")
-        if deposited_amount > wallet:
-            return await ctx.send("❌ Tu n'as pas assez d'argent dans ton portefeuille.")
+        if deposited_amount > cash:
+            return await ctx.send(
+                f"<:classic_x_mark:1362711858829725729> You don't have that much money to deposit. "
+                f"You currently have <:ecoEther:1341862366249357374> {cash} on hand."
+            )
 
     # Mise à jour dans la base de données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"wallet": -deposited_amount, "bank": deposited_amount}},
+        {"$inc": {"cash": -deposited_amount, "bank": deposited_amount}},
         upsert=True
     )
 
     # Création de l'embed de succès
     embed = discord.Embed(
-        title="✅ Dépôt effectué avec succès!",
-        description=f"Tu as déposé **{deposited_amount} <:ecoEther:1341862366249357374>** dans ta banque.",
+        description=f"<:Check:1362710665663615147> Deposited <:ecoEther:1341862366249357374> {deposited_amount} to your bank!",
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
@@ -299,9 +304,9 @@ async def withdraw(ctx: commands.Context, amount: str):
     user_id = user.id
 
     # Chercher les données actuelles
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
 
-    wallet = data.get("wallet", 0)
+    cash = data.get("cash", 0)
     bank = data.get("bank", 0)
 
     # Gérer le cas "all"
@@ -317,77 +322,99 @@ async def withdraw(ctx: commands.Context, amount: str):
         if withdrawn_amount <= 0:
             return await ctx.send("❌ Tu dois retirer un montant supérieur à zéro.")
         if withdrawn_amount > bank:
-            return await ctx.send("❌ Tu n'as pas assez d'argent dans ta banque.")
+            return await ctx.send(
+                f"<:classic_x_mark:1362711858829725729> You don't have that much money to withdraw. "
+                f"You currently have <:ecoEther:1341862366249357374> {bank} in the bank."
+            )
 
     # Mise à jour dans la base de données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"wallet": withdrawn_amount, "bank": -withdrawn_amount}},
+        {"$inc": {"cash": withdrawn_amount, "bank": -withdrawn_amount}},
         upsert=True
     )
 
     # Création de l'embed de succès
     embed = discord.Embed(
-        title="✅ Retrait effectué avec succès!",
-        description=f"Tu as retiré **{withdrawn_amount} <:ecoEther:1341862366249357374>** de ta banque vers ton portefeuille.",
+        description=f"<:Check:1362710665663615147> Withdrew <:ecoEther:1341862366249357374> {withdrawn_amount} from your bank!",
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
+# Commande pour ajouter de l'argent
 @bot.hybrid_command(name="add-money", description="Ajoute de l'argent à un utilisateur (réservé aux administrateurs).")
 @app_commands.describe(
     user="L'utilisateur à créditer",
-    amount="Le montant à ajouter",
-    account="Choisis où ajouter l'argent : bank ou wallet"
+    amount="Le montant à ajouter"
 )
 @commands.has_permissions(administrator=True)
-async def add_money(ctx: commands.Context, user: discord.User, amount: int, account: str):
-    if account.lower() not in ["wallet", "bank"]:
-        return await ctx.send("❌ Veuillez choisir `wallet` ou `bank` comme compte cible.")
-
+async def add_money(ctx: commands.Context, user: discord.User, amount: int):
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à zéro.")
 
-    guild_id = ctx.guild.id
-    user_id = user.id
+    # Création des boutons pour choisir entre cash ou bank
+    class AccountChoiceView(View):
+        def __init__(self, user, amount):
+            super().__init__()
+            self.user = user
+            self.amount = amount
 
-    # Récupérer l'état actuel du solde pour cet utilisateur
-    balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    balance_before = balance_data.get(account.lower(), 0) if balance_data else 0
+        @discord.ui.button(label="Cash", style=discord.ButtonStyle.primary)
+        async def cash_button(self, button: Button, interaction: discord.Interaction):
+            await self.add_funds(interaction, "cash")
 
-    # Mise à jour MongoDB
-    collection.update_one(
-        {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {account.lower(): amount}},
-        upsert=True
-    )
+        @discord.ui.button(label="Bank", style=discord.ButtonStyle.primary)
+        async def bank_button(self, button: Button, interaction: discord.Interaction):
+            await self.add_funds(interaction, "bank")
 
-    # Nouveau solde après l'ajout
-    balance_after = balance_before + amount
+        async def add_funds(self, interaction, account: str):
+            guild_id = ctx.guild.id
+            user_id = self.user.id
 
-    # Log dans le salon de logs économique
-    await log_eco_channel(
-        bot,
-        guild_id,
-        user,
-        "Ajout d'argent",
-        amount,
-        balance_before,
-        balance_after,
-        f"Ajout de {amount} <:ecoEther:1341862366249357374> dans le compte {account.lower()} de {user.mention} par {ctx.author.mention}."
-    )
+            # Récupérer l'état actuel du solde pour cet utilisateur
+            balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+            balance_before = balance_data.get(account, 0) if balance_data else 0
 
-    # Création de l'embed de confirmation
-    embed = discord.Embed(
-        title="✅ Argent ajouté avec succès !",
-        description=f"**{amount} <:ecoEther:1341862366249357374>** a été ajouté à {user.mention} dans son **{account.lower()}**.",
-        color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+            # Mise à jour MongoDB avec le choix de l'utilisateur
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$inc": {account: self.amount}},
+                upsert=True
+            )
 
-    await ctx.send(embed=embed)
+            # Nouveau solde après l'ajout
+            balance_after = balance_before + self.amount
+
+            # Log dans le salon de logs économique
+            await log_eco_channel(
+                bot,
+                guild_id,
+                self.user,
+                "Ajout d'argent",
+                self.amount,
+                balance_before,
+                balance_after,
+                f"Ajout de {self.amount} <:ecoEther:1341862366249357374> dans le compte {account} de {self.user.mention} par {ctx.author.mention}."
+            )
+
+            # Confirmation dans l'embed
+            embed = discord.Embed(
+                description=f"<:Check:1362710665663615147> Added <:ecoEther:1341862366249357374> {self.amount} to {self.user.mention}'s {account}.",
+                color=discord.Color.green()
+            )
+            embed.set_author(name=self.user.display_name, icon_url=self.user.display_avatar.url)
+
+            # Envoyer la confirmation
+            await interaction.response.send_message(embed=embed)
+
+            # Désactiver les boutons après la sélection
+            self.stop()
+
+    # Créer une vue avec les boutons pour choisir cash ou bank
+    view = AccountChoiceView(user, amount)
+    await ctx.send(f"{ctx.author.mention}, choisis où ajouter l'argent (Cash ou Bank).", view=view)
 
 # Gestion des erreurs de permissions
 @add_money.error
@@ -396,9 +423,9 @@ async def add_money_error(ctx, error):
         await ctx.send("🚫 Tu n'as pas la permission d'utiliser cette commande.")
 
 @bot.hybrid_command(name="remove-money", description="Retire de l'argent à un utilisateur.")
-@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à retirer", location="Choisis entre wallet ou bank")
+@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à retirer", location="Choisis entre cash ou bank")
 @app_commands.choices(location=[
-    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Cash", value="cash"),
     app_commands.Choice(name="Bank", value="bank"),
 ])
 @commands.has_permissions(administrator=True)
@@ -412,7 +439,7 @@ async def remove_money(ctx: commands.Context, user: discord.User, amount: int, l
     field = location.value
 
     # Vérifie le solde actuel
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
     current_balance = data.get(field, 0)
 
     if current_balance < amount:
@@ -461,10 +488,10 @@ async def remove_money_error(ctx, error):
     else:
         await ctx.send("❌ Une erreur est survenue.")
 
-@bot.hybrid_command(name="set-money", description="Définit un montant exact dans le wallet ou la bank d’un utilisateur.")
-@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à définir", location="Choisis entre wallet ou bank")
+@bot.hybrid_command(name="set-money", description="Définit un montant exact dans le cash ou la bank d’un utilisateur.")
+@app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à définir", location="Choisis entre cash ou bank")
 @app_commands.choices(location=[
-    app_commands.Choice(name="Wallet", value="wallet"),
+    app_commands.Choice(name="Cash", value="cash"),
     app_commands.Choice(name="Bank", value="bank"),
 ])
 @commands.has_permissions(administrator=True)
@@ -477,7 +504,7 @@ async def set_money(ctx: commands.Context, user: discord.User, amount: int, loca
     field = location.value
 
     # Récupération du solde actuel avant modification
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
     balance_before = data.get(field, 0)
 
     # Mise à jour de la base de données pour définir le montant exact
@@ -499,12 +526,13 @@ async def set_money(ctx: commands.Context, user: discord.User, amount: int, loca
         f"Le solde du compte `{field}` de {user.mention} a été défini à {amount} <:ecoEther:1341862366249357374> par {ctx.author.mention}."
     )
 
-    # Création de l'embed de confirmation
+    # Création de l'embed de confirmation avec le PP et le pseudo de l'utilisateur dans le titre
     embed = discord.Embed(
-        title="✅ Montant défini avec succès !",
+        title=f"{user.display_name} - {user.name}",  # Affiche le pseudo + PP
         description=f"Le montant de **{field}** de {user.mention} a été défini à **{amount} <:ecoEther:1341862366249357374>**.",
         color=discord.Color.green()
     )
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)  # PP + pseudo
     embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
@@ -522,28 +550,31 @@ async def set_money_error(ctx, error):
 async def pay(ctx: commands.Context, user: discord.User, amount: int):
     sender = ctx.author
     if user.id == sender.id:
-        return await ctx.send("❌ Tu ne peux pas te payer toi-même.")
+        return await ctx.send("<:classic_x_mark:1362711858829725729> Tu ne peux pas te payer toi-même.")
     if amount <= 0:
-        return await ctx.send("❌ Le montant doit être supérieur à zéro.")
+        return await ctx.send("<:classic_x_mark:1362711858829725729> Le montant doit être supérieur à zéro.")
 
     guild_id = ctx.guild.id
 
     # Récupère les données de l'expéditeur
-    sender_data = collection.find_one({"guild_id": guild_id, "user_id": sender.id}) or {"wallet": 0}
-    if sender_data["wallet"] < amount:
-        return await ctx.send("❌ Tu n’as pas assez d'argent dans ton wallet.")
+    sender_data = collection.find_one({"guild_id": guild_id, "user_id": sender.id}) or {"cash": 0}
+    if sender_data["cash"] < amount:
+        return await ctx.send(
+            f"<:classic_x_mark:1362711858829725729> You don't have that much money to give. "
+            f"You currently have <:ecoEther:1341862366249357374> {sender_data['cash']} on hand."
+        )
 
     # Déduit les fonds de l'expéditeur
     collection.update_one(
         {"guild_id": guild_id, "user_id": sender.id},
-        {"$inc": {"wallet": -amount}},
+        {"$inc": {"cash": -amount}},
         upsert=True
     )
 
     # Ajoute les fonds au destinataire
     collection.update_one(
         {"guild_id": guild_id, "user_id": user.id},
-        {"$inc": {"wallet": amount}},
+        {"$inc": {"cash": amount}},
         upsert=True
     )
 
@@ -552,27 +583,27 @@ async def pay(ctx: commands.Context, user: discord.User, amount: int):
         bot,
         guild_id,
         user,
-        "Paiement effectué",
-        -amount,  # Le payeur perd de l'argent
-        sender_data["wallet"],
-        sender_data["wallet"] - amount,
-        f"{sender.mention} a payé **{amount} <:ecoEther:1341862366249357374>** à {user.mention}."
+        "Paiement reçu",
+        amount,
+        None,  # Pas besoin ici
+        None,
+        f"{user.mention} a reçu **{amount} <:ecoEther:1341862366249357374>** de la part de {sender.mention}."
     )
 
-    # Création de l'embed de confirmation
+    # Embed de confirmation
     embed = discord.Embed(
-        title="✅ Paiement effectué avec succès !",
-        description=f"{sender.mention} a payé **{amount} <:ecoEther:1341862366249357374>** à {user.mention}.",
+        description=f"<:Check:1362710665663615147> {user.mention} has received your <:ecoEther:1341862366249357374> {amount}",
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Demande effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+    embed.set_footer(text=f"Envoyé par {sender}", icon_url=sender.display_avatar.url)
 
     await ctx.send(embed=embed)
 
 # Gestion des erreurs
 @pay.error
 async def pay_error(ctx, error):
-    await ctx.send("❌ Une erreur est survenue lors du paiement.")
+    await ctx.send("<:classic_x_mark:1362711858829725729> Une erreur est survenue lors du paiement.")
 
 @bot.hybrid_command(name="work", aliases=["wk"], description="Travaille et gagne de l'argent !")
 async def work(ctx: commands.Context):
@@ -589,8 +620,10 @@ async def work(ctx: commands.Context):
         time_diff = now - last_work_time
         if time_diff < timedelta(minutes=30):
             remaining_time = timedelta(minutes=30) - time_diff
-            minutes_left = remaining_time.total_seconds() // 60
-            return await ctx.send(f"❌ Tu dois attendre encore **{int(minutes_left)} minutes** avant de pouvoir retravailler.")
+            minutes_left = int(remaining_time.total_seconds() // 60)
+            return await ctx.send(
+                f"❌ Tu dois attendre encore **{minutes_left} minutes** avant de pouvoir retravailler."
+            )
 
     # Gagner de l'argent entre 200 et 2000
     amount = random.randint(200, 2000)
@@ -624,20 +657,20 @@ async def work(ctx: commands.Context):
     message = random.choice(messages)
 
     # Récupérer le solde avant l'ajout d'argent
-    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0}
-    initial_balance = user_data["wallet"]
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0}
+    initial_balance = user_data["cash"]
 
-    # Mettre à jour le cooldown et l'argent de l'utilisateur
+    # Mettre à jour le cooldown
     collection6.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_work_time": now}},
         upsert=True
     )
 
-    # Ajouter de l'argent au wallet de l'utilisateur
+    # Ajouter de l'argent au cash de l'utilisateur
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"wallet": amount}},
+        {"$inc": {"cash": amount}},
         upsert=True
     )
 
@@ -647,19 +680,19 @@ async def work(ctx: commands.Context):
         guild_id,
         user,
         "Travail effectué",
-        amount,  # L'utilisateur gagne de l'argent
+        amount,
         initial_balance,
         initial_balance + amount,
         f"{user.mention} a gagné **{amount} <:ecoEther:1341862366249357374>** pour son travail."
     )
 
-    # Création de l'embed de confirmation
+    # Embed de confirmation
     embed = discord.Embed(
-        title="✅ Travail accompli avec succès !",
-        description=f"{user.mention}, tu as gagné **{amount} <:ecoEther:1341862366249357374>** pour ton travail.",
+        description=message,
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+    embed.set_footer(text=f"Commande exécutée par {user}", icon_url=user.display_avatar.url)
 
     await ctx.send(embed=embed)
 
@@ -816,60 +849,97 @@ async def crime(ctx: commands.Context):
 
     if gain_or_loss == "gain":
         amount = random.randint(250, 2000)
-        # Liste de 20 messages de succès
         messages = [
-            f"Tu as réussi ton crime et gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
-            f"Bien joué, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ton coup de maître.",
-            # ... (les autres messages)
-        ]
-        # Sélectionner un message de succès au hasard
+            f"Tu as braqué une banque sans te faire repérer et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as volé une mallette pleine de billets ! Gain : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Un deal louche dans une ruelle t’a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as piraté un compte bancaire et récupéré **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Le cambriolage de la bijouterie a été un succès ! Tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as réussi à duper la police et t’échapper avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Une vieille combine a encore fonctionné ! Tu récupères **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as profité d’un chaos général pour rafler **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton infiltration dans le casino a payé : **{amount} <:ecoEther:1341862366249357374>** gagnés.",
+            f"Tu as corrompu un agent et il t’a laissé fuir avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton plan était parfait. Résultat : **{amount} <:ecoEther:1341862366249357374>** dans ta poche.",
+            f"Tu as volé une voiture de luxe et l’as revendue pour **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as escroqué un riche naïf. Jackpot : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Une magouille dans les marchés noirs t’a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu t’es fait passer pour un faux agent et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton vol de données a été un franc succès. Récompense : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as dérobé un coffre-fort entier. Bénéfice : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as braqué un fourgon blindé et fuis avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton hacking dans une crypto-plateforme a payé : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as trouvé un vieux magot caché par un ancien criminel. Tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
+]
+
         message = random.choice(messages)
 
-        # Ajouter de l'argent au wallet de l'utilisateur
+        # Récupérer solde avant pour le log
+        balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+        balance_before = balance_data.get("cash", 0)
+
+        # Ajouter du cash
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": amount}},
+            {"$inc": {"cash": amount}},
             upsert=True
         )
 
-        # Log dans le salon économique
-        balance_before = collection.find_one({"guild_id": guild_id, "user_id": user_id}).get("wallet", 0)
         balance_after = balance_before + amount
+
+        # Log
         await log_eco_channel(bot, guild_id, user, "Gain après crime", amount, balance_before, balance_after)
 
     else:
         amount = random.randint(250, 2000)
-        # Liste de 20 messages de perte
         messages = [
-            f"Malheureusement, ton crime a échoué et tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
-            f"Ton crime a échoué et tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            # ... (les autres messages)
-        ]
-        # Sélectionner un message de perte au hasard
+            f"Tu t’es fait attraper par la police et tu perds **{amount} <:ecoEther:1341862366249357374>** en caution.",
+            f"Ton complice t’a trahi et s’est enfui avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Le coffre était vide... Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Un piège t’attendait. Tu as été volé de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu t’es blessé pendant l’opération. Les soins te coûtent **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton masque est tombé, tu as dû fuir et laissé **{amount} <:ecoEther:1341862366249357374>** derrière.",
+            f"La police a saisi ton butin. Perte : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as été reconnu sur les caméras et condamné à une amende de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton plan a été saboté par un rival. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Une tempête a détruit ta planque, emportant **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as glissé pendant la fuite et tout perdu : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as été doublé par un hacker et perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"La victime t’a reconnu et a porté plainte. Amende de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Ton véhicule de fuite est tombé en panne. Tu as tout laissé derrière : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as été pris en flag. La rançon te coûte **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu t’es fait arnaquer par un faux receleur. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Un témoin t’a balancé. Tu payes **{amount} <:ecoEther:1341862366249357374>** pour te faire oublier.",
+            f"La cachette d’argent a été découverte. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Un garde t’a mis K.O. et t’a tout volé : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"Tu as confondu le bâtiment... ce n'était pas la bonne cible. Pertes : **{amount} <:ecoEther:1341862366249357374>**.",
+]
+
         message = random.choice(messages)
 
-        # Déduire de l'argent du wallet de l'utilisateur
+        # Récupérer solde avant pour le log
+        balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+        balance_before = balance_data.get("cash", 0)
+
+        # Déduire du cash
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": -amount}},
+            {"$inc": {"cash": -amount}},
             upsert=True
         )
 
-        # Log dans le salon économique
-        balance_before = collection.find_one({"guild_id": guild_id, "user_id": user_id}).get("wallet", 0)
         balance_after = balance_before - amount
-        await log_eco_channel(bot, guild_id, user, "Perte après crime", amount, balance_before, balance_after)
 
-    # Mettre à jour le cooldown
+        # Log
+        await log_eco_channel(bot, guild_id, user, "Perte après crime", -amount, balance_before, balance_after)
+
+    # Cooldown
     collection4.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_crime_time": now}},
         upsert=True
     )
 
-    # Création de l'embed de résultat
     embed = discord.Embed(
         title="💥 Résultat de ton crime",
         description=message,
@@ -879,7 +949,6 @@ async def crime(ctx: commands.Context):
 
     await ctx.send(embed=embed)
 
-# Gestion des erreurs
 @crime.error
 async def crime_error(ctx, error):
     await ctx.send("❌ Une erreur est survenue lors de la commande.")
@@ -890,37 +959,39 @@ async def buy_item(ctx, item: str = "chicken"):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Forcer l'achat d'un chicken pour toutes les aliases
-    item = "chicken"
+    item = "chicken"  # Forcer l'achat du chicken
 
-    # Vérifier si l'utilisateur possède déjà un poulet
+    # Vérifier si l'utilisateur possède déjà un chicken
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
     if data and data.get("chicken", False):
-        await ctx.send(f"{user.mention}, tu as déjà un poulet ! Tu ne peux pas en acheter un autre tant que tu n'as pas perdu le précédent.")
+        embed = discord.Embed(
+            description="<:classic_x_mark:1362711858829725729>  You already own a chicken.\nSend it off to fight using the command `cock-fight <bet>`",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=f"{user.display_name}", icon_url=user.display_avatar.url)
+        await ctx.send(embed=embed)
         return
 
-    # Vérifier le solde de l'utilisateur
+    # Vérifier le solde (champ cash)
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    balance = balance_data.get("wallet", 0) if balance_data else 0
+    balance = balance_data.get("cash", 0) if balance_data else 0
 
-    # Liste des objets à acheter et leurs prix
     items_for_sale = {
         "chicken": 100,
     }
 
-    # Vérification de l'objet choisi
     if item in items_for_sale:
         price = items_for_sale[item]
 
         if balance >= price:
-            # Retirer l'argent du wallet de l'utilisateur
+            # Retirer du cash
             collection.update_one(
                 {"guild_id": guild_id, "user_id": user_id},
-                {"$inc": {"wallet": -price}},
+                {"$inc": {"cash": -price}},
                 upsert=True
             )
 
-            # Ajouter l'objet au profil de l'utilisateur (ici, un poulet)
+            # Ajouter le chicken
             collection7.update_one(
                 {"guild_id": guild_id, "user_id": user_id},
                 {"$set": {item: True}},
@@ -934,20 +1005,29 @@ async def buy_item(ctx, item: str = "chicken"):
                 f"Achat d'un **{item}**"
             )
 
-            # Création d'un embed pour rendre l'achat plus visuel
+            # Embed de confirmation
             embed = discord.Embed(
-                title=f"Achat réussi !",
-                description=f"{user.mention} a acheté un **{item}** pour **{price} <:ecoEther:1341862366249357374>** !",
+                description="<:Check:1362710665663615147> You have bought a chicken to fight!\nUse the command `cock-fight <bet>`",
                 color=discord.Color.green()
             )
-            embed.set_footer(text=f"Merci pour ton achat !")
+            embed.set_author(name=f"{user.display_name}", icon_url=user.display_avatar.url)
             await ctx.send(embed=embed)
 
         else:
-            await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour acheter un **{item}** !")
+            embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> You don't have enough coins to buy a **{item}**!",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=f"{user.display_name}", icon_url=user.display_avatar.url)
+            await ctx.send(embed=embed)
 
     else:
-        await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> This item is not available for purchase.",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=f"{user.display_name}", icon_url=user.display_avatar.url)
+        await ctx.send(embed=embed)
 
 @bot.command(name="cock-fight", aliases=["cf"])
 async def cock_fight(ctx, amount: str):
@@ -965,12 +1045,13 @@ async def cock_fight(ctx, amount: str):
         await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
         return
 
+    # Vérifier le solde en cash
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    balance = balance_data.get("wallet", 0) if balance_data else 0
+    balance = balance_data.get("cash", 0) if balance_data else 0
 
     if amount.lower() == "all":
         if balance == 0:
-            await ctx.send(f"{user.mention}, ton portefeuille est vide.")
+            await ctx.send(f"{user.mention}, ton cash est vide.")
             return
         if balance > max_bet:
             await ctx.send(f"{user.mention}, ta mise dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
@@ -979,11 +1060,11 @@ async def cock_fight(ctx, amount: str):
 
     elif amount.lower() == "half":
         if balance == 0:
-            await ctx.send(f"{user.mention}, ton portefeuille est vide.")
+            await ctx.send(f"{user.mention}, ton cash est vide.")
             return
         amount = balance // 2
         if amount > max_bet:
-            await ctx.send(f"{user.mention}, la moitié de ton portefeuille dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
+            await ctx.send(f"{user.mention}, la moitié de ton cash dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
             return
 
     else:
@@ -994,7 +1075,7 @@ async def cock_fight(ctx, amount: str):
             return
 
     if amount > balance:
-        await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour cette mise.")
+        await ctx.send(f"{user.mention}, tu n'as pas assez de cash pour cette mise.")
         return
     if amount <= 0:
         await ctx.send(f"{user.mention}, la mise doit être positive.")
@@ -1010,7 +1091,7 @@ async def cock_fight(ctx, amount: str):
         win_amount = amount
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": win_amount}},
+            {"$inc": {"cash": win_amount}},
             upsert=True
         )
         new_chance = min(win_chance + 1, max_chance)
@@ -1041,7 +1122,7 @@ async def cock_fight(ctx, amount: str):
         )
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": -amount}},
+            {"$inc": {"cash": -amount}},
             upsert=True
         )
         collection6.update_one(
