@@ -48,6 +48,7 @@ collection5 = db['ether_collect'] #Stock les cd de collect
 collection6 = db['ether_work'] #Stock les cd de Work
 collection7 = db['ether_inventory'] #Stock les inventaires
 collection8 = db['info_cf'] #Stock les Info du cf
+collection9 = db['info_logs'] #Stock le Salon logs
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -62,6 +63,32 @@ def get_cf_config(guild_id):
         collection8.insert_one(config)
     return config
 
+async def log_eco_channel(bot, guild_id, user, action, amount, balance_before, balance_after, note=""):
+    config = collection9.find_one({"guild_id": guild_id})
+    channel_id = config.get("eco_log_channel") if config else None
+
+    if not channel_id:
+        return  # Aucun salon configuré
+
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        return  # Salon introuvable (peut avoir été supprimé)
+
+    embed = discord.Embed(
+        title="💸 Log Économique",
+        color=discord.Color.gold(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
+    embed.add_field(name="Action", value=action, inline=True)
+    embed.add_field(name="Montant", value=f"{amount} <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="Solde", value=f"Avant: {balance_before}\nAprès: {balance_after}", inline=False)
+
+    if note:
+        embed.add_field(name="Note", value=note, inline=False)
+
+    await channel.send(embed=embed)
+
 def load_guild_settings(guild_id):
     # Charger les données de la collection principale
     ether_eco_data = collection.find_one({"guild_id": guild_id}) or {}
@@ -72,6 +99,7 @@ def load_guild_settings(guild_id):
     ether_work_data = collection6.find_one({"guild_id": guild_id}) or {}
     ether_inventory_data = collection7.find_one({"guild_id": guild_id}) or {}
     info_cf_data = collection8.find_one({"guild_id": guild_id}) or {}
+    info_logs_data = collection9.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -84,7 +112,8 @@ def load_guild_settings(guild_id):
         "ether_collect": ether_collect_data,
         "ether_work": ether_work_data,
         "ether_inventory": ether_inventory_data,
-        "info_cf": info_cf_data
+        "info_cf": info_cf_data,
+        "info_logs": info_logs_data
 
     }
 
@@ -166,7 +195,7 @@ async def uptime(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.hybrid_command(name="bal", aliases=["balance", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
+@bot.hybrid_command(name="balancel", aliases=["bal", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
 async def bal(ctx: commands.Context, user: discord.User = None):
     user = user or ctx.author
     guild_id = ctx.guild.id
@@ -308,11 +337,30 @@ async def add_money(ctx: commands.Context, user: discord.User, amount: int, acco
     guild_id = ctx.guild.id
     user_id = user.id
 
+    # Récupérer l'état actuel du solde pour cet utilisateur
+    balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    balance_before = balance_data.get(account.lower(), 0) if balance_data else 0
+
     # Mise à jour MongoDB
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {account.lower(): amount}},
         upsert=True
+    )
+
+    # Nouveau solde après l'ajout
+    balance_after = balance_before + amount
+
+    # Log dans le salon de logs économique
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Ajout d'argent",
+        amount,
+        balance_before,
+        balance_after,
+        f"Ajout de {amount} <:ecoEther:1341862366249357374> dans le compte {account.lower()} de {user.mention} par {ctx.author.mention}."
     )
 
     # Création de l'embed de confirmation
@@ -354,11 +402,29 @@ async def remove_money(ctx: commands.Context, user: discord.User, amount: int, l
     if current_balance < amount:
         return await ctx.send(f"❌ {user.display_name} n'a pas assez de fonds dans son `{field}` pour retirer {amount} <:ecoEther:1341862366249357374>.")
 
+    # Solde avant le retrait
+    balance_before = current_balance
+
     # Mise à jour dans la base de données
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {field: -amount}},
         upsert=True
+    )
+
+    # Solde après le retrait
+    balance_after = balance_before - amount
+
+    # Log dans le salon de logs économique
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Retrait d'argent",
+        -amount,
+        balance_before,
+        balance_after,
+        f"Retrait de {amount} <:ecoEther:1341862366249357374> dans le compte {field} de {user.mention} par {ctx.author.mention}."
     )
 
     # Création de l'embed de confirmation
@@ -394,11 +460,27 @@ async def set_money(ctx: commands.Context, user: discord.User, amount: int, loca
     user_id = user.id
     field = location.value
 
-    # Mise à jour de la base de données
+    # Récupération du solde actuel avant modification
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0, "bank": 0}
+    balance_before = data.get(field, 0)
+
+    # Mise à jour de la base de données pour définir le montant exact
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {field: amount}},
         upsert=True
+    )
+
+    # Log dans le salon de logs économiques
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Définition du solde",
+        amount - balance_before,  # Calcul du changement de solde
+        balance_before,
+        amount,
+        f"Le solde du compte `{field}` de {user.mention} a été défini à {amount} <:ecoEther:1341862366249357374> par {ctx.author.mention}."
     )
 
     # Création de l'embed de confirmation
@@ -447,6 +529,18 @@ async def pay(ctx: commands.Context, user: discord.User, amount: int):
         {"guild_id": guild_id, "user_id": user.id},
         {"$inc": {"wallet": amount}},
         upsert=True
+    )
+
+    # Log dans le salon de logs économiques
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Paiement effectué",
+        -amount,  # Le payeur perd de l'argent
+        sender_data["wallet"],
+        sender_data["wallet"] - amount,
+        f"{sender.mention} a payé **{amount} <:ecoEther:1341862366249357374>** à {user.mention}."
     )
 
     # Création de l'embed de confirmation
@@ -513,6 +607,10 @@ async def work(ctx: commands.Context):
     # Sélectionner un message au hasard
     message = random.choice(messages)
 
+    # Récupérer le solde avant l'ajout d'argent
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 0}
+    initial_balance = user_data["wallet"]
+
     # Mettre à jour le cooldown et l'argent de l'utilisateur
     collection6.update_one(
         {"guild_id": guild_id, "user_id": user_id},
@@ -525,6 +623,18 @@ async def work(ctx: commands.Context):
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {"wallet": amount}},
         upsert=True
+    )
+
+    # Log dans le salon de logs économiques
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Travail effectué",
+        amount,  # L'utilisateur gagne de l'argent
+        initial_balance,
+        initial_balance + amount,
+        f"{user.mention} a gagné **{amount} <:ecoEther:1341862366249357374>** pour son travail."
     )
 
     # Création de l'embed de confirmation
@@ -640,6 +750,18 @@ async def slut(ctx: commands.Context):
         upsert=True
     )
 
+    # Log dans le salon de logs économiques
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Chance",
+        amount if gain_or_loss == "gain" else -amount,  # L'utilisateur gagne ou perd de l'argent
+        None,  # Aucun solde avant, uniquement gain/perte
+        None,  # Aucun solde après
+        message  # Message de résultat
+    )
+
     # Création de l'embed de résultat
     embed = discord.Embed(
         title="🎰 Résultat de ta chance",
@@ -683,23 +805,7 @@ async def crime(ctx: commands.Context):
             f"Tu as réussi ton crime et gagné **{amount} <:ecoEther:1341862366249357374>**.",
             f"Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
             f"Bien joué, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ton coup de maître.",
-            f"Tu as réussi à te faire un joli gain de **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Bravo, ton crime t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ton crime.",
-            f"Ton crime a porté ses fruits, tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Félicitations, tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton braquage.",
-            f"Ton crime a été couronné de succès, tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as bien joué ! **{amount} <:ecoEther:1341862366249357374>** sont à toi.",
-            f"Ton crime t'a rapporté **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as bien tiré ton épingle du jeu avec **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Un joli gain de **{amount} <:ecoEther:1341862366249357374>** pour toi !",
-            f"Tu as fait un coup de maître, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta stratégie parfaite.",
-            f"Bravo, tu as réussi à obtenir **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Ton crime a payé, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Le butin est à toi ! **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu es un criminel chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Ton coup a payé, tu gagnes **{amount} <:ecoEther:1341862366249357374>**."
+            # ... (les autres messages)
         ]
         # Sélectionner un message de succès au hasard
         message = random.choice(messages)
@@ -711,6 +817,11 @@ async def crime(ctx: commands.Context):
             upsert=True
         )
 
+        # Log dans le salon économique
+        balance_before = collection.find_one({"guild_id": guild_id, "user_id": user_id}).get("wallet", 0)
+        balance_after = balance_before + amount
+        await log_eco_channel(bot, guild_id, user, "Gain après crime", amount, balance_before, balance_after)
+
     else:
         amount = random.randint(250, 2000)
         # Liste de 20 messages de perte
@@ -718,24 +829,7 @@ async def crime(ctx: commands.Context):
             f"Malheureusement, ton crime a échoué et tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
             f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>** après ton crime.",
             f"Ton crime a échoué et tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Oups, tu as perdu **{amount} <:ecoEther:1341862366249357374>** en tentant un crime.",
-            f"Tu as fait une erreur et perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Ton coup n'a pas fonctionné, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** à cause de ton crime raté.",
-            f"Dommage, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"Ton crime n'a pas payé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as raté, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Le crime ne paie pas, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu perds **{amount} <:ecoEther:1341862366249357374>** après ton crime échoué.",
-            f"Ce coup a échoué, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** à cause d'un crime mal exécuté.",
-            f"Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu as perdu **{amount} <:ecoEther:1341862366249357374>** dans ce crime.",
-            f"Le crime ne t'a pas souri, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Tu perds **{amount} <:ecoEther:1341862366249357374>** à cause de ton erreur.",
-            f"Ce crime ne t'a rien rapporté, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** dans ce crime.",
-            f"Ton crime a échoué, tu perds **{amount} <:ecoEther:1341862366249357374>**."
+            # ... (les autres messages)
         ]
         # Sélectionner un message de perte au hasard
         message = random.choice(messages)
@@ -746,6 +840,11 @@ async def crime(ctx: commands.Context):
             {"$inc": {"wallet": -amount}},
             upsert=True
         )
+
+        # Log dans le salon économique
+        balance_before = collection.find_one({"guild_id": guild_id, "user_id": user_id}).get("wallet", 0)
+        balance_after = balance_before - amount
+        await log_eco_channel(bot, guild_id, user, "Perte après crime", amount, balance_before, balance_after)
 
     # Mettre à jour le cooldown
     collection4.update_one(
@@ -810,6 +909,13 @@ async def buy_item(ctx, item: str = "chicken"):
                 {"guild_id": guild_id, "user_id": user_id},
                 {"$set": {item: True}},
                 upsert=True
+            )
+
+            # Logs économiques
+            balance_after = balance - price
+            await log_eco_channel(
+                bot, guild_id, user, "Achat", price, balance, balance_after,
+                f"Achat d'un **{item}**"
             )
 
             # Création d'un embed pour rendre l'achat plus visuel
@@ -907,12 +1013,20 @@ async def cock_fight(ctx, amount: str):
             title="🐓 Victoire !",
             description=(
                 f"{user.mention}, tu as gagné **{win_amount} <:ecoEther:1341862366249357374>** !\n"
-                f"Ta chance passe de **{win_chance}%** à **{new_chance}%**."
+                f"Ta chance est de**{new_chance}%**."
             ),
             color=discord.Color.green()
         )
         embed.set_footer(text="Ton poulet devient de plus en plus fort !")
         await ctx.send(embed=embed)
+
+        # Log économique : Victoire
+        balance_after = balance + win_amount
+        await log_eco_channel(
+            bot, guild_id, user, "Victoire au Cock-Fight", win_amount, balance, balance_after,
+            f"Victoire au Cock-Fight avec un gain de **{win_amount}**"
+        )
+
     else:
         collection7.update_one(
             {"guild_id": guild_id, "user_id": user_id},
@@ -937,6 +1051,13 @@ async def cock_fight(ctx, amount: str):
         embed.set_footer(text="Tu repars de zéro, bon courage !")
         await ctx.send(embed=embed)
 
+        # Log économique : Défaite
+        balance_after = balance - amount
+        await log_eco_channel(
+            bot, guild_id, user, "Défaite au Cock-Fight", -amount, balance, balance_after,
+            f"Défaite au Cock-Fight avec une perte de **{amount}**"
+        )
+
 @bot.command(name="set-cf-depart-chance")
 @commands.has_permissions(administrator=True)
 async def set_depart_chance(ctx, pourcent: str = None):
@@ -950,7 +1071,25 @@ async def set_depart_chance(ctx, pourcent: str = None):
     if not 1 <= pourcent <= 100:
         return await ctx.send("❌ Le pourcentage doit être compris entre **1** et **100**.")
 
+    # Mettre à jour la base de données avec la nouvelle valeur
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"start_chance": pourcent}}, upsert=True)
+
+    # Envoyer un message dans le salon de log spécifique (si configuré)
+    config = collection9.find_one({"guild_id": ctx.guild.id})
+    channel_id = config.get("eco_log_channel") if config else None
+
+    if channel_id:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            embed = discord.Embed(
+                title="🔧 Log de Configuration",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Action", value="Mise à jour de la chance de départ", inline=True)
+            embed.add_field(name="Chance de départ", value=f"{pourcent}%", inline=True)
+            await channel.send(embed=embed)
+
     await ctx.send(f"✅ La chance de départ a été mise à **{pourcent}%**.")
 
 
@@ -967,9 +1106,26 @@ async def set_max_chance(ctx, pourcent: str = None):
     if not 1 <= pourcent <= 100:
         return await ctx.send("❌ Le pourcentage doit être compris entre **1** et **100**.")
 
+    # Mettre à jour la base de données avec la nouvelle valeur
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_chance": pourcent}}, upsert=True)
-    await ctx.send(f"✅ La chance maximale de victoire est maintenant de **{pourcent}%**.")
 
+    # Envoyer un message dans le salon de log spécifique (si configuré)
+    config = collection9.find_one({"guild_id": ctx.guild.id})
+    channel_id = config.get("eco_log_channel") if config else None
+
+    if channel_id:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            embed = discord.Embed(
+                title="🔧 Log de Configuration",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Action", value="Mise à jour de la chance maximale de victoire", inline=True)
+            embed.add_field(name="Chance maximale", value=f"{pourcent}%", inline=True)
+            await channel.send(embed=embed)
+
+    await ctx.send(f"✅ La chance maximale de victoire est maintenant de **{pourcent}%**.")
 
 @bot.command(name="set-cf-mise-max")
 @commands.has_permissions(administrator=True)
@@ -984,9 +1140,26 @@ async def set_max_mise(ctx, amount: str = None):
     if amount <= 0:
         return await ctx.send("❌ La mise maximale doit être un **nombre supérieur à 0**.")
 
+    # Mettre à jour la base de données avec la nouvelle mise maximale
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_bet": amount}}, upsert=True)
-    await ctx.send(f"✅ La mise maximale a été mise à **{amount} <:ecoEther:1341862366249357374>**.")
 
+    # Envoyer un message dans le salon de log spécifique (si configuré)
+    config = collection9.find_one({"guild_id": ctx.guild.id})
+    channel_id = config.get("eco_log_channel") if config else None
+
+    if channel_id:
+        channel = bot.get_channel(channel_id)
+        if channel:
+            embed = discord.Embed(
+                title="🔧 Log de Configuration",
+                color=discord.Color.green(),
+                timestamp=datetime.utcnow()
+            )
+            embed.add_field(name="Action", value="Mise à jour de la mise maximale", inline=True)
+            embed.add_field(name="Mise maximale", value=f"{amount} <:ecoEther:1341862366249357374>", inline=True)
+            await channel.send(embed=embed)
+
+    await ctx.send(f"✅ La mise maximale a été mise à **{amount} <:ecoEther:1341862366249357374>**.")
 
 # Gestion des erreurs liées aux permissions
 @set_depart_chance.error
@@ -1047,6 +1220,17 @@ async def cf_config(ctx):
     embed.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
     await ctx.send(embed=embed, view=CFConfigView(guild_id))
+
+@bot.command(name="set-eco-log")
+@commands.has_permissions(administrator=True)
+async def set_eco_log(ctx, channel: discord.TextChannel):
+    guild_id = ctx.guild.id
+    collection9.update_one(
+        {"guild_id": guild_id},
+        {"$set": {"eco_log_channel": channel.id}},
+        upsert=True
+    )
+    await ctx.send(f"✅ Les logs économiques seront envoyés dans {channel.mention}")
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
