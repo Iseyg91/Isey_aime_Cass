@@ -211,16 +211,18 @@ async def uptime(ctx):
     await ctx.send(embed=embed)
 
 
-@bot.hybrid_command(name="balance", aliases=["bal", "money"], description="Affiche ta balance ou celle d'un autre utilisateur.")
+@bot.hybrid_command(
+    name="balance",
+    aliases=["bal", "money"],
+    description="Affiche ta balance ou celle d'un autre utilisateur."
+)
 async def bal(ctx: commands.Context, user: discord.User = None):
     user = user or ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Cherche les données de l'utilisateur
+    # Récupère les données de l'utilisateur ou initialise-les si absentes
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-
-    # Si l'utilisateur n'a pas de données, on initialise avec 1500 coins
     if not data:
         data = {
             "guild_id": guild_id,
@@ -230,14 +232,22 @@ async def bal(ctx: commands.Context, user: discord.User = None):
         }
         collection.insert_one(data)
 
+    # Récupération des valeurs
     cash = data.get("cash", 0)
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Récupération du leaderboard
+    # Calcul du rang dans le leaderboard
     all_data = list(collection.find({"guild_id": guild_id}))
-    sorted_data = sorted(all_data, key=lambda x: x.get("cash", 0) + x.get("bank", 0), reverse=True)
-    rank = next((i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id), None)
+    sorted_data = sorted(
+        all_data,
+        key=lambda x: x.get("cash", 0) + x.get("bank", 0),
+        reverse=True
+    )
+    rank = next(
+        (i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id),
+        None
+    )
 
     # Emoji de monnaie
     emoji = "<:ecoEther:1341862366249357374>"
@@ -247,14 +257,24 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     bank_str = f"{bank:,}"
     total_str = f"{total:,}"
 
-    # On aligne les colonnes
-    label_line = f"{'Cash':^12}{'Bank':^12}{'Total':^12}"
-    amount_line = f"{emoji} {cash_str:>9}{emoji} {bank_str:>9}{emoji} {total_str:>9}"
+    # Création des lignes avec un bel alignement
+    label_line = f"{'Cash':^15}{'Bank':^15}{'Total':^15}"
+    amount_line = (
+        f"{emoji} {cash_str:>12}"
+        f"{emoji} {bank_str:>12}"
+        f"{emoji} {total_str:>12}"
+    )
 
     # Création de l'embed
-    embed = discord.Embed(color=discord.Color.blue())
+    embed = discord.Embed(
+        title="Balance",
+        color=discord.Color.blue(),
+        description=f"🏅 Rang dans le leaderboard : **#{rank}**\n\n```"
+                    f"{label_line}\n"
+                    f"{amount_line}"
+                    f"```"
+    )
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.description = f"Leaderboard Rank: #{rank}\n{label_line}\n{amount_line}"
 
     await ctx.send(embed=embed)
 
