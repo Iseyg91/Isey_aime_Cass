@@ -285,46 +285,32 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Classement des 3 premiers utilisateurs
+    # Classement des utilisateurs
     all_users_data = list(collection.find({"guild_id": guild_id}))
     sorted_users = sorted(
         all_users_data,
         key=lambda u: u.get("cash", 0) + u.get("bank", 0),
         reverse=True
     )
-    top_users = sorted_users[:3]  # Top 3
+    rank = next((i + 1 for i, u in enumerate(sorted_users) if u["user_id"] == user_id), None)
 
-    # Déterminer le rôle de l'utilisateur
-    rank = next(
-        (index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id),
-        None
-    )
-    
-    role_name = None
-    if rank in TOP_ROLES:
-        role_name = f"Tu as le rôle **[𝑺ץ] Top {rank}** ! Félicitations !"  # Affiche le rôle
+    role_name = f"Tu as le rôle **[𝑺ץ] Top {rank}** ! Félicitations !" if rank in TOP_ROLES else None
 
-    # Création de l'embed avec les informations
-    currency_emoji = "<:ecoEther:1341862366249357374>"
-    embed = discord.Embed(color=discord.Color.gold())
+    # Emojis distincts
+    emoji_cash = "💵"
+    emoji_bank = "🏦"
+    emoji_total = "📈"
+    emoji_currency = "<:ecoEther:1341862366249357374>"
+
+    # Création de l'embed
+    embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
-    # Ajouter les informations sur la richesse de l'utilisateur
-    embed.add_field(
-        name="💰 Tes informations financières",
-        value=(
-            f"**💰 Cash :** {cash:,} {currency_emoji}\n"
-            f"**🏦 Banque :** {bank:,} {currency_emoji}\n"
-            f"**📊 Total :** {total:,} {currency_emoji}"
-        ),
-        inline=False
-    )
-
-    # Ajouter le classement de l'utilisateur
+    # Affiche d'abord le rank
     if rank:
         embed.add_field(
-            name=f"🏆 Tu es dans le top #{rank} !",
-            value=role_name,
+            name=f"🏆 Classement : #{rank}",
+            value=role_name or "Tu fais partie des meilleurs !",
             inline=False
         )
     else:
@@ -333,6 +319,17 @@ async def bal(ctx: commands.Context, user: discord.User = None):
             value="Tu n'es actuellement pas dans le top 3.",
             inline=False
         )
+
+    # Infos financières
+    embed.add_field(
+        name="💰 Tes informations financières",
+        value=(
+            f"**{emoji_cash} Cash :** {cash:,} {emoji_currency}\n"
+            f"**{emoji_bank} Banque :** {bank:,} {emoji_currency}\n"
+            f"**{emoji_total} Total :** {total:,} {emoji_currency}"
+        ),
+        inline=False
+    )
 
     await ctx.send(embed=embed)
 
