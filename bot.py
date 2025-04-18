@@ -135,6 +135,13 @@ def load_guild_settings(guild_id):
 
     return combined_data
 
+def get_or_create_user_data(guild_id: int, user_id: int):
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not data:
+        data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+        collection.insert_one(data)
+    return data
+
 TOP_ROLES = {
     1: 1362832820417855699,  # ID du rôle Top 1
     2: 1362735276090327080,  # ID du rôle Top 2
@@ -1446,9 +1453,9 @@ card_emojis = {
     'K': ['<:KRoiCarreau:1362753685095976981>', '<:KRoiPique:1362753958350946385>', '<:KRoiCoeur:1362754291223498782>', '<:KRoiTrefle:1362754318276497609>']
 }
 
-# ==============================
+# ============================
 # === FONCTIONS DE JEU BASE ===
-# ==============================
+# ============================
 
 def get_card():
     value = random.choice(list(card_emojis.keys()))
@@ -1478,12 +1485,13 @@ def calculate_hand(hand):
 # === COMMANDE BLACKJACK ====
 # ============================
 
+emoji_error = "<:classic_x_mark:1362711858829725729>"
+
 @bot.command(aliases=["bj"])
 async def blackjack(ctx, mise: str):
-    # Récupère le solde de l'utilisateur en cash
     user_data = await get_user_data(ctx.author.id)
     cash_balance = user_data["cash"]
-    
+
     if mise == "all":
         mise = cash_balance
     elif mise == "half":
@@ -1494,12 +1502,13 @@ async def blackjack(ctx, mise: str):
         except ValueError:
             return await ctx.send(f"{emoji_error} La mise doit être un nombre valide.")
 
-    # Vérifie si la mise est valide
     if mise <= 0:
         return await ctx.send(f"{emoji_error} La mise doit être supérieure à 0.")
     elif mise > cash_balance:
         return await ctx.send(f"{emoji_error} Tu n'as pas assez de cash pour cette mise.")
-    
+
+    mise = int(mise)
+
     player_hand = [get_card(), get_card()]
     dealer_hand = [get_card(), get_card()]
     player_value = calculate_hand(player_hand)
@@ -1542,15 +1551,16 @@ async def blackjack(ctx, mise: str):
                 dealer_hand.append(get_card())
                 dealer_value = calculate_hand(dealer_hand)
 
-            # Résultat de la partie
             if dealer_value > 21 or player_value > dealer_value:
                 result_title = "🏆 Tu as gagné !"
                 color = discord.Color.green()
                 result_field = ("✅ Gagné", f"Tu gagnes **{mise}** <:ecoEther:1341862366249357374> !")
+                await update_user_cash(ctx.author.id, cash_balance + mise)
             elif player_value < dealer_value:
                 result_title = "💥 Tu as perdu !"
                 color = discord.Color.red()
                 result_field = ("❌ Perdu", f"Le croupier gagne.\nPerte de **{mise}** <:ecoEther:1341862366249357374>")
+                await update_user_cash(ctx.author.id, cash_balance - mise)
             else:
                 result_title = "🤝 Égalité"
                 color = discord.Color.gold()
@@ -1564,7 +1574,6 @@ async def blackjack(ctx, mise: str):
             self.stop()
             await interaction.response.edit_message(embed=embed, view=None)
 
-    # Affichage initial
     view = BlackjackView(ctx.author)
     embed = discord.Embed(title="🎰 Blackjack", description="Choisis une action :", color=discord.Color.blue())
     embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
