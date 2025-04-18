@@ -1391,8 +1391,15 @@ async def blackjack(ctx, mise: int):
     dealer_value = calculate_hand(dealer_hand)
 
     class BlackjackView(View):
-        def __init__(self):
+        def __init__(self, author):
             super().__init__(timeout=60)
+            self.author = author
+
+        async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            if interaction.user.id != self.author.id:
+                await interaction.response.send_message("❌ Tu ne peux pas jouer cette partie !", ephemeral=True)
+                return False
+            return True
 
         @discord.ui.button(label="🃏 Tirer", style=discord.ButtonStyle.primary)
         async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1434,13 +1441,13 @@ async def blackjack(ctx, mise: int):
             await interaction.response.edit_message(embed=embed, view=None)
 
     # Affichage initial
+    view = BlackjackView(ctx.author)
     embed = discord.Embed(title="🎰 Blackjack", description="Choisis une action :", color=discord.Color.blue())
     embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
     embed.add_field(name="🃎 Croupier", value=f"{dealer_hand[0][1]} 🂠 → **?**", inline=False)
     embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
 
-    await ctx.send(embed=embed, view=BlackjackView())
-
+    await ctx.send(embed=embed, view=view)
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
 @commands.has_permissions(administrator=True)  # La commande est réservée aux admins
