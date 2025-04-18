@@ -220,30 +220,39 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     # Cherche les données de l'utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
 
-    # Si l'utilisateur n'a pas de données, on initialise avec 1500 coins en portefeuille
+    # Si l'utilisateur n'a pas de données, on initialise avec 1500 coins
     if not data:
         data = {
             "guild_id": guild_id,
             "user_id": user_id,
-            "cash": 1500,  # Remplacer wallet par cash ici
+            "cash": 1500,
             "bank": 0
         }
         collection.insert_one(data)
 
-    # Récupération des données à afficher
-    cash = data.get("cash", 0)  # Remplacer wallet par cash ici
+    cash = data.get("cash", 0)
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Création de l'embed
+    # Récupération du leaderboard
+    all_data = list(collection.find({"guild_id": guild_id}))
+    sorted_data = sorted(all_data, key=lambda x: x.get("cash", 0) + x.get("bank", 0), reverse=True)
+    rank = next((i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id), None)
+
+    # Embed simplifié
     embed = discord.Embed(
-        title=f"{user.display_name}",  # Juste le pseudo
         color=discord.Color.gold()
     )
-    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)  # PP + pseudo
-    embed.add_field(name="Cash", value=f"{cash} <:ecoEther:1341862366249357374>", inline=True)  # Remplacer wallet par cash ici
-    embed.add_field(name="Banque", value=f"{bank} <:ecoEther:1341862366249357374>", inline=True)
-    embed.add_field(name="Total", value=f"{total} <:ecoEther:1341862366249357374>", inline=False)
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+    embed.add_field(
+        name=f"🏆 Leaderboard Rank: #{rank}",
+        value=(
+            f"💰 Cash: {cash} <:ecoEther:1341862366249357374>\n"
+            f"🏦 Bank: {bank} <:ecoEther:1341862366249357374>\n"
+            f"📊 Total: {total} <:ecoEther:1341862366249357374>"
+        ),
+        inline=False
+    )
 
     await ctx.send(embed=embed)
 
