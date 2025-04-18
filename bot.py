@@ -221,60 +221,38 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Récupère les données de l'utilisateur ou initialise-les si absentes
+    # Récupération ou initialisation des données utilisateur
     data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    if not data:
-        data = {
-            "guild_id": guild_id,
-            "user_id": user_id,
-            "cash": 1500,
-            "bank": 0
-        }
+    if data is None:
+        data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
         collection.insert_one(data)
 
-    # Récupération des valeurs
     cash = data.get("cash", 0)
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Calcul du rang dans le leaderboard
-    all_data = list(collection.find({"guild_id": guild_id}))
-    sorted_data = sorted(
-        all_data,
-        key=lambda x: x.get("cash", 0) + x.get("bank", 0),
+    # Calcul du classement
+    all_users = list(collection.find({"guild_id": guild_id}))
+    sorted_users = sorted(
+        all_users,
+        key=lambda u: u.get("cash", 0) + u.get("bank", 0),
         reverse=True
     )
-    rank = next(
-        (i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id),
-        None
-    )
-
-    # Emoji de monnaie
-    emoji = "<:ecoEther:1341862366249357374>"
-
-    # Formatage des montants avec des virgules
-    cash_str = f"{cash:,}"
-    bank_str = f"{bank:,}"
-    total_str = f"{total:,}"
-
-    # Création des lignes avec un bel alignement
-    label_line = f"{'Cash':^15}{'Bank':^15}{'Total':^15}"
-    amount_line = (
-        f"{emoji} {cash_str:>12}"
-        f"{emoji} {bank_str:>12}"
-        f"{emoji} {total_str:>12}"
-    )
+    rank = next((index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id), "N/A")
 
     # Création de l'embed
-    embed = discord.Embed(
-        title="Balance",
-        color=discord.Color.blue(),
-        description=f"🏅 Rang dans le leaderboard : **#{rank}**\n\n```"
-                    f"{label_line}\n"
-                    f"{amount_line}"
-                    f"```"
-    )
+    currency_emoji = "<:ecoEther:1341862366249357374>"
+    embed = discord.Embed(color=discord.Color.gold())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+    embed.add_field(
+        name=f"🏆 Classement : #{rank}",
+        value=(
+            f"**💰 Cash :** {cash:,} {currency_emoji}\n"
+            f"**🏦 Banque :** {bank:,} {currency_emoji}\n"
+            f"**📊 Total :** {total:,} {currency_emoji}"
+        ),
+        inline=False
+    )
 
     await ctx.send(embed=embed)
 
