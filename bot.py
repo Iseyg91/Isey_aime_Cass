@@ -34,6 +34,12 @@ intents = discord.Intents.all()
 start_time = time.time()
 bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
 
+TOP_ROLES = {
+    1: "[𝑺ץ]  Top 1",
+    2: "[𝑺ץ]  Top 2",
+    3: "[𝑺ץ]  Top 3",
+}
+
 # Connexion MongoDB
 mongo_uri = os.getenv("MONGO_DB")  # URI de connexion à MongoDB
 print("Mongo URI :", mongo_uri)  # Cela affichera l'URI de connexion (assure-toi de ne pas laisser cela en prod)
@@ -135,6 +141,44 @@ def load_guild_settings(guild_id):
 
     return combined_data
 
+@tasks.loop(seconds=5)  # vérifie toutes les 60 secondes
+async def update_top_roles():
+    for guild in bot.guilds:
+        all_users_data = list(collection.find({"guild_id": guild.id}))
+        sorted_users = sorted(
+            all_users_data,
+            key=lambda u: u.get("cash", 0) + u.get("bank", 0),
+            reverse=True
+        )
+        top_users = sorted_users[:3]  # Top 3
+
+        for rank, user_data in enumerate(top_users, start=1):
+            user_id = user_data["user_id"]
+            role_name = TOP_ROLES[rank]
+            role = discord.utils.get(guild.roles, name=role_name)
+            if not role:
+                print(f"Rôle manquant : {role_name} dans {guild.name}")
+                continue
+
+            member = guild.get_member(user_id)
+            if not member:
+                continue
+
+            # Donner le rôle s'il ne l'a pas
+            if role not in member.roles:
+                await member.add_roles(role)
+                print(f"Ajouté {role.name} à {member.display_name}")
+
+        # Retirer les rôles aux autres joueurs qui ne sont plus dans le top
+        for rank, role_name in TOP_ROLES.items():
+            role = discord.utils.get(guild.roles, name=role_name)
+            if not role:
+                continue
+            for member in role.members:
+                if member.id not in [u["user_id"] for u in top_users]:
+                    await member.remove_roles(role)
+                    print(f"Retiré {role.name} de {member.display_name}")
+
 @bot.event
 async def on_ready():
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
@@ -210,42 +254,48 @@ async def uptime(ctx):
     embed.set_footer(text=f"♥️by Iseyg", icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
-
 @bot.hybrid_command(
     name="balance",
     aliases=["bal", "money"],
     description="Affiche ta balance ou celle d'un autre utilisateur."
 )
 async def bal(ctx: commands.Context, user: discord.User = None):
+    if ctx.guild is None:
+        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+
     user = user or ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Récupération ou initialisation des données utilisateur
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    if data is None:
-        data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
-        collection.insert_one(data)
+    def get_or_create_user_data(guild_id: int, user_id: int):
+        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not data:
+            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(data)
+        return data
 
+    data = get_or_create_user_data(guild_id, user_id)
     cash = data.get("cash", 0)
     bank = data.get("bank", 0)
     total = cash + bank
 
-    # Calcul du classement
-    all_users = list(collection.find({"guild_id": guild_id}))
+    # Classement des 3 premiers utilisateurs
+    all_users_data = list(collection.find({"guild_id": guild_id}))
     sorted_users = sorted(
-        all_users,
+        all_users_data,
         key=lambda u: u.get("cash", 0) + u.get("bank", 0),
         reverse=True
     )
-    rank = next((index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id), "N/A")
+    top_users = sorted_users[:3]  # Top 3
 
-    # Création de l'embed
+    # Création de l'embed avec les informations
     currency_emoji = "<:ecoEther:1341862366249357374>"
     embed = discord.Embed(color=discord.Color.gold())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+
+    # Ajouter les informations sur la richesse de l'utilisateur
     embed.add_field(
-        name=f"🏆 Classement : #{rank}",
+        name="💰 Tes informations financières",
         value=(
             f"**💰 Cash :** {cash:,} {currency_emoji}\n"
             f"**🏦 Banque :** {bank:,} {currency_emoji}\n"
@@ -253,6 +303,33 @@ async def bal(ctx: commands.Context, user: discord.User = None):
         ),
         inline=False
     )
+
+    # Ajouter le classement
+    rank = next(
+        (index + 1 for index, u in enumerate(sorted_users) if u["user_id"] == user_id),
+        "N/A"
+    )
+    embed.add_field(
+        name=f"🏆 Classement : #{rank}",
+        value=f"Tu es actuellement dans la position #{rank} dans la richesse totale !",
+        inline=False
+    )
+
+    # Affichage des 3 premiers avec leur rôle
+    top_text = ""
+    for rank, user_data in enumerate(top_users, start=1):
+        top_user_id = user_data["user_id"]
+        top_user = ctx.guild.get_member(top_user_id)
+        if top_user:
+            role_name = TOP_ROLES[rank]
+            top_text += f"**{rank}.** {top_user.display_name} - **{role_name}**\n"
+
+    if top_text:
+        embed.add_field(
+            name="🏅 Classement des 3 premiers",
+            value=top_text,
+            inline=False
+        )
 
     await ctx.send(embed=embed)
 
