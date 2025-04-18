@@ -242,22 +242,21 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     # Emoji de monnaie
     emoji = "<:ecoEther:1341862366249357374>"
 
-    # Format aligné avec espaces
+    # Aligner les montants pour un affichage propre
     cash_str = f"{cash:,}"
     bank_str = f"{bank:,}"
     total_str = f"{total:,}"
 
-    # Ligne unique propre
+    # Créer la ligne d'affichage alignée
     balance_line = (
-        f"💰 Cash: {emoji} {cash_str:<8}   "
-        f"🏦 Bank: {emoji} {bank_str:<8}   "
-        f"📊 Total: {emoji} {total_str:<8}"
+        f"Cash:          Bank:      Total:\n"
+        f"{emoji} {cash_str:<10} {emoji} {bank_str:<10} {emoji} {total_str:<10}"
     )
 
     # Embed stylé
     embed = discord.Embed(color=discord.Color.gold())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.description = f"🏆 **Leaderboard Rank: #{rank}**\n\n{balance_line}"
+    embed.description = f"Leaderboard Rank: #{rank}\n\n{balance_line}"
 
     await ctx.send(embed=embed)
 
