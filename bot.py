@@ -47,6 +47,20 @@ collection4 = db['ether_crime']  #Stock les cd de slut
 collection5 = db['ether_collect'] #Stock les cd de collect
 collection6 = db['ether_work'] #Stock les cd de Work
 collection7 = db['ether_inventory'] #Stock les inventaires
+collection8 = db['info_cf'] #Stock les Info du cf
+
+def get_cf_config(guild_id):
+    config = collection8.find_one({"guild_id": guild_id})
+    if not config:
+        # Valeurs par défaut
+        config = {
+            "guild_id": guild_id,
+            "start_chance": 50,
+            "max_chance": 100,
+            "max_bet": 20000
+        }
+        collection8.insert_one(config)
+    return config
 
 def load_guild_settings(guild_id):
     # Charger les données de la collection principale
@@ -57,6 +71,7 @@ def load_guild_settings(guild_id):
     ether_collect = collection5.find_one({"guild_id": guild_id}) or {}
     ether_work_data = collection6.find_one({"guild_id": guild_id}) or {}
     ether_inventory_data = collection7.find_one({"guild_id": guild_id}) or {}
+    info_cf_data = collection8.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -68,7 +83,8 @@ def load_guild_settings(guild_id):
         "ether_crime": ether_crime_data,
         "ether_collect": ether_collect_data,
         "ether_work": ether_work_data,
-        "ether_inventory": ether_inventory_data
+        "ether_inventory": ether_inventory_data,
+        "info_cf": info_cf_data
 
     }
 
@@ -812,10 +828,16 @@ async def buy_item(ctx, item: str = "chicken"):
         await ctx.send(f"{user.mention}, cet objet n'est pas disponible à l'achat.")
 
 @bot.command(name="cock-fight", aliases=["cf"])
-async def cock_fight(ctx, amount: int):
+async def cock_fight(ctx, amount: str):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
+
+    # Charger les paramètres
+    config = get_cf_config(guild_id)
+    max_bet = config.get("max_bet", 20000)
+    max_chance = config.get("max_chance", 100)
+    start_chance = config.get("start_chance", 50)
 
     # Vérifier si l'utilisateur a un poulet
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -827,21 +849,45 @@ async def cock_fight(ctx, amount: int):
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = balance_data.get("wallet", 0) if balance_data else 0
 
+    if amount.lower() == "all":
+        if balance == 0:
+            await ctx.send(f"{user.mention}, ton portefeuille est vide.")
+            return
+        if balance > max_bet:
+            await ctx.send(f"{user.mention}, ta mise dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
+            return
+        amount = balance
+
+    elif amount.lower() == "half":
+        if balance == 0:
+            await ctx.send(f"{user.mention}, ton portefeuille est vide.")
+            return
+        amount = balance // 2
+        if amount > max_bet:
+            await ctx.send(f"{user.mention}, la moitié de ton portefeuille dépasse la limite de **{max_bet} <:ecoEther:1341862366249357374>**.")
+            return
+
+    else:
+        try:
+            amount = int(amount)
+        except ValueError:
+            await ctx.send(f"{user.mention}, entre un montant valide, ou utilise `all` ou `half`.")
+            return
+
     if amount > balance:
         await ctx.send(f"{user.mention}, tu n'as pas assez de coins pour cette mise.")
         return
     if amount <= 0:
         await ctx.send(f"{user.mention}, la mise doit être positive.")
         return
-    if amount > 20000:
-        await ctx.send(f"{user.mention}, la mise est limitée à **20 000 🪙**.")
+    if amount > max_bet:
+        await ctx.send(f"{user.mention}, la mise est limitée à **{max_bet} <:ecoEther:1341862366249357374>**.")
         return
 
     # Récupérer la probabilité actuelle
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
-    win_chance = win_data.get("win_chance", 50) if win_data else 50
+    win_chance = win_data.get("win_chance", start_chance) if win_data else start_chance
 
-    # Combat
     if random.randint(1, 100) <= win_chance:
         win_amount = amount * 2
         collection.update_one(
@@ -849,7 +895,7 @@ async def cock_fight(ctx, amount: int):
             {"$inc": {"wallet": win_amount}},
             upsert=True
         )
-        new_chance = min(win_chance + 1, 100)
+        new_chance = min(win_chance + 1, max_chance)
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"win_chance": new_chance}},
@@ -858,18 +904,16 @@ async def cock_fight(ctx, amount: int):
 
         embed = discord.Embed(
             title="🐓 Victoire !",
-            description=f"{user.mention}, tu as gagné **{win_amount} 🪙** ! Ta chance est maintenant de **{new_chance}%**.",
+            description=f"{user.mention}, tu as gagné **{win_amount} <:ecoEther:1341862366249357374>** ! Ta chance est maintenant de **{new_chance}%**.",
             color=discord.Color.green()
         )
         embed.set_footer(text="Ton poulet devient de plus en plus fort !")
         await ctx.send(embed=embed)
     else:
-        # La personne perd son poulet uniquement si elle perd
         collection7.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"chicken": False}}
         )
-
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": -amount}},
@@ -877,17 +921,65 @@ async def cock_fight(ctx, amount: int):
         )
         collection6.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"win_chance": 50}},
+            {"$set": {"win_chance": start_chance}},
             upsert=True
         )
 
         embed = discord.Embed(
             title="💀 Défaite...",
-            description=f"{user.mention}, tu as perdu **{amount} 🪙**. Ton poulet est KO. Ta chance est maintenant de **50%**.",
+            description=f"{user.mention}, tu as perdu **{amount} <:ecoEther:1341862366249357374>**. Ton poulet est KO. Ta chance est maintenant de **{start_chance}%**.",
             color=discord.Color.red()
         )
         embed.set_footer(text="Tu repars de zéro, bon courage !")
         await ctx.send(embed=embed)
+
+@bot.command(name="set-cf-depart-chance")
+@commands.has_permissions(administrator=True)
+async def set_depart_chance(ctx, pourcent: int):
+    if not 1 <= pourcent <= 100:
+        await ctx.send("Le pourcentage doit être entre 1 et 100.")
+        return
+    collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"start_chance": pourcent}}, upsert=True)
+    await ctx.send(f"La chance de départ a été mise à **{pourcent}%**.")
+
+@bot.command(name="set-cf-max-chance")
+@commands.has_permissions(administrator=True)
+async def set_max_chance(ctx, pourcent: int):
+    if not 1 <= pourcent <= 100:
+        await ctx.send("Le pourcentage doit être entre 1 et 100.")
+        return
+    collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_chance": pourcent}}, upsert=True)
+    await ctx.send(f"La chance **maximale** de victoire est maintenant de **{pourcent}%**.")
+
+@bot.command(name="set-cf-mise-max")
+@commands.has_permissions(administrator=True)
+async def set_max_mise(ctx, amount: int):
+    if amount <= 0:
+        await ctx.send("La mise maximale doit être un nombre positif.")
+        return
+    collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_bet": amount}}, upsert=True)
+    await ctx.send(f"La mise maximale a été mise à **{amount} <:ecoEther:1341862366249357374>**.")
+
+@bot.command(name="cf-config")
+@commands.has_permissions(administrator=True)
+async def cf_config(ctx):
+    guild_id = ctx.guild.id
+    config = get_cf_config(guild_id)
+
+    start_chance = config.get("start_chance", 50)
+    max_chance = config.get("max_chance", 100)
+    max_bet = config.get("max_bet", 20000)
+
+    embed = discord.Embed(
+        title="⚙️ Configuration Cock-Fight",
+        color=discord.Color.gold()
+    )
+    embed.add_field(name="🎯 Chance de départ", value=f"**{start_chance}%**", inline=False)
+    embed.add_field(name="📈 Chance max", value=f"**{max_chance}%**", inline=False)
+    embed.add_field(name="💰 Mise maximale", value=f"**{max_bet} <:ecoEther:1341862366249357374>**", inline=False)
+    embed.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
+
+    await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
