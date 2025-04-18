@@ -1,13 +1,11 @@
 import discord
 from discord.ext import commands, tasks
-from discord import app_commands, Embed, ButtonStyle, ui
-from discord.ui import Button, View, Select, Modal, TextInput, button
-from discord.ui import Modal, TextInput, Button, View
+from discord import app_commands, Embed, ButtonStyle, Interaction, TextChannel, Role
+from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
 from discord import TextStyle
 from functools import wraps
 import os
-from discord import app_commands, Interaction, TextChannel, Role
 import io
 import random
 import asyncio
@@ -26,7 +24,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import psutil
 import pytz
 import platform
-from discord.ui import Select, View
+
 
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
@@ -53,6 +51,7 @@ collection10 = db['info_bj'] #Stock les Info du Bj
 collection11 = db['info_rr'] #Stock les Info de RR
 collection12 = db['info_roulette'] #Stock les Info de SM
 collection13 = db['info_sm'] #Stock les Info de SM
+collection14 = db['ether_rob'] #Stock les cd de Rob
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -108,6 +107,7 @@ def load_guild_settings(guild_id):
     info_rr_data = collection11.find_one({"guild_id": guild_id}) or {}
     info_roulette_data = collection12.find_one({"guild_id": guild_id}) or {}
     info_sm_roulette_data = collection13.find_one({"guild_id": guild_id}) or {}
+    ether_rob_data = collection14.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -125,7 +125,8 @@ def load_guild_settings(guild_id):
         "info_bj": info_bj_data,
         "info_rr": info_rr_data,
         "info_roulette": info_roulette_data,
-        "info_sm": info_sm_data
+        "info_sm": info_sm_data,
+        "ether_rob": ether_rob_data
 
     }
 
@@ -1332,6 +1333,8 @@ async def blackjack(ctx, mise: int):
             if joueur_val > 21:
                 embed.add_field(name="💥 Résultat", value="Tu as dépassé 21. Tu perds ta mise.", inline=False)
                 collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
+                # Log la perte
+                await log_eco_channel(bot, guild_id, ctx.author, "Perte de mise", mise, data["wallet"], data["wallet"] - mise)
                 self.stop()
 
             await interaction.response.edit_message(embed=embed, view=self)
@@ -1356,9 +1359,13 @@ async def blackjack(ctx, mise: int):
             if croupier_val > 21 or joueur_val > croupier_val:
                 embed.add_field(name="💰 Résultat", value="Tu gagnes ! Ta mise est doublée.", inline=False)
                 collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": mise}})
+                # Log la victoire
+                await log_eco_channel(bot, guild_id, ctx.author, "Gagné au Blackjack", mise, data["wallet"], data["wallet"] + mise)
             elif joueur_val < croupier_val:
                 embed.add_field(name="💥 Résultat", value="Tu perds ta mise.", inline=False)
                 collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
+                # Log la perte
+                await log_eco_channel(bot, guild_id, ctx.author, "Perte de mise", mise, data["wallet"], data["wallet"] - mise)
             else:
                 embed.add_field(name="🤝 Résultat", value="Égalité ! Ta mise est remboursée.", inline=False)
 
@@ -1378,6 +1385,30 @@ async def blackjack(ctx, mise: int):
     embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
     await ctx.send(embed=embed, view=view)
 
+async def log_bj_max_mise(bot, guild_id, user, new_max_mise, old_max_mise):
+    # Récupérer le canal de logs (peut être configuré dans la base de données)
+    config = collection9.find_one({"guild_id": guild_id})
+    channel_id = config.get("eco_log_channel") if config else None
+
+    if not channel_id:
+        return  # Aucun salon configuré
+
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        return  # Salon introuvable (peut avoir été supprimé)
+
+    embed = discord.Embed(
+        title="🃏 Log Blackjack - Mise maximale",
+        color=discord.Color.gold(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
+    embed.add_field(name="Action", value="Changement de la mise maximale", inline=False)
+    embed.add_field(name="Ancienne Mise Maximale", value=f"{old_max_mise} <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="Nouvelle Mise Maximale", value=f"{new_max_mise} <:ecoEther:1341862366249357374>", inline=True)
+
+    await channel.send(embed=embed)
+
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
 @commands.has_permissions(administrator=True)  # La commande est réservée aux admins
 async def set_max_bj_mise(ctx, mise_max: int):
@@ -1396,12 +1427,9 @@ async def set_max_bj_mise(ctx, mise_max: int):
     bj_config = collection10.find_one({"guild_id": guild_id})
 
     # Si la configuration n'existe pas, en créer une avec la mise max par défaut
-    if not bj_config:
-        bj_config = {
-            "guild_id": guild_id,
-            "max_mise": 30000  # Valeur par défaut
-        }
-        collection10.insert_one(bj_config)
+    old_max_mise = 30000  # Valeur par défaut
+    if bj_config:
+        old_max_mise = bj_config.get("max_mise", 30000)
 
     # Mise à jour de la mise maximale
     collection10.update_one(
@@ -1417,6 +1445,9 @@ async def set_max_bj_mise(ctx, mise_max: int):
     )
     await ctx.send(embed=embed)
 
+    # Log des changements
+    await log_bj_max_mise(ctx.bot, guild_id, ctx.author, mise_max, old_max_mise)
+
 # Gestion de l'erreur si l'utilisateur n'est pas administrateur
 @set_max_bj_mise.error
 async def set_max_bj_mise_error(ctx, error):
@@ -1427,6 +1458,99 @@ async def set_max_bj_mise_error(ctx, error):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
+
+@bot.hybrid_command(name="rob", description="Voler entre 1% et 50% du portefeuille d'un autre utilisateur.")
+async def rob(ctx, user: discord.User):
+    # Récupérer l'ID du serveur et l'utilisateur
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+    target_id = user.id
+
+    # Vérifier si l'utilisateur cible et l'attaquant sont différents
+    if user_id == target_id:
+        embed = discord.Embed(
+            title="❌ Action interdite",
+            description="Tu ne peux pas voler des coins à toi-même.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Vérification du cooldown pour cette action
+    cooldown_data = collection14.find_one({"guild_id": guild_id, "user_id": user_id, "target_id": target_id})
+    if cooldown_data:
+        last_rob_time = cooldown_data.get("last_rob", datetime.utcnow())
+        if datetime.utcnow() - last_rob_time < timedelta(hours=1):
+            remaining_time = (timedelta(hours=1) - (datetime.utcnow() - last_rob_time)).seconds
+            embed = discord.Embed(
+                title="❌ Cooldown en cours",
+                description=f"Tu dois attendre encore **{remaining_time // 60} minutes** avant de pouvoir voler à nouveau.",
+                color=discord.Color.red()
+            )
+            return await ctx.send(embed=embed)
+
+    # Chercher les données des utilisateurs
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
+
+    # Si l'utilisateur ou la cible n'ont pas de données, initialiser les données
+    if not user_data:
+        user_data = {
+            "guild_id": guild_id,
+            "user_id": user_id,
+            "wallet": 1500,
+            "bank": 0
+        }
+        collection.insert_one(user_data)
+
+    if not target_data:
+        target_data = {
+            "guild_id": guild_id,
+            "user_id": target_id,
+            "wallet": 1500,
+            "bank": 0
+        }
+        collection.insert_one(target_data)
+
+    # Vérifier si la cible a des fonds disponibles
+    target_wallet = target_data.get("wallet", 0)
+    if target_wallet <= 0:
+        embed = discord.Embed(
+            title="❌ Solde insuffisant",
+            description=f"**{user.display_name}**, la cible n'a pas de coins à voler.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Calcul du montant à voler entre 1% et 50%
+    steal_percentage = random.randint(1, 50)
+    amount_stolen = (steal_percentage / 100) * target_wallet
+
+    # Mise à jour des balances
+    new_user_wallet = user_data["wallet"] + amount_stolen
+    new_target_wallet = target_wallet - amount_stolen
+
+    # Mise à jour des données dans la base
+    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
+    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"wallet": new_target_wallet}})
+
+    # Enregistrement de l'action dans la collection des CDs
+    collection14.update_one(
+        {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
+        {"$set": {"last_rob": datetime.utcnow()}},
+        upsert=True
+    )
+
+    # Log de l'action dans le salon approprié
+    await log_eco_channel(bot, guild_id, ctx.author, "Vol", amount_stolen, user_data["wallet"], new_user_wallet, f"Volé à {user.display_name}")
+
+    # Création de l'embed de résultat
+    embed = discord.Embed(
+        title="💰 Vol réussi !",
+        description=f"**{user.display_name}** a volé **{amount_stolen:.2f} <:ecoEther:1341862366249357374>** de **{user.display_name}** !",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="Solde actuel", value=f"**{user.display_name}**: {new_user_wallet:.2f} <:ecoEther:1341862366249357374>\n**{user.display_name}**: {new_target_wallet:.2f} <:ecoEther:1341862366249357374>", inline=False)
+    await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
