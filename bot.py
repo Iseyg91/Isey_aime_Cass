@@ -1001,6 +1001,31 @@ async def cf_config_error(ctx, error):
         await ctx.send("⚠️ Une erreur inconnue est survenue.")
         print(f"[ERREUR INCONNUE] {error}")
 
+class CFConfigView(ui.View):
+    def __init__(self, guild_id):
+        super().__init__(timeout=60)
+        self.guild_id = guild_id
+
+    @ui.button(label="🔄 Reset aux valeurs par défaut", style=discord.ButtonStyle.red)
+    async def reset_defaults(self, interaction: Interaction, button: ui.Button):
+        # Vérifier si l'utilisateur est admin
+        if not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message("Tu n'as pas la permission de faire ça.", ephemeral=True)
+            return
+
+        # Reset config
+        default_config = {
+            "start_chance": 50,
+            "max_chance": 100,
+            "max_bet": 20000
+        }
+        collection8.update_one(
+            {"guild_id": self.guild_id},
+            {"$set": default_config},
+            upsert=True
+        )
+        await interaction.response.send_message("✅ Les valeurs par défaut ont été rétablies.", ephemeral=True)
+
 @bot.command(name="cf-config")
 @commands.has_permissions(administrator=True)
 async def cf_config(ctx):
@@ -1020,7 +1045,7 @@ async def cf_config(ctx):
     embed.add_field(name="💰 Mise maximale", value=f"**{max_bet} <:ecoEther:1341862366249357374>**", inline=False)
     embed.set_footer(text=f"Demandé par {ctx.author.display_name}", icon_url=ctx.author.avatar.url if ctx.author.avatar else None)
 
-    await ctx.send(embed=embed)
+    await ctx.send(embed=embed, view=CFConfigView(guild_id))
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
