@@ -833,7 +833,7 @@ async def cock_fight(ctx, amount: str):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Charger les paramètres
+    # Charger les paramètres du Cock-Fight
     config = get_cf_config(guild_id)
     max_bet = config.get("max_bet", 20000)
     max_chance = config.get("max_chance", 100)
@@ -886,8 +886,9 @@ async def cock_fight(ctx, amount: str):
 
     # Récupérer la probabilité actuelle
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
-    win_chance = win_data.get("win_chance", start_chance) if win_data else start_chance
+    win_chance = win_data.get("win_chance") if win_data and "win_chance" in win_data else start_chance
 
+    # Combat
     if random.randint(1, 100) <= win_chance:
         win_amount = amount * 2
         collection.update_one(
@@ -904,7 +905,10 @@ async def cock_fight(ctx, amount: str):
 
         embed = discord.Embed(
             title="🐓 Victoire !",
-            description=f"{user.mention}, tu as gagné **{win_amount} <:ecoEther:1341862366249357374>** ! Ta chance est maintenant de **{new_chance}%**.",
+            description=(
+                f"{user.mention}, tu as gagné **{win_amount} <:ecoEther:1341862366249357374>** !\n"
+                f"Ta chance passe de **{win_chance}%** à **{new_chance}%**."
+            ),
             color=discord.Color.green()
         )
         embed.set_footer(text="Ton poulet devient de plus en plus fort !")
@@ -927,14 +931,11 @@ async def cock_fight(ctx, amount: str):
 
         embed = discord.Embed(
             title="💀 Défaite...",
-            description=f"{user.mention}, tu as perdu **{amount} <:ecoEther:1341862366249357374>**. Ton poulet est KO. Ta chance est maintenant de **{start_chance}%**.",
+            description=f"{user.mention}, tu as perdu **{amount} <:ecoEther:1341862366249357374>**. Ton poulet est KO.\nTa chance revient à **{start_chance}%**.",
             color=discord.Color.red()
         )
         embed.set_footer(text="Tu repars de zéro, bon courage !")
         await ctx.send(embed=embed)
-
-from discord.ext import commands
-import discord
 
 @bot.command(name="set-cf-depart-chance")
 @commands.has_permissions(administrator=True)
