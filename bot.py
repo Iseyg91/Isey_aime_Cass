@@ -939,19 +939,16 @@ async def cock_fight(ctx, amount: str):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Charger les paramètres du Cock-Fight
     config = get_cf_config(guild_id)
     max_bet = config.get("max_bet", 20000)
     max_chance = config.get("max_chance", 100)
     start_chance = config.get("start_chance", 50)
 
-    # Vérifier si l'utilisateur a un poulet
     data = collection7.find_one({"guild_id": guild_id, "user_id": user_id})
     if not data or not data.get("chicken", False):
         await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
         return
 
-    # Vérifier le solde de l'utilisateur
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = balance_data.get("wallet", 0) if balance_data else 0
 
@@ -990,13 +987,11 @@ async def cock_fight(ctx, amount: str):
         await ctx.send(f"{user.mention}, la mise est limitée à **{max_bet} <:ecoEther:1341862366249357374>**.")
         return
 
-    # Récupérer la probabilité actuelle
     win_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id})
     win_chance = win_data.get("win_chance") if win_data and "win_chance" in win_data else start_chance
 
-    # Combat
     if random.randint(1, 100) <= win_chance:
-        win_amount = amount  # ➜ Gain de 1x la mise
+        win_amount = amount
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": win_amount}},
@@ -1010,10 +1005,10 @@ async def cock_fight(ctx, amount: str):
         )
 
         embed = discord.Embed(
-            title="🐓 Victoire !",
             description=f"Your lil chicken won the fight, and made you <:ecoEther:1341862366249357374> **{win_amount}** richer! 🐓",
             color=discord.Color.green()
         )
+        embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
         embed.set_footer(text=f"Chicken strength (chance of winning): {new_chance}%")
         await ctx.send(embed=embed)
 
@@ -1040,10 +1035,10 @@ async def cock_fight(ctx, amount: str):
         )
 
         embed = discord.Embed(
-            title="💀 Défaite...",
             description="Your chicken died <:imageremovebgpreview53:1362693948702855360>",
             color=discord.Color.red()
         )
+        embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
         embed.set_footer(text="Chicken strength reset.")
         await ctx.send(embed=embed)
 
