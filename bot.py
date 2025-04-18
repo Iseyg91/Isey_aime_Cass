@@ -996,7 +996,7 @@ async def cock_fight(ctx, amount: str):
 
     # Combat
     if random.randint(1, 100) <= win_chance:
-        win_amount = amount * 2
+        win_amount = amount  # ➜ Gain de 1x la mise
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": win_amount}},
@@ -1011,16 +1011,12 @@ async def cock_fight(ctx, amount: str):
 
         embed = discord.Embed(
             title="🐓 Victoire !",
-            description=(
-                f"{user.mention}, tu as gagné **{win_amount} <:ecoEther:1341862366249357374>** !\n"
-                f"Ta chance est de**{new_chance}%**."
-            ),
+            description=f"Your lil chicken won the fight, and made you <:ecoEther:1341862366249357374> **{win_amount}** richer! 🐓",
             color=discord.Color.green()
         )
-        embed.set_footer(text="Ton poulet devient de plus en plus fort !")
+        embed.set_footer(text=f"Chicken strength (chance of winning): {new_chance}%")
         await ctx.send(embed=embed)
 
-        # Log économique : Victoire
         balance_after = balance + win_amount
         await log_eco_channel(
             bot, guild_id, user, "Victoire au Cock-Fight", win_amount, balance, balance_after,
@@ -1045,13 +1041,12 @@ async def cock_fight(ctx, amount: str):
 
         embed = discord.Embed(
             title="💀 Défaite...",
-            description=f"{user.mention}, tu as perdu **{amount} <:ecoEther:1341862366249357374>**. Ton poulet est KO.\nTa chance revient à **{start_chance}%**.",
+            description="Your chicken died <:imageremovebgpreview53:1362693948702855360>",
             color=discord.Color.red()
         )
-        embed.set_footer(text="Tu repars de zéro, bon courage !")
+        embed.set_footer(text="Chicken strength reset.")
         await ctx.send(embed=embed)
 
-        # Log économique : Défaite
         balance_after = balance - amount
         await log_eco_channel(
             bot, guild_id, user, "Défaite au Cock-Fight", -amount, balance, balance_after,
