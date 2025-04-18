@@ -239,23 +239,27 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     sorted_data = sorted(all_data, key=lambda x: x.get("cash", 0) + x.get("bank", 0), reverse=True)
     rank = next((i + 1 for i, u in enumerate(sorted_data) if u["user_id"] == user_id), None)
 
-    # Embed simplifié avec des virgules pour les chiffres
-    embed = discord.Embed(
-        color=discord.Color.gold()
+    # Emoji de monnaie
+    emoji = "<:ecoEther:1341862366249357374>"
+
+    # Format aligné avec espaces
+    cash_str = f"{cash:,}"
+    bank_str = f"{bank:,}"
+    total_str = f"{total:,}"
+
+    # Ligne unique propre
+    balance_line = (
+        f"💰 Cash: {emoji} {cash_str:<8}   "
+        f"🏦 Bank: {emoji} {bank_str:<8}   "
+        f"📊 Total: {emoji} {total_str:<8}"
     )
+
+    # Embed stylé
+    embed = discord.Embed(color=discord.Color.gold())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-    embed.add_field(
-        name=f"🏆 Leaderboard Rank: #{rank}",
-        value=(
-            f"💰 Cash: {cash:,} <:ecoEther:1341862366249357374>\n"
-            f"🏦 Bank: {bank:,} <:ecoEther:1341862366249357374>\n"
-            f"📊 Total: {total:,} <:ecoEther:1341862366249357374>"
-        ),
-        inline=False
-    )
+    embed.description = f"🏆 **Leaderboard Rank: #{rank}**\n\n{balance_line}"
 
     await ctx.send(embed=embed)
-
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
 @app_commands.describe(amount="Montant à déposer (ou 'all')")
