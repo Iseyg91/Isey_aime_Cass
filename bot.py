@@ -34,12 +34,6 @@ intents = discord.Intents.all()
 start_time = time.time()
 bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
 
-TOP_ROLES = {
-    1: 1362832820417855699,  # ID du rôle Top 1
-    2: 1362735276090327080,  # ID du rôle Top 2
-    3: 1362832919789572178,  # ID du rôle Top 3
-}
-
 # Connexion MongoDB
 mongo_uri = os.getenv("MONGO_DB")  # URI de connexion à MongoDB
 print("Mongo URI :", mongo_uri)  # Cela affichera l'URI de connexion (assure-toi de ne pas laisser cela en prod)
@@ -154,14 +148,16 @@ async def update_top_roles():
 
         for rank, user_data in enumerate(top_users, start=1):
             user_id = user_data["user_id"]
-            role_name = TOP_ROLES[rank]
-            role = discord.utils.get(guild.roles, name=role_name)
+            role_id = TOP_ROLES[rank]  # Utilisation de l'ID du rôle
+            role = discord.utils.get(guild.roles, id=role_id)
             if not role:
-                print(f"Rôle manquant : {role_name} dans {guild.name}")
+                print(f"Rôle manquant : {role_id} dans {guild.name}")
                 continue
 
-            member = guild.get_member(user_id)
-            if not member:
+            try:
+                member = await guild.fetch_member(user_id)  # Utilisation de fetch_member
+            except discord.NotFound:
+                print(f"Membre {user_id} non trouvé dans {guild.name}")
                 continue
 
             # Donner le rôle s'il ne l'a pas
@@ -170,14 +166,15 @@ async def update_top_roles():
                 print(f"Ajouté {role.name} à {member.display_name}")
 
         # Retirer les rôles aux autres joueurs qui ne sont plus dans le top
-        for rank, role_name in TOP_ROLES.items():
-            role = discord.utils.get(guild.roles, name=role_name)
+        for rank, role_id in TOP_ROLES.items():
+            role = discord.utils.get(guild.roles, id=role_id)
             if not role:
                 continue
             for member in role.members:
                 if member.id not in [u["user_id"] for u in top_users]:
                     await member.remove_roles(role)
                     print(f"Retiré {role.name} de {member.display_name}")
+
 
 @bot.event
 async def on_ready():
