@@ -429,84 +429,67 @@ async def withdraw(ctx: commands.Context, amount: str):
 
     await ctx.send(embed=embed)
 
-# Commande pour ajouter de l'argent
 @bot.hybrid_command(name="add-money", description="Ajoute de l'argent à un utilisateur (réservé aux administrateurs).")
 @app_commands.describe(
     user="L'utilisateur à créditer",
-    amount="Le montant à ajouter"
+    amount="Le montant à ajouter",
+    location="Choisis entre cash ou bank"
 )
+@app_commands.choices(location=[
+    app_commands.Choice(name="Cash", value="cash"),
+    app_commands.Choice(name="Bank", value="bank"),
+])
 @commands.has_permissions(administrator=True)
-async def add_money(ctx: commands.Context, user: discord.User, amount: int):
+async def add_money(ctx: commands.Context, user: discord.User, amount: int, location: app_commands.Choice[str]):
     if amount <= 0:
-        return await ctx.send("❌ Le montant doit être supérieur à zéro.")
+        return await ctx.send("❌ Le montant doit être supérieur à 0.")
 
-    # Création des boutons pour choisir entre cash ou bank
-    class AccountChoiceView(View):
-        def __init__(self, user, amount):
-            super().__init__()
-            self.user = user
-            self.amount = amount
+    guild_id = ctx.guild.id
+    user_id = user.id
+    field = location.value
 
-        @discord.ui.button(label="Cash", style=discord.ButtonStyle.primary)
-        async def cash_button(self, button: Button, interaction: discord.Interaction):
-            await self.add_funds(interaction, "cash")
+    # Récupération du solde actuel
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
+    balance_before = data.get(field, 0)
 
-        @discord.ui.button(label="Bank", style=discord.ButtonStyle.primary)
-        async def bank_button(self, button: Button, interaction: discord.Interaction):
-            await self.add_funds(interaction, "bank")
+    # Mise à jour du solde
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {field: amount}},
+        upsert=True
+    )
 
-        async def add_funds(self, interaction, account: str):
-            guild_id = ctx.guild.id
-            user_id = self.user.id
+    balance_after = balance_before + amount
 
-            # Récupérer l'état actuel du solde pour cet utilisateur
-            balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-            balance_before = balance_data.get(account, 0) if balance_data else 0
+    # Log dans le salon économique
+    await log_eco_channel(
+        bot,
+        guild_id,
+        user,
+        "Ajout d'argent",
+        amount,
+        balance_before,
+        balance_after,
+        f"Ajout de {amount} <:ecoEther:1341862366249357374> dans le compte {field} de {user.mention} par {ctx.author.mention}."
+    )
 
-            # Mise à jour MongoDB avec le choix de l'utilisateur
-            collection.update_one(
-                {"guild_id": guild_id, "user_id": user_id},
-                {"$inc": {account: self.amount}},
-                upsert=True
-            )
+    # Embed de confirmation
+    embed = discord.Embed(
+        title="✅ Ajout effectué avec succès !",
+        description=f"**{amount} <:ecoEther:1341862366249357374>** ont été ajoutés à la **{field}** de {user.mention}.",
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Action réalisée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-            # Nouveau solde après l'ajout
-            balance_after = balance_before + self.amount
-
-            # Log dans le salon de logs économique
-            await log_eco_channel(
-                bot,
-                guild_id,
-                self.user,
-                "Ajout d'argent",
-                self.amount,
-                balance_before,
-                balance_after,
-                f"Ajout de {self.amount} <:ecoEther:1341862366249357374> dans le compte {account} de {self.user.mention} par {ctx.author.mention}."
-            )
-
-            # Confirmation dans l'embed
-            embed = discord.Embed(
-                description=f"<:Check:1362710665663615147> Added <:ecoEther:1341862366249357374> {self.amount} to {self.user.mention}'s {account}.",
-                color=discord.Color.green()
-            )
-            embed.set_author(name=self.user.display_name, icon_url=self.user.display_avatar.url)
-
-            # Envoyer la confirmation
-            await interaction.response.send_message(embed=embed)
-
-            # Désactiver les boutons après la sélection
-            self.stop()
-
-    # Créer une vue avec les boutons pour choisir cash ou bank
-    view = AccountChoiceView(user, amount)
-    await ctx.send(f"{ctx.author.mention}, choisis où ajouter l'argent (Cash ou Bank).", view=view)
+    await ctx.send(embed=embed)
 
 # Gestion des erreurs de permissions
 @add_money.error
 async def add_money_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("🚫 Tu n'as pas la permission d'utiliser cette commande.")
+    else:
+        await ctx.send("❌ Une erreur est survenue lors de l'exécution de la commande.")
 
 @bot.hybrid_command(name="remove-money", description="Retire de l'argent à un utilisateur.")
 @app_commands.describe(user="L'utilisateur ciblé", amount="Le montant à retirer", location="Choisis entre cash ou bank")
@@ -1131,7 +1114,6 @@ async def cock_fight(ctx, amount: str):
         await ctx.send(f"{user.mention}, tu n'as pas de poulet ! Utilise la commande `!!buy chicken` pour en acheter un.")
         return
 
-    # Vérifier le solde en cash
     balance_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     balance = balance_data.get("cash", 0) if balance_data else 0
 
@@ -1222,7 +1204,7 @@ async def cock_fight(ctx, amount: str):
             color=discord.Color.red()
         )
         embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
-        embed.set_footer(text="Chicken strength reset.")
+        # Le footer a été supprimé ici
         await ctx.send(embed=embed)
 
         balance_after = balance - amount
