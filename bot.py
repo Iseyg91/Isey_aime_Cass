@@ -27,10 +27,6 @@ import psutil
 import pytz
 import platform
 from discord.ui import Select, View
-import random
-import discord
-from discord.ext import commands
-from datetime import datetime, timedelta
 
 
 token = os.environ['ETHERYA']
