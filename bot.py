@@ -184,6 +184,9 @@ async def update_top_roles():
 
 @bot.event
 async def on_ready():
+    print(f"{bot.user.name} est connecté.")
+    if not update_top_roles.is_running():
+        update_top_roles.start()
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
     # Mise à jour du statut avec l'activité de stream "Etherya"
