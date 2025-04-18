@@ -933,32 +933,73 @@ async def cock_fight(ctx, amount: str):
         embed.set_footer(text="Tu repars de zéro, bon courage !")
         await ctx.send(embed=embed)
 
+from discord.ext import commands
+import discord
+
 @bot.command(name="set-cf-depart-chance")
 @commands.has_permissions(administrator=True)
-async def set_depart_chance(ctx, pourcent: int):
+async def set_depart_chance(ctx, pourcent: str = None):
+    if pourcent is None:
+        return await ctx.send("⚠️ Merci de spécifier un pourcentage (entre 1 et 100). Exemple : `!set-cf-depart-chance 50`")
+
+    if not pourcent.isdigit():
+        return await ctx.send("⚠️ Le pourcentage doit être un **nombre entier**.")
+
+    pourcent = int(pourcent)
     if not 1 <= pourcent <= 100:
-        await ctx.send("Le pourcentage doit être entre 1 et 100.")
-        return
+        return await ctx.send("❌ Le pourcentage doit être compris entre **1** et **100**.")
+
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"start_chance": pourcent}}, upsert=True)
-    await ctx.send(f"La chance de départ a été mise à **{pourcent}%**.")
+    await ctx.send(f"✅ La chance de départ a été mise à **{pourcent}%**.")
+
 
 @bot.command(name="set-cf-max-chance")
 @commands.has_permissions(administrator=True)
-async def set_max_chance(ctx, pourcent: int):
+async def set_max_chance(ctx, pourcent: str = None):
+    if pourcent is None:
+        return await ctx.send("⚠️ Merci de spécifier un pourcentage (entre 1 et 100). Exemple : `!set-cf-max-chance 90`")
+
+    if not pourcent.isdigit():
+        return await ctx.send("⚠️ Le pourcentage doit être un **nombre entier**.")
+
+    pourcent = int(pourcent)
     if not 1 <= pourcent <= 100:
-        await ctx.send("Le pourcentage doit être entre 1 et 100.")
-        return
+        return await ctx.send("❌ Le pourcentage doit être compris entre **1** et **100**.")
+
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_chance": pourcent}}, upsert=True)
-    await ctx.send(f"La chance **maximale** de victoire est maintenant de **{pourcent}%**.")
+    await ctx.send(f"✅ La chance maximale de victoire est maintenant de **{pourcent}%**.")
+
 
 @bot.command(name="set-cf-mise-max")
 @commands.has_permissions(administrator=True)
-async def set_max_mise(ctx, amount: int):
+async def set_max_mise(ctx, amount: str = None):
+    if amount is None:
+        return await ctx.send("⚠️ Merci de spécifier une mise maximale (nombre entier positif). Exemple : `!set-cf-mise-max 1000`")
+
+    if not amount.isdigit():
+        return await ctx.send("⚠️ La mise maximale doit être un **nombre entier**.")
+
+    amount = int(amount)
     if amount <= 0:
-        await ctx.send("La mise maximale doit être un nombre positif.")
-        return
+        return await ctx.send("❌ La mise maximale doit être un **nombre supérieur à 0**.")
+
     collection8.update_one({"guild_id": ctx.guild.id}, {"$set": {"max_bet": amount}}, upsert=True)
-    await ctx.send(f"La mise maximale a été mise à **{amount} <:ecoEther:1341862366249357374>**.")
+    await ctx.send(f"✅ La mise maximale a été mise à **{amount} <:ecoEther:1341862366249357374>**.")
+
+
+# Gestion des erreurs liées aux permissions
+@set_depart_chance.error
+@set_max_chance.error
+@set_max_mise.error
+async def cf_config_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ Vous n'avez pas la permission d'utiliser cette commande.")
+    elif isinstance(error, commands.CommandInvokeError):
+        await ctx.send("❌ Une erreur est survenue lors de l’exécution de la commande.")
+        print(f"[ERREUR] {error}")
+    else:
+        await ctx.send("⚠️ Une erreur inconnue est survenue.")
+        print(f"[ERREUR INCONNUE] {error}")
 
 @bot.command(name="cf-config")
 @commands.has_permissions(administrator=True)
