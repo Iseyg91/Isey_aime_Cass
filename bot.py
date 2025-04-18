@@ -1329,157 +1329,117 @@ async def set_eco_log(ctx, channel: discord.TextChannel):
     )
     await ctx.send(f"✅ Les logs économiques seront envoyés dans {channel.mention}")
 
+# =========================
+# === ÉMOJIS DE CARTES ===
+# =========================
+card_emojis = {
+    'A': ['<:ACarreauRouge:1362752186291060928>', '<:APiqueNoir:1362752281363087380>', '<:ACoeurRouge:1362752392508084264>', '<:ATrefleNoir:1362752416046518302>'],
+    '2': ['<:2CarreauRouge:1362752434677743767>', '<:2PiqueNoir:1362752455082901634>', '<:2CoeurRouge:1362752473852547082>', '<:2TrefleNoir:1362752504097406996>'],
+    '3': ['<:3CarreauRouge:1362752551065358459>', '<:3PiqueNoir:1362752595269255248>', '<:3CoeurRouge:1362752651565207562>', '<:3TrefleNoir:1362752672922603681>'],
+    '4': ['<:4CarreauRouge:1362752709412917460>', '<:4PiqueNoir:1362752726592917555>', '<:4CoeurRouge:1362752744405991555>', '<:4TrefleNoir:1362752764924530848>'],
+    '5': ['<:5CarreauRouge:1362752783316549743>', '<:5PiqueNoir:1362752806368313484>', '<:5CoeurRouge:1362752826123485205>', '<:5TrefleNoir:1362752846889615470>'],
+    '6': ['<:6CarreauRouge:1362752972831850626>', '<:6PiqueNoir:1362752993203847409>', '<:6CoeurRouge:1362753014921953362>', '<:6TrefleNoir:1362753036404916364>'],
+    '7': ['<:7CarreauRouge:1362753062392823809>', '<:7PiqueNoir:1362753089547010219>', '<:7CoeurRouge:1362753147407433789>', '<:7TrefleNoir:1362753178403209286>'],
+    '8': ['<:8CarreauRouge:1362753220665151620>', '<:8PiqueNoir:1362753245675524177>', '<:8CoeurRouge:1362753270065528944>', '<:8TrefleNoir:1362753296552689824>'],
+    '9': ['<:9CarreauRouge:1362753331507892306>', '<:9PiqueNoir:1362753352903036978>', '<:9CoeurRouge:1362753387514429540>', '<:9TrefleNoir:1362753435153469673>'],
+    '10': ['<:10CarreauRouge:1362753459505594390>', '<:10PiqueNoir:1362753483429646529>', '<:10CoeurRouge:1362753511263047731>', '<:10TrefleNoir:1362753534621122744>'],
+    'J': ['<:JValetCarreau:1362753572495822938>', '<:JValetPique:1362753599771246624>', '<:JValetCoeur:1362753627340537978>', '<:JValetTrefle:1362753657753309294>'],
+    'Q': ['<:QReineCarreau:1362754443543711744>', '<:QReinePique:1362754468390764576>', '<:QReineCoeur:1362754488909299772>', '<:QReineTrefle:1362754507422830714>'],
+    'K': ['<:KRoiCarreau:1362753685095976981>', '<:KRoiPique:1362753958350946385>', '<:KRoiCoeur:1362754291223498782>', '<:KRoiTrefle:1362754318276497609>']
+}
+
+# ==============================
+# === FONCTIONS DE JEU BASE ===
+# ==============================
+
+def get_card():
+    value = random.choice(list(card_emojis.keys()))
+    emoji = random.choice(card_emojis[value])
+    return (value, emoji)
+
+def hand_to_string(hand):
+    return ' '.join(card[1] for card in hand)
+
+def calculate_hand(hand):
+    total = 0
+    aces = 0
+    for value, _ in hand:
+        if value in ['J', 'Q', 'K']:
+            total += 10
+        elif value == 'A':
+            total += 11
+            aces += 1
+        else:
+            total += int(value)
+    while total > 21 and aces > 0:
+        total -= 10
+        aces -= 1
+    return total
+
+# ============================
+# === COMMANDE BLACKJACK ====
+# ============================
+
 @bot.command(aliases=["bj"])
 async def blackjack(ctx, mise: int):
-    import random
-    from datetime import datetime
+    if mise <= 0:
+        return await ctx.send("❌ La mise doit être supérieure à 0.")
 
-    guild_id = ctx.guild.id
-    user_id = ctx.author.id
-
-    bj_config = collection10.find_one({"guild_id": guild_id})
-    if not bj_config:
-        bj_config = {
-            "guild_id": guild_id,
-            "max_mise": 30000
-        }
-        collection10.insert_one(bj_config)
-
-    max_mise = bj_config["max_mise"]
-
-    if mise <= 0 or mise > max_mise:
-        embed = discord.Embed(
-            title="❌ Mise invalide",
-            description=f"La mise doit être comprise entre `1` et `{max_mise}` coins.",
-            color=discord.Color.red()
-        )
-        return await ctx.send(embed=embed)
-
-    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    if not data:
-        data = {
-            "guild_id": guild_id,
-            "user_id": user_id,
-            "wallet": 1500,
-            "bank": 0
-        }
-        collection.insert_one(data)
-
-    if data["wallet"] < mise:
-        embed = discord.Embed(
-            title="💸 Fonds insuffisants",
-            description="Tu n'as pas assez de coins dans ton portefeuille pour cette mise.",
-            color=discord.Color.red()
-        )
-        return await ctx.send(embed=embed)
-
-    # Fonction de conversion carte → emoji
-    def carte_emoji(carte):
-        emoji_dict = {
-            'A': ['<:ACarreauRouge:1362752186291060928>', '<:APiqueNoir:1362752281363087380>', '<:ACoeurRouge:1362752392508084264>', '<:ATrefleNoir:1362752416046518302>'],
-            '2': ['<:2CarreauRouge:1362752434677743767>', '<:2PiqueNoir:1362752455082901634>', '<:2CoeurRouge:1362752473852547082>', '<:2TrefleNoir:1362752504097406996>'],
-            '3': ['<:3CarreauRouge:1362752551065358459>', '<:3PiqueNoir:1362752595269255248>', '<:3CoeurRouge:1362752651565207562>', '<:3TrefleNoir:1362752672922603681>'],
-            '4': ['<:4CarreauRouge:1362752709412917460>', '<:4PiqueNoir:1362752726592917555>', '<:4CoeurRouge:1362752744405991555>', '<:4TrefleNoir:1362752764924530848>'],
-            '5': ['<:5CarreauRouge:1362752783316549743>', '<:5PiqueNoir:1362752806368313484>', '<:5CoeurRouge:1362752826123485205>', '<:5TrefleNoir:1362752846889615470>'],
-            '6': ['<:6CarreauRouge:1362752972831850626>', '<:6PiqueNoir:1362752993203847409>', '<:6CoeurRouge:1362753014921953362>', '<:6TrefleNoir:1362753036404916364>'],
-            '7': ['<:7CarreauRouge:1362753062392823809>', '<:7PiqueNoir:1362753089547010219>', '<:7CoeurRouge:1362753147407433789>', '<:7TrefleNoir:1362753178403209286>'],
-            '8': ['<:8CarreauRouge:1362753220665151620>', '<:8PiqueNoir:1362753245675524177>', '<:8CoeurRouge:1362753270065528944>', '<:8TrefleNoir:1362753296552689824>'],
-            '9': ['<:9CarreauRouge:1362753331507892306>', '<:9PiqueNoir:1362753352903036978>', '<:9CoeurRouge:1362753387514429540>', '<:9TrefleNoir:1362753435153469673>'],
-            '10': ['<:10CarreauRouge:1362753459505594390>', '<:10PiqueNoir:1362753483429646529>', '<:10CoeurRouge:1362753511263047731>', '<:10TrefleNoir:1362753534621122744>'],
-            'J': ['<:JValetCarreau:1362753572495822938>', '<:JValetPique:1362753599771246624>', '<:JValetCoeur:1362753627340537978>', '<:JValetTrefle:1362753657753309294>'],
-            'Q': ['<:QReineCarreau:1362754443543711744>', '<:QReinePique:1362754468390764576>', '<:QReineCoeur:1362754488909299772>', '<:QReineTrefle:1362754507422830714>'],
-            'K': ['<:KRoiCarreau:1362753685095976981>', '<:KRoiPique:1362753958350946385>', '<:KRoiCoeur:1362754291223498782>', '<:KRoiTrefle:1362754318276497609>'],
-        }
-        return random.choice(emoji_dict[carte])
-
-    def get_card():
-        cartes = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-        return random.choice(cartes)
-
-    def get_value(main):
-        value = 0
-        aces = 0
-        for carte in main:
-            if carte in ['J', 'Q', 'K']:
-                value += 10
-            elif carte == 'A':
-                aces += 1
-                value += 11
-            else:
-                value += int(carte)
-        while value > 21 and aces:
-            value -= 10
-            aces -= 1
-        return value
-
-    def afficher_main(main):
-        return ' '.join([carte_emoji(c) for c in main])
-
-    joueur = [get_card(), get_card()]
-    croupier = [get_card(), get_card()]
-
-    joueur_val = get_value(joueur)
-    croupier_val = get_value(croupier)
+    player_hand = [get_card(), get_card()]
+    dealer_hand = [get_card(), get_card()]
+    player_value = calculate_hand(player_hand)
+    dealer_value = calculate_hand(dealer_hand)
 
     class BlackjackView(View):
         def __init__(self):
             super().__init__(timeout=60)
 
-        @discord.ui.button(label="🃏 Hit", style=discord.ButtonStyle.primary)
+        @discord.ui.button(label="🃏 Tirer", style=discord.ButtonStyle.primary)
         async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
-            nonlocal joueur, joueur_val
-            carte = get_card()
-            joueur.append(carte)
-            joueur_val = get_value(joueur)
+            nonlocal player_hand, player_value
+            player_hand.append(get_card())
+            player_value = calculate_hand(player_hand)
 
-            embed = discord.Embed(title="🎰 Blackjack", color=discord.Color.blue())
-            embed.add_field(name="🧑‍💼 Ta main", value=f"{afficher_main(joueur)} → **{joueur_val}**", inline=True)
-            embed.add_field(name="🎲 Croupier", value=f"{carte_emoji(croupier[0])} ❓ → **?**", inline=True)
-
-            if joueur_val > 21:
-                embed.add_field(name="💥 Résultat", value="Tu as dépassé 21. Tu perds ta mise.", inline=False)
-                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
-                await log_eco_channel(bot, guild_id, ctx.author, "Perte de mise", mise, data["wallet"], data["wallet"] - mise)
+            if player_value > 21:
+                embed = discord.Embed(title="💥 Tu as perdu !", color=discord.Color.red())
+                embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
+                embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
                 self.stop()
+                return await interaction.response.edit_message(embed=embed, view=None)
 
+            embed = discord.Embed(title="🎰 Blackjack", description="Tu as tiré une carte.", color=discord.Color.blurple())
+            embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
+            embed.add_field(name="🃎 Croupier", value=f"{dealer_hand[0][1]} 🂠 → **?**", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
 
-        @discord.ui.button(label="✋ Stand", style=discord.ButtonStyle.danger)
+        @discord.ui.button(label="✋ Rester", style=discord.ButtonStyle.danger)
         async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
-            nonlocal croupier, croupier_val
-            while croupier_val < 17:
-                carte = get_card()
-                croupier.append(carte)
-                croupier_val = get_value(croupier)
+            nonlocal dealer_hand, dealer_value
+            while dealer_value < 17:
+                dealer_hand.append(get_card())
+                dealer_value = calculate_hand(dealer_hand)
 
-            embed = discord.Embed(title="🎰 Blackjack", description="Le croupier a fini de jouer.", color=discord.Color.green())
-            embed.add_field(name="🧑‍💼 Ta main", value=f"{afficher_main(joueur)} → **{joueur_val}**", inline=True)
-            embed.add_field(name="🎲 Croupier", value=f"{afficher_main(croupier)} → **{croupier_val}**", inline=True)
+            embed = discord.Embed(title="🎰 Résultat", color=discord.Color.green())
+            embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
+            embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
 
-            if croupier_val > 21 or joueur_val > croupier_val:
-                embed.add_field(name="💰 Résultat", value="Tu gagnes ! Ta mise est doublée.", inline=False)
-                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": mise}})
-                await log_eco_channel(bot, guild_id, ctx.author, "Gagné au Blackjack", mise, data["wallet"], data["wallet"] + mise)
-            elif joueur_val < croupier_val:
-                embed.add_field(name="💥 Résultat", value="Tu perds ta mise.", inline=False)
-                collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -mise}})
-                await log_eco_channel(bot, guild_id, ctx.author, "Perte de mise", mise, data["wallet"], data["wallet"] - mise)
+            if dealer_value > 21 or player_value > dealer_value:
+                embed.add_field(name="✅ Gagné", value="Tu gagnes ta mise !", inline=False)
+            elif player_value < dealer_value:
+                embed.add_field(name="❌ Perdu", value="Le croupier gagne.", inline=False)
             else:
-                embed.add_field(name="🤝 Résultat", value="Égalité ! Ta mise est remboursée.", inline=False)
+                embed.add_field(name="🤝 Égalité", value="Personne ne gagne, mise remboursée.", inline=False)
 
             self.stop()
-            await interaction.response.edit_message(embed=embed, view=self)
+            await interaction.response.edit_message(embed=embed, view=None)
 
-    view = BlackjackView()
-    embed = discord.Embed(
-        title="🎰 Blackjack",
-        description="Bienvenue dans le jeu de Blackjack ! Choisis `Hit` pour tirer une carte ou `Stand` pour rester.",
-        color=discord.Color.blue()
-    )
-    embed.add_field(name="🧑‍💼 Ta main", value=f"{afficher_main(joueur)} → **{joueur_val}**", inline=True)
-    embed.add_field(name="🎲 Croupier", value=f"{carte_emoji(croupier[0])} ❓ → **?**", inline=True)
+    # Affichage initial
+    embed = discord.Embed(title="🎰 Blackjack", description="Choisis une action :", color=discord.Color.blue())
+    embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
+    embed.add_field(name="🃎 Croupier", value=f"{dealer_hand[0][1]} 🂠 → **?**", inline=False)
     embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
-    await ctx.send(embed=embed, view=view)
+
+    await ctx.send(embed=embed, view=BlackjackView())
 
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
