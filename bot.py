@@ -2035,7 +2035,58 @@ async def russian_roulette(ctx: commands.Context, bet: int):
     else:
         await ctx.send("Aucun gagnant cette fois-ci !")
 
+# Fonction d'affichage de l'aide
+def help_text():
+    return """
+    **Comment jouer à la Roulette**
+    
+    **Parier**  
+    Choisis l'espace sur lequel tu penses que la balle va atterrir.  
+    Tu peux parier sur plusieurs espaces en exécutant la commande à nouveau.  
+    Les espaces avec une chance plus faible de gagner ont un multiplicateur de gains plus élevé.
 
+    **Temps restant**  
+    Chaque fois qu'un pari est placé, le temps restant est réinitialisé à 10 secondes, jusqu'à un maximum de 1 minute.
+
+    **Multiplicateurs de gains**  
+    [x36] Numéro seul  
+    [x 3] Douzaines (1-12, 13-24, 25-36)  
+    [x 3] Colonnes (1ère, 2e, 3e)  
+    [x 2] Moitiés (1-18, 19-36)  
+    [x 2] Pair/Impair  
+    [x 2] Couleurs (rouge, noir)
+    """
+
+# Commande pour démarrer un jeu de roulette
+@bot.hybrid_command(name="roulette", description="Lancez une roulette et placez vos paris !")
+async def roulette(ctx):
+    # Simuler une mise de l'utilisateur
+    amount = 100  # Exemple de montant (tu devrais le récupérer dynamiquement)
+    bet_type = "numéro 7"  # Exemple de type de pari (par exemple, "numéro 7")
+    
+    # Création du bouton d'aide
+    button_help = Button(label="Aide", style=discord.ButtonStyle.primary)
+
+    # Fonction d'affichage de l'aide
+    async def button_help_callback(interaction):
+        # Répondre avec l'embed d'aide
+        await interaction.response.send_message(help_text(), ephemeral=True)
+
+    # Ajouter le bouton à la vue
+    button_help.callback = button_help_callback
+    view = View()
+    view.add_item(button_help)
+
+    # Création de l'embed pour la roulette
+    embed = discord.Embed(
+        title="New roulette game started!",
+        description=f":white_check_mark: You have placed a bet of <:ecoEther:1341862366249357374>{amount} on {bet_type}\n"
+                    "Time remaining: 10 seconds after each bet (maximum 1 minute)",
+        color=discord.Color.green()
+    )
+    
+    # Envoi de l'embed avec le bouton
+    await ctx.send(embed=embed, view=view)
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
