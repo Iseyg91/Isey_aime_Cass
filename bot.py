@@ -1855,74 +1855,89 @@ async def rob(ctx, user: discord.User):
 
 @bot.command(name="set-anti_rob")
 async def set_anti_rob(ctx):
-    # Vérification des permissions
     if not ctx.author.guild_permissions.administrator:
-        embed = discord.Embed(
+        return await ctx.send(embed=discord.Embed(
             description="Tu n'as pas la permission d'exécuter cette commande.",
             color=discord.Color.red()
-        )
-        return await ctx.send(embed=embed)
+        ))
 
-    # Récupération des rôles dans le serveur
-    roles = [role.name for role in ctx.guild.roles if role.name != "@everyone"]
-    if not roles:
-        embed = discord.Embed(
-            description="Aucun rôle trouvé sur ce serveur.",
-            color=discord.Color.red()
-        )
-        return await ctx.send(embed=embed)
-
-    # Récupère les rôles actuellement définis pour l'anti-rob
     guild_id = ctx.guild.id
-    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
-    anti_rob_roles = anti_rob_data["roles"]
-
-    # Affiche les rôles anti-rob dans l'embed
-    anti_rob_roles_str = ', '.join(anti_rob_roles) if anti_rob_roles else "Aucun rôle défini."
-
-    # Créer le menu de sélection
-    select = Select(
-        placeholder="Choisir un rôle à ajouter/supprimer pour anti-rob",
-        options=[discord.SelectOption(label=role, value=role) for role in roles[:25]]  # Limite à 25 rôles
-    )
-
-    # Fonction pour gérer l'interaction
-    async def select_callback(interaction):
-        selected_role = select.values[0]
-        
-        if selected_role in anti_rob_roles:
-            anti_rob_roles.remove(selected_role)
-            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}})
-            embed = discord.Embed(
-                description=f"Le rôle **{selected_role}** a été retiré de la liste des rôles anti-rob.",
-                color=discord.Color.green()
-            )
-        else:
-            anti_rob_roles.append(selected_role)
-            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}})
-            embed = discord.Embed(
-                description=f"Le rôle **{selected_role}** a été ajouté à la liste des rôles anti-rob.",
-                color=discord.Color.green()
-            )
-
-        # Met à jour l'embed avec les rôles actuels
-        updated_embed = discord.Embed(
-            title="Gestion des rôles anti-rob",
-            description=f"**Rôles actuellement en anti-rob** : {anti_rob_roles_str}",
-            color=discord.Color.blue()
-        )
-        await interaction.response.send_message(embed=updated_embed, ephemeral=True)  # Message éphémère
-
-    select.callback = select_callback
-
-    view = View()
-    view.add_item(select)
+    data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
+    anti_rob_roles = data["roles"]
 
     embed = discord.Embed(
         title="Gestion des rôles anti-rob",
-        description=f"**Rôles actuellement en anti-rob** : {anti_rob_roles_str}",
-        color=discord.Color.blue()
+        description=f"**Rôles actuellement protégés :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}",
+        color=discord.Color.blurple()
     )
+
+    add_button = Button(label="Ajouter un rôle", style=discord.ButtonStyle.green)
+    remove_button = Button(label="Supprimer un rôle", style=discord.ButtonStyle.red)
+
+    view = View()
+    view.add_item(add_button)
+    view.add_item(remove_button)
+
+    async def ask_for_role(action):
+        prompt = await ctx.send(f"✏️ Merci de **taper le nom du rôle** à {action.lower()} :")
+
+        try:
+            msg = await bot.wait_for(
+                "message",
+                timeout=30,
+                check=lambda m: m.author == ctx.author and m.channel == ctx.channel
+            )
+            role_name = msg.content.strip()
+
+            # Vérifie que le rôle existe
+            role = discord.utils.get(ctx.guild.roles, name=role_name)
+            if not role:
+                return await ctx.send(embed=discord.Embed(
+                    description="❌ Rôle introuvable.",
+                    color=discord.Color.red()
+                ))
+
+            if action == "ajouter":
+                if role_name in anti_rob_roles:
+                    return await ctx.send(embed=discord.Embed(
+                        description="⚠️ Ce rôle est déjà dans la liste anti-rob.",
+                        color=discord.Color.orange()
+                    ))
+                anti_rob_roles.append(role_name)
+                msg_result = f"✅ Le rôle **{role_name}** a été **ajouté** à la liste anti-rob."
+            else:
+                if role_name not in anti_rob_roles:
+                    return await ctx.send(embed=discord.Embed(
+                        description="⚠️ Ce rôle n'est pas dans la liste anti-rob.",
+                        color=discord.Color.orange()
+                    ))
+                anti_rob_roles.remove(role_name)
+                msg_result = f"✅ Le rôle **{role_name}** a été **supprimé** de la liste anti-rob."
+
+            # Mise à jour de la base de données
+            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}}, upsert=True)
+
+            await ctx.send(embed=discord.Embed(
+                description=msg_result,
+                color=discord.Color.green()
+            ))
+
+        except asyncio.TimeoutError:
+            await ctx.send("⏱️ Temps écoulé. Recommence la commande.")
+
+    @add_button.callback
+    async def add_callback(interaction):
+        if interaction.user != ctx.author:
+            return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
+        await interaction.response.defer()
+        await ask_for_role("ajouter")
+
+    @remove_button.callback
+    async def remove_callback(interaction):
+        if interaction.user != ctx.author:
+            return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
+        await interaction.response.defer()
+        await ask_for_role("supprimer")
 
     await ctx.send(embed=embed, view=view)
 
