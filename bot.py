@@ -1772,13 +1772,18 @@ async def rob(ctx, user: discord.User):
             cooldown_time = timedelta(hours=1)  # 1 heure de cooldown
             time_left = last_rob_time + cooldown_time - datetime.utcnow()
             
-            if time_left > timedelta(0):
-                embed = discord.Embed(
-                    description=f"Tu dois attendre encore {time_left} avant de pouvoir voler à nouveau.",
-                    color=discord.Color.red()
-                )
-                embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
-                return await ctx.send(embed=embed)
+if time_left > timedelta(0):
+    total_seconds = int(time_left.total_seconds())
+    minutes, seconds = divmod(total_seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    time_str = f"{hours}h {minutes}min" if hours else f"{minutes}min"
+
+    embed = discord.Embed(
+        description=f"Tu dois attendre encore **{time_str}** avant de pouvoir voler à nouveau.",
+        color=discord.Color.red()
+    )
+    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+    return await ctx.send(embed=embed)
 
     # Récupérer le membre du serveur cible (si possible)
     target_member = ctx.guild.get_member(target_id)
