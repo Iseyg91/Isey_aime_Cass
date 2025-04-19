@@ -1755,6 +1755,7 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
+    # Empêcher de se voler soi-même
     if user_id == target_id:
         embed = discord.Embed(
             description="Tu ne peux pas voler des coins à toi-même.",
@@ -1763,31 +1764,28 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Vérifier le cooldown global de l'utilisateur
+    # Vérifier le cooldown
     last_rob = collection14.find_one({"guild_id": guild_id, "user_id": user_id})
-    
     if last_rob:
         last_rob_time = last_rob.get("last_rob")
         if last_rob_time:
-            cooldown_time = timedelta(hours=1)  # 1 heure de cooldown
+            cooldown_time = timedelta(hours=1)
             time_left = last_rob_time + cooldown_time - datetime.utcnow()
-            
-if time_left > timedelta(0):
-    total_seconds = int(time_left.total_seconds())
-    minutes, seconds = divmod(total_seconds, 60)
-    hours, minutes = divmod(minutes, 60)
-    time_str = f"{hours}h {minutes}min" if hours else f"{minutes}min"
+            if time_left > timedelta(0):
+                total_seconds = int(time_left.total_seconds())
+                minutes, seconds = divmod(total_seconds, 60)
+                hours, minutes = divmod(minutes, 60)
+                time_str = f"{hours}h {minutes}min" if hours else f"{minutes}min"
 
-    embed = discord.Embed(
-        description=f"Tu dois attendre encore **{time_str}** avant de pouvoir voler à nouveau.",
-        color=discord.Color.red()
-    )
-    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
-    return await ctx.send(embed=embed)
+                embed = discord.Embed(
+                    description=f"Tu dois attendre encore **{time_str}** avant de pouvoir voler à nouveau.",
+                    color=discord.Color.red()
+                )
+                embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+                return await ctx.send(embed=embed)
 
-    # Récupérer le membre du serveur cible (si possible)
+    # Vérifier si la cible existe dans le serveur
     target_member = ctx.guild.get_member(target_id)
-
     if not target_member:
         embed = discord.Embed(
             description=f"Impossible de trouver {user.display_name} sur ce serveur.",
@@ -1796,53 +1794,41 @@ if time_left > timedelta(0):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Vérifier si la victime a un rôle anti-rob
-    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
+    # Vérifier les rôles anti-rob
+    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"roles": []}
     target_roles = [role.name for role in target_member.roles]
-    has_anti_rob_role = any(role in anti_rob_data["roles"] for role in target_roles)
-
-    if has_anti_rob_role:
+    if any(role in anti_rob_data["roles"] for role in target_roles):
         embed = discord.Embed(
-            description=f"Tu ne peux pas voler {user.display_name} car ils ont un rôle anti-rob.",
+            description=f"Tu ne peux pas voler {user.display_name} car il a un rôle protégé.",
             color=discord.Color.red()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Si pas de cooldown, procéder avec le vol
-    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
+    # Récupérer les données des deux utilisateurs
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 1500, "bank": 0}
+    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id}) or {"wallet": 1500, "bank": 0}
+    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$setOnInsert": user_data}, upsert=True)
+    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$setOnInsert": target_data}, upsert=True)
 
-    if not user_data:
-        user_data = {
-            "guild_id": guild_id, "user_id": user_id, "wallet": 1500, "bank": 0
-        }
-        collection.insert_one(user_data)
-
-    if not target_data:
-        target_data = {
-            "guild_id": guild_id, "user_id": target_id, "wallet": 1500, "bank": 0
-        }
-        collection.insert_one(target_data)
-
-    target_wallet = target_data.get("wallet", 0)
+    target_wallet = target_data["wallet"]
     if target_wallet <= 0:
         embed = discord.Embed(
-            description=f"<:classic_x_mark:1362711858829725729> Tu as tenté de voler {user.display_name}, mais ils n'ont pas d'argent en liquide.",
+            description=f"<:classic_x_mark:1362711858829725729> Tu as tenté de voler {user.display_name}, mais il n’a pas d’argent liquide.",
             color=discord.Color.red()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Calcul du pourcentage de réussite en fonction du solde total
-    target_total = target_data["wallet"] + target_data["bank"]
-    rob_chance = max(80 - (target_total // 1000), 10)  # Max 80%, min 10%
-    
+    # Calcul de la probabilité de succès basée sur la richesse du voleur
+    robber_total = user_data["wallet"] + user_data["bank"]
+    rob_chance = max(80 - (robber_total // 1000), 10)  # max 80%, min 10%
     success = random.randint(1, 100) <= rob_chance
 
     if success:
         steal_percentage = random.randint(1, 50)
         amount_stolen = (steal_percentage / 100) * target_wallet
+        amount_stolen = min(amount_stolen, target_wallet)
 
         new_user_wallet = user_data["wallet"] + amount_stolen
         new_target_wallet = target_wallet - amount_stolen
@@ -1850,7 +1836,6 @@ if time_left > timedelta(0):
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
         collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"wallet": new_target_wallet}})
 
-        # Mettre à jour la dernière tentative de vol dans collection14 (indépendamment de la cible)
         collection14.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"last_rob": datetime.utcnow()}},
@@ -1867,14 +1852,13 @@ if time_left > timedelta(0):
         return await ctx.send(embed=embed)
 
     else:
-        loss_percentage = random.uniform(1, 5)  # Entre 1% et 5%
+        loss_percentage = random.uniform(1, 5)
         loss_amount = (loss_percentage / 100) * user_data["wallet"]
         loss_amount = min(loss_amount, user_data["wallet"])
 
         new_user_wallet = user_data["wallet"] - loss_amount
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
 
-        # Mettre à jour la dernière tentative de vol dans collection14 (indépendamment de la cible)
         collection14.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"last_rob": datetime.utcnow()}},
@@ -1882,7 +1866,7 @@ if time_left > timedelta(0):
         )
 
         embed = discord.Embed(
-            description=f"<:classic_x_mark:1362711858829725729> Tu as été attrapé en train de tenter de voler {user.display_name}, et tu as été puni en perdant <:ecoEther:1341862366249357374> **{loss_amount:.2f}**",
+            description=f"<:classic_x_mark:1362711858829725729> Tu as été attrapé en tentant de voler {user.display_name}, tu perds <:ecoEther:1341862366249357374> **{loss_amount:.2f}** !",
             color=discord.Color.red()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
