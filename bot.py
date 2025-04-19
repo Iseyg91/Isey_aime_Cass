@@ -315,23 +315,17 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
-    # Champ classement
+    # Ajout du champ classement seulement si rank existe
     if rank:
         embed.add_field(
             name="Leaderboard Rank",
             value=f"{ordinal(rank)}",
             inline=False
         )
-    else:
-        embed.add_field(
-            name="Leaderboard Rank",
-            value="\u200b",
-            inline=False
-        )
 
-    # Champ des finances
+    # Champ des finances (titre invisible)
     embed.add_field(
-        name="\u200b",  # Titre invisible
+        name="\u200b",
         value=(
             f"**Cash :** {cash:,} {emoji_currency}\n"
             f"**Banque :** {bank:,} {emoji_currency}\n"
