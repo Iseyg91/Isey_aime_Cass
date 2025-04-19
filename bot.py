@@ -385,7 +385,7 @@ async def deposit(ctx: commands.Context, amount: str):
             embed = discord.Embed(
                 description=(
                     f"<:classic_x_mark:1362711858829725729> {user.mention}, tu n'as pas assez de cash à déposer. "
-                    f"Tu as actuellement <:ecoEther:1341862366249357374> **{cash}** dans ton portefeuille."
+                    f"Tu as actuellement <:ecoEther:1341862366249357374> **{format(cash, ',')}** dans ton portefeuille."
                 ),
                 color=discord.Color.red()
             )
@@ -401,7 +401,7 @@ async def deposit(ctx: commands.Context, amount: str):
 
     # Embed de succès
     embed = discord.Embed(
-        description=f"<:Check:1362710665663615147> Tu as déposé <:ecoEther:1341862366249357374> **{deposit_amount}** dans ta banque !",
+        description=f"<:Check:1362710665663615147> Tu as déposé <:ecoEther:1341862366249357374> **{format(deposit_amount, ',')}** dans ta banque !",
         color=discord.Color.green()
     )
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
@@ -423,20 +423,43 @@ async def withdraw(ctx: commands.Context, amount: str):
     # Gérer le cas "all"
     if amount.lower() == "all":
         if bank == 0:
-            return await ctx.send("💸 Tu n'as rien à retirer.")
+            embed = discord.Embed(
+                description="💸 Tu n'as rien à retirer.",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
         withdrawn_amount = bank
     else:
         # Vérifie que c'est un nombre valide
         if not amount.isdigit():
-            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
-        withdrawn_amount = int(amount)
-        if withdrawn_amount <= 0:
-            return await ctx.send("❌ Tu dois retirer un montant supérieur à zéro.")
-        if withdrawn_amount > bank:
-            return await ctx.send(
-                f"<:classic_x_mark:1362711858829725729> You don't have that much money to withdraw. "
-                f"You currently have <:ecoEther:1341862366249357374> {bank} in the bank."
+            embed = discord.Embed(
+                description="❌ Montant invalide. Utilise un nombre ou `all`.",
+                color=discord.Color.red()
             )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+        withdrawn_amount = int(amount)
+
+        if withdrawn_amount <= 0:
+            embed = discord.Embed(
+                description="❌ Tu dois retirer un montant supérieur à zéro.",
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
+
+        if withdrawn_amount > bank:
+            embed = discord.Embed(
+                description=(
+                    f"<:classic_x_mark:1362711858829725729> Tu n'as pas autant à retirer. "
+                    f"Tu as actuellement <:ecoEther:1341862366249357374> **{format(bank, ',')}** dans ta banque."
+                ),
+                color=discord.Color.red()
+            )
+            embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+            return await ctx.send(embed=embed)
 
     # Mise à jour dans la base de données
     collection.update_one(
@@ -447,7 +470,7 @@ async def withdraw(ctx: commands.Context, amount: str):
 
     # Création de l'embed de succès
     embed = discord.Embed(
-        description=f"<:Check:1362710665663615147> Withdrew <:ecoEther:1341862366249357374> {withdrawn_amount} from your bank!",
+        description=f"<:Check:1362710665663615147> Tu as retiré <:ecoEther:1341862366249357374> **{format(withdrawn_amount, ',')}** de ta banque !",
         color=discord.Color.green()
     )
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
@@ -1488,6 +1511,10 @@ def get_or_create_user_data(guild_id: int, user_id: int):
         collection.insert_one(data)
     return data
 
+import random
+import discord
+from discord.ext import commands
+
 # Valeur des cartes
 card_values = {
     'A': 11,
@@ -1495,9 +1522,8 @@ card_values = {
     '6': 6, '7': 7, '8': 8, '9': 9,
     '10': 10, 'J': 10, 'Q': 10, 'K': 10
 }
-# =========================
-# === ÉMOJIS DE CARTES ===
-# =========================
+
+# ÉMOJIS DE CARTES
 card_emojis = {
     'A': ['<:ACarreauRouge:1362752186291060928>', '<:APiqueNoir:1362752281363087380>', '<:ACoeurRouge:1362752392508084264>', '<:ATrefleNoir:1362752416046518302>'],
     '2': ['<:2CarreauRouge:1362752434677743767>', '<:2PiqueNoir:1362752455082901634>', '<:2CoeurRouge:1362752473852547082>', '<:2TrefleNoir:1362752504097406996>'],
@@ -1514,32 +1540,27 @@ card_emojis = {
     'K': ['<:KRoiCarreau:1362753685095976981>', '<:KRoiPique:1362753958350946385>', '<:KRoiCoeur:1362754291223498782>', '<:KRoiTrefle:1362754318276497609>']
 }
 
-# ============================
-# === FONCTIONS DE JEU BASE ===
-# ============================
-
+# Fonction pour tirer une carte
 def draw_card():
     value = random.choice(list(card_values.keys()))
     emoji = random.choice(card_emojis.get(value, ['🃏']))
     return value, emoji
 
+# Calcul de la valeur totale d'une main
 def calculate_hand_value(hand):
     total = 0
     aces = 0
-
     for card in hand:
         if card == 'A':
             aces += 1
         total += card_values[card]
-
     while total > 21 and aces:
         total -= 10
         aces -= 1
-
     return total
 
 class BlackjackView(discord.ui.View):
-    def __init__(self, ctx, player_hand, dealer_hand, bet, player_data):
+    def __init__(self, ctx, player_hand, dealer_hand, bet, player_data, max_bet):
         super().__init__(timeout=60)
         self.ctx = ctx
         self.player_hand = player_hand
@@ -1548,6 +1569,7 @@ class BlackjackView(discord.ui.View):
         self.player_data = player_data
         self.guild_id = ctx.guild.id
         self.user_id = ctx.author.id
+        self.max_bet = max_bet
 
     async def interaction_check(self, interaction: discord.Interaction):
         return interaction.user.id == self.ctx.author.id
@@ -1613,8 +1635,13 @@ async def blackjack(ctx: commands.Context, mise: int):
         return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
 
     user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+
+    # Vérification de la mise
+    max_bet = 15000  # Par exemple, la mise maximale définie
     if mise <= 0:
         return await ctx.send("Tu dois miser une somme supérieure à 0.")
+    if mise > max_bet:
+        return await ctx.send(f"La mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.")
     if user_data["cash"] < mise:
         return await ctx.send("Tu n'as pas assez d'argent pour miser cette somme.")
 
@@ -1628,11 +1655,11 @@ async def blackjack(ctx: commands.Context, mise: int):
     dealer_hand = [draw_card()[0] for _ in range(2)]
 
     embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.gold())
-    embed.add_field(name="💰 Mise", value=f"{mise} 💵", inline=False)
+    embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374> ", inline=False)
     embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
     embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
 
-    view = BlackjackView(ctx, player_hand, dealer_hand, mise, user_data)
+    view = BlackjackView(ctx, player_hand, dealer_hand, mise, user_data, max_bet)
     await ctx.send(embed=embed, view=view)
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
