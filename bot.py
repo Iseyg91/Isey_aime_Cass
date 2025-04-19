@@ -1953,9 +1953,6 @@ async def set_rr_limite(ctx: commands.Context, limite: int):
 
     await ctx.send(f"La limite de mise pour la roulette russe a été fixée à {limite:,} coins.")
 
-
-active_rr_games = {}  # guild_id: {starter, bet, players, message_id, task}
-
 import discord
 from discord.ext import commands
 import random
@@ -1980,7 +1977,14 @@ async def russianroulette(ctx, arg: str):
         bet = int(arg)
         user_cash = get_user_cash(guild_id, user.id)
 
-        # Vérification du montant
+        # Vérification du montant pour "all" et "half"
+        if bet.lower() == "all":
+            bet = user_cash
+        elif bet.lower() == "half":
+            bet = user_cash // 2
+        else:
+            bet = int(arg)
+
         if bet > user_cash:
             return await ctx.send(embed=discord.Embed(
                 description=f"<:classic_x_mark:1362711858829725729> Tu n'as pas assez de cash pour cette mise. Tu as {user_cash} coins.",
