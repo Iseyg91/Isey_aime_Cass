@@ -1480,6 +1480,21 @@ async def set_eco_log(ctx, channel: discord.TextChannel):
     )
     await ctx.send(f"✅ Les logs économiques seront envoyés dans {channel.mention}")
 
+# Fonction pour récupérer ou créer les données utilisateur
+def get_or_create_user_data(guild_id: int, user_id: int):
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not data:
+        data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+        collection.insert_one(data)
+    return data
+
+# Valeur des cartes
+card_values = {
+    'A': 11,
+    '2': 2, '3': 3, '4': 4, '5': 5,
+    '6': 6, '7': 7, '8': 8, '9': 9,
+    '10': 10, 'J': 10, 'Q': 10, 'K': 10
+}
 # =========================
 # === ÉMOJIS DE CARTES ===
 # =========================
@@ -1503,129 +1518,118 @@ card_emojis = {
 # === FONCTIONS DE JEU BASE ===
 # ============================
 
-def get_card():
-    value = random.choice(list(card_emojis.keys()))
-    emoji = random.choice(card_emojis[value])
-    return (value, emoji)
+def draw_card():
+    value = random.choice(list(card_values.keys()))
+    emoji = random.choice(card_emojis.get(value, ['🃏']))
+    return value, emoji
 
-def hand_to_string(hand):
-    return ' '.join(card[1] for card in hand)
-
-def calculate_hand(hand):
+def calculate_hand_value(hand):
     total = 0
     aces = 0
-    for value, _ in hand:
-        if value in ['J', 'Q', 'K']:
-            total += 10
-        elif value == 'A':
-            total += 11
+
+    for card in hand:
+        if card == 'A':
             aces += 1
-        else:
-            total += int(value)
-    while total > 21 and aces > 0:
+        total += card_values[card]
+
+    while total > 21 and aces:
         total -= 10
         aces -= 1
+
     return total
 
-# ============================
-# === COMMANDE BLACKJACK ====
-# ============================
+class BlackjackView(discord.ui.View):
+    def __init__(self, ctx, player_hand, dealer_hand, bet, player_data):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.player_hand = player_hand
+        self.dealer_hand = dealer_hand
+        self.bet = bet
+        self.player_data = player_data
+        self.guild_id = ctx.guild.id
+        self.user_id = ctx.author.id
 
-emoji_error = "<:classic_x_mark:1362711858829725729>"
+    async def interaction_check(self, interaction: discord.Interaction):
+        return interaction.user.id == self.ctx.author.id
 
-@bot.command(aliases=["bj"])
-async def blackjack(ctx, mise: str):
-    user_data = await get_user_data(ctx.author.id)
-    cash_balance = user_data["cash"]
+    async def end_game(self, interaction: discord.Interaction, result: str):
+        player_total = calculate_hand_value(self.player_hand)
+        dealer_total = calculate_hand_value(self.dealer_hand)
 
-    if mise == "all":
-        mise = cash_balance
-    elif mise == "half":
-        mise = cash_balance / 2
-    else:
-        try:
-            mise = int(mise)
-        except ValueError:
-            return await ctx.send(f"{emoji_error} La mise doit être un nombre valide.")
+        if result == "win":
+            self.player_data["cash"] += self.bet * 2
+            message = "🎉 Tu as **gagné** !"
+        elif result == "draw":
+            self.player_data["cash"] += self.bet
+            message = "🤝 Égalité !"
+        else:
+            message = "💀 Tu as **perdu**..."
 
-    if mise <= 0:
-        return await ctx.send(f"{emoji_error} La mise doit être supérieure à 0.")
-    elif mise > cash_balance:
-        return await ctx.send(f"{emoji_error} Tu n'as pas assez de cash pour cette mise.")
+        collection.update_one(
+            {"guild_id": self.guild_id, "user_id": self.user_id},
+            {"$set": {"cash": self.player_data["cash"]}}
+        )
 
-    mise = int(mise)
+        embed = discord.Embed(title="🃏 Résultat du Blackjack", color=discord.Color.dark_gold())
+        embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
+        embed.add_field(name="🤖 Main du croupier", value=" ".join([card_emojis[c][0] for c in self.dealer_hand]) + f"\n**Total : {dealer_total}**", inline=False)
+        embed.add_field(name="Résultat", value=message, inline=False)
 
-    player_hand = [get_card(), get_card()]
-    dealer_hand = [get_card(), get_card()]
-    player_value = calculate_hand(player_hand)
-    dealer_value = calculate_hand(dealer_hand)
+        await interaction.response.edit_message(embed=embed, view=None)
 
-    class BlackjackView(View):
-        def __init__(self, author):
-            super().__init__(timeout=60)
-            self.author = author
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.green, emoji="➕")
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        value, _ = draw_card()
+        self.player_hand.append(value)
+        player_total = calculate_hand_value(self.player_hand)
 
-        async def interaction_check(self, interaction: discord.Interaction) -> bool:
-            if interaction.user.id != self.author.id:
-                await interaction.response.send_message(f"{emoji_error} Tu ne peux pas jouer cette partie !", ephemeral=True)
-                return False
-            return True
-
-        @discord.ui.button(label="🃏 Tirer", style=discord.ButtonStyle.primary)
-        async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
-            nonlocal player_hand, player_value
-            player_hand.append(get_card())
-            player_value = calculate_hand(player_hand)
-
-            if player_value > 21:
-                embed = discord.Embed(title="💥 Tu as perdu !", color=discord.Color.red())
-                embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
-                embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
-                embed.add_field(name="💸 Perte", value=f"-{mise} <:ecoEther:1341862366249357374>", inline=False)
-                self.stop()
-                return await interaction.response.edit_message(embed=embed, view=None)
-
-            embed = discord.Embed(title="🎰 Blackjack", description="Tu as tiré une carte.", color=discord.Color.blurple())
-            embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
-            embed.add_field(name="🃎 Croupier", value=f"{dealer_hand[0][1]} 🂠 → **?**", inline=False)
+        if player_total > 21:
+            await self.end_game(interaction, "lose")
+        else:
+            embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+            embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
+            embed.add_field(name="🤖 Main du croupier", value=card_emojis[self.dealer_hand[0]][0] + " 🂠", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
 
-        @discord.ui.button(label="✋ Rester", style=discord.ButtonStyle.danger)
-        async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
-            nonlocal dealer_hand, dealer_value
-            while dealer_value < 17:
-                dealer_hand.append(get_card())
-                dealer_value = calculate_hand(dealer_hand)
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.blurple, emoji="🛑")
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
+        while calculate_hand_value(self.dealer_hand) < 17:
+            value, _ = draw_card()
+            self.dealer_hand.append(value)
 
-            if dealer_value > 21 or player_value > dealer_value:
-                result_title = "🏆 Tu as gagné !"
-                color = discord.Color.green()
-                result_field = ("✅ Gagné", f"Tu gagnes **{mise}** <:ecoEther:1341862366249357374> !")
-                await update_user_cash(ctx.author.id, cash_balance + mise)
-            elif player_value < dealer_value:
-                result_title = "💥 Tu as perdu !"
-                color = discord.Color.red()
-                result_field = ("❌ Perdu", f"Le croupier gagne.\nPerte de **{mise}** <:ecoEther:1341862366249357374>")
-                await update_user_cash(ctx.author.id, cash_balance - mise)
-            else:
-                result_title = "🤝 Égalité"
-                color = discord.Color.gold()
-                result_field = ("🤝 Égalité", "Personne ne gagne, mise remboursée.")
+        player_total = calculate_hand_value(self.player_hand)
+        dealer_total = calculate_hand_value(self.dealer_hand)
 
-            embed = discord.Embed(title=result_title, color=color)
-            embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
-            embed.add_field(name="🃎 Croupier", value=f"{hand_to_string(dealer_hand)} → **{dealer_value}**", inline=False)
-            embed.add_field(name=result_field[0], value=result_field[1], inline=False)
+        if dealer_total > 21 or player_total > dealer_total:
+            await self.end_game(interaction, "win")
+        elif player_total == dealer_total:
+            await self.end_game(interaction, "draw")
+        else:
+            await self.end_game(interaction, "lose")
 
-            self.stop()
-            await interaction.response.edit_message(embed=embed, view=None)
+@bot.hybrid_command(name="blackjack", description="Joue au blackjack et tente de gagner !")
+async def blackjack(ctx: commands.Context, mise: int):
+    if ctx.guild is None:
+        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
 
-    view = BlackjackView(ctx.author)
-    embed = discord.Embed(title="🎰 Blackjack", description="Choisis une action :", color=discord.Color.blue())
-    embed.add_field(name="🧑 Ta main", value=f"{hand_to_string(player_hand)} → **{player_value}**", inline=False)
-    embed.add_field(name="🃎 Croupier", value=f"{dealer_hand[0][1]} 🂠 → **?**", inline=False)
-    embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
+    user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+    if user_data["cash"] < mise:
+        return await ctx.send("Tu n'as pas assez d'argent pour miser cette somme.")
 
+    user_data["cash"] -= mise
+    collection.update_one(
+        {"guild_id": ctx.guild.id, "user_id": ctx.author.id},
+        {"$set": {"cash": user_data["cash"]}}
+    )
+
+    player_hand = [draw_card()[0] for _ in range(2)]
+    dealer_hand = [draw_card()[0] for _ in range(2)]
+
+    embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+    embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
+    embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
+
+    view = BlackjackView(ctx, player_hand, dealer_hand, mise, user_data)
     await ctx.send(embed=embed, view=view)
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
