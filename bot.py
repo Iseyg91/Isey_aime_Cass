@@ -325,7 +325,7 @@ async def bal(ctx: commands.Context, user: discord.User = None):
 
     # Champ des finances (titre invisible)
     embed.add_field(
-        name="\u200b",
+        name="Ton Solde:",
         value=(
             f"**Cash :** {cash:,} {emoji_currency}\n"
             f"**Banque :** {bank:,} {emoji_currency}\n"
