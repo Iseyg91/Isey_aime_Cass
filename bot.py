@@ -337,6 +337,7 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     )
 
 
+
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
 @app_commands.describe(amount="Montant à déposer (ou 'all')")
 async def deposit(ctx: commands.Context, amount: str):
