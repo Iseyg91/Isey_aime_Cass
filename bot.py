@@ -313,15 +313,16 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
-    # Affiche d'abord le rank
     if rank:
         embed.add_field(
             name=f"🏆 Classement : #{rank}",
+            value="\u200b",
             inline=False
         )
     else:
         embed.add_field(
             name="🏆 Classement :",
+            value="\u200b",
             inline=False
         )
 
