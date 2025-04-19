@@ -1649,6 +1649,12 @@ class BlackjackGame:
 
         return embed
 
+# Fonction pour tirer une carte
+def draw_card():
+    card = random.choice(list(card_values.keys()))
+    emoji = random.choice(card_emojis[card])
+    return card, emoji
+
 # Lorsqu'un joueur joue au blackjack
 @bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
 async def blackjack(ctx: commands.Context, mise: str = None):
@@ -1695,13 +1701,15 @@ async def blackjack(ctx: commands.Context, mise: str = None):
         {"$set": {"cash": user_data["cash"]}}
     )
 
+    # Tirage des cartes du joueur et du croupier
     player_hand = [draw_card()[0] for _ in range(2)]
     dealer_hand = [draw_card()[0] for _ in range(2)]
 
     embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
-    embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
+    embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_total(player_hand)}**", inline=False)
     embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
     await ctx.send(embed=embed, view=BlackjackView(ctx, player_hand, dealer_hand, mise, user_data, max_bet))
+
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
 @commands.has_permissions(administrator=True)  # La commande est réservée aux admins
