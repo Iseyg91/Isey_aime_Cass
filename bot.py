@@ -1578,10 +1578,12 @@ class BlackjackView(discord.ui.View):
         if player_total > 21:
             await self.end_game(interaction, "lose")
         else:
-            embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+            embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())  # Couleur bleue pendant le jeu
             embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
             embed.add_field(name="🤖 Main du croupier", value=card_emojis[self.dealer_hand[0]][0] + " 🂠", inline=False)
+            embed.add_field(name="💰 Mise", value=f"{self.bet} <:ecoEther:1341862366249357374>", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
+
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.blurple, emoji="🛑")
     async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1599,7 +1601,6 @@ class BlackjackView(discord.ui.View):
         else:
             await self.end_game(interaction, "lose")
 
-    # Fonction pour finir la partie
     async def end_game(self, interaction: discord.Interaction, result: str):
         player_total = calculate_hand_value(self.player_hand)
         dealer_total = calculate_hand_value(self.dealer_hand)
@@ -1607,16 +1608,16 @@ class BlackjackView(discord.ui.View):
         if result == "win":
             self.player_data["cash"] += self.bet * 2
             message = f"<:Check:1362710665663615147> Tu as **gagné** !"
-            color = discord.Color.green()  # Couleur verte pour la victoire
+            color = discord.Color.green()
         elif result == "draw":
             self.player_data["cash"] += self.bet
             message = f"<:Check:1362710665663615147> Égalité !"
-            color = discord.Color.gold()  # Couleur dorée pour l'égalité
+            color = discord.Color.gold()
         else:
             message = f"<:classic_x_mark:1362711858829725729> Tu as **perdu**..."
-            color = discord.Color.red()  # Couleur rouge pour la défaite
+            color = discord.Color.red()
 
-        # Mise à jour des données de l'utilisateur
+        # Mise à jour dans la DB
         collection.update_one(
             {"guild_id": self.guild_id, "user_id": self.user_id},
             {"$set": {"cash": self.player_data["cash"]}}
@@ -1625,6 +1626,7 @@ class BlackjackView(discord.ui.View):
         embed = discord.Embed(title="🃏 Résultat du Blackjack", color=color)
         embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
         embed.add_field(name="🤖 Main du croupier", value=" ".join([card_emojis[c][0] for c in self.dealer_hand]) + f"\n**Total : {dealer_total}**", inline=False)
+        embed.add_field(name="💰 Mise", value=f"{self.bet} <:ecoEther:1341862366249357374>", inline=False)
         embed.add_field(name="Résultat", value=message, inline=False)
 
         await interaction.response.edit_message(embed=embed, view=None)
