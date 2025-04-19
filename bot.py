@@ -1752,9 +1752,20 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
+    # Récupérer le membre du serveur cible (si possible)
+    target_member = ctx.guild.get_member(target_id)
+
+    if not target_member:
+        embed = discord.Embed(
+            description=f"Impossible de trouver {user.display_name} sur ce serveur.",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+        return await ctx.send(embed=embed)
+
     # Vérifier si la victime a un rôle anti-rob
     anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
-    target_roles = [role.name for role in user.roles]
+    target_roles = [role.name for role in target_member.roles]
     has_anti_rob_role = any(role in anti_rob_data["roles"] for role in target_roles)
 
     if has_anti_rob_role:
@@ -1842,11 +1853,6 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-from discord.ui import Select, View
-
-from discord.ui import Select, View
-import discord
-
 @bot.command(name="set-anti_rob")
 async def set_anti_rob(ctx):
     # Vérification des permissions
@@ -1866,7 +1872,15 @@ async def set_anti_rob(ctx):
         )
         return await ctx.send(embed=embed)
 
-    # Créer le menu de sélection avec une limite de rôles pour éviter une liste trop longue
+    # Récupère les rôles actuellement définis pour l'anti-rob
+    guild_id = ctx.guild.id
+    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
+    anti_rob_roles = anti_rob_data["roles"]
+
+    # Affiche les rôles anti-rob dans l'embed
+    anti_rob_roles_str = ', '.join(anti_rob_roles) if anti_rob_roles else "Aucun rôle défini."
+
+    # Créer le menu de sélection
     select = Select(
         placeholder="Choisir un rôle à ajouter/supprimer pour anti-rob",
         options=[discord.SelectOption(label=role, value=role) for role in roles[:25]]  # Limite à 25 rôles
@@ -1875,26 +1889,29 @@ async def set_anti_rob(ctx):
     # Fonction pour gérer l'interaction
     async def select_callback(interaction):
         selected_role = select.values[0]
-        guild_id = ctx.guild.id
-        # Récupère ou initialise les données de la collection anti-rob
-        anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
-
-        if selected_role in anti_rob_data["roles"]:
-            anti_rob_data["roles"].remove(selected_role)
-            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_data["roles"]}})
+        
+        if selected_role in anti_rob_roles:
+            anti_rob_roles.remove(selected_role)
+            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}})
             embed = discord.Embed(
                 description=f"Le rôle **{selected_role}** a été retiré de la liste des rôles anti-rob.",
                 color=discord.Color.green()
             )
         else:
-            anti_rob_data["roles"].append(selected_role)
-            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_data["roles"]}})
+            anti_rob_roles.append(selected_role)
+            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}})
             embed = discord.Embed(
                 description=f"Le rôle **{selected_role}** a été ajouté à la liste des rôles anti-rob.",
                 color=discord.Color.green()
             )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)  # Le message est envoyé de façon éphémère
+        # Met à jour l'embed avec les rôles actuels
+        updated_embed = discord.Embed(
+            title="Gestion des rôles anti-rob",
+            description=f"**Rôles actuellement en anti-rob** : {anti_rob_roles_str}",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=updated_embed, ephemeral=True)  # Message éphémère
 
     select.callback = select_callback
 
@@ -1903,12 +1920,11 @@ async def set_anti_rob(ctx):
 
     embed = discord.Embed(
         title="Gestion des rôles anti-rob",
-        description="Sélectionne un rôle à ajouter ou supprimer de la liste des rôles anti-rob.",
+        description=f"**Rôles actuellement en anti-rob** : {anti_rob_roles_str}",
         color=discord.Color.blue()
     )
 
     await ctx.send(embed=embed, view=view)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
