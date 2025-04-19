@@ -1515,10 +1515,11 @@ def get_or_create_user_data(guild_id: int, user_id: int):
 card_values = {
     'A': 11,
     '2': 2, '3': 3, '4': 4, '5': 5,
-    '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 10, 'Q': 10, 'K': 10
+    '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+    'J': 10, 'Q': 10, 'K': 10
 }
 
-# ÉMOJIS DE CARTES
+# Emojis des cartes
 card_emojis = {
     'A': ['<:ACarreauRouge:1362752186291060928>', '<:APiqueNoir:1362752281363087380>', '<:ACoeurRouge:1362752392508084264>', '<:ATrefleNoir:1362752416046518302>'],
     '2': ['<:2CarreauRouge:1362752434677743767>', '<:2PiqueNoir:1362752455082901634>', '<:2CoeurRouge:1362752473852547082>', '<:2TrefleNoir:1362752504097406996>'],
@@ -1557,15 +1558,20 @@ class BlackjackGame:
     def __init__(self, player_id, bet):
         self.player_id = player_id
         self.bet = bet
-        self.player_hands = [[get_random_card()[0], get_random_card()[0]]]
-        self.player_emojis = [[get_random_card()[1], get_random_card()[1]]]
-        self.dealer_hand = [get_random_card()[0], get_random_card()[0]]
-        self.dealer_emojis = [get_random_card()[1], get_random_card()[1]]
+
+        card1, emoji1 = get_random_card()
+        card2, emoji2 = get_random_card()
+        self.player_hands = [[card1, card2]]
+        self.player_emojis = [[emoji1, emoji2]]
+
+        dcard1, demoji1 = get_random_card()
+        dcard2, demoji2 = get_random_card()
+        self.dealer_hand = [dcard1, dcard2]
+        self.dealer_emojis = [demoji1, demoji2]
+
         self.current_hand_index = 0
         self.has_doubled_down = False
         self.split_active = False
-        self.split_hands = []
-        self.split_emojis = []
 
     def get_current_hand(self):
         return self.player_hands[self.current_hand_index]
@@ -1585,18 +1591,20 @@ class BlackjackGame:
     def split(self):
         if not self.can_split():
             return False
-        card1 = self.get_current_hand()[0]
-        emoji1 = self.get_current_emojis()[0]
-        card2 = self.get_current_hand()[1]
-        emoji2 = self.get_current_emojis()[1]
+        # Séparer les deux cartes
+        c1 = self.get_current_hand()[0]
+        e1 = self.get_current_emojis()[0]
+        c2 = self.get_current_hand()[1]
+        e2 = self.get_current_emojis()[1]
 
-        self.player_hands = [[card1], [card2]]
-        self.player_emojis = [[emoji1], [emoji2]]
+        # Créer deux nouvelles mains avec une carte chacune
+        self.player_hands = [[c1], [c2]]
+        self.player_emojis = [[e1], [e2]]
 
-        for hand, emojis in zip(self.player_hands, self.player_emojis):
-            new_card, new_emoji = get_random_card()
-            hand.append(new_card)
-            emojis.append(new_emoji)
+        for i in range(2):
+            card, emoji = get_random_card()
+            self.player_hands[i].append(card)
+            self.player_emojis[i].append(emoji)
 
         self.split_active = True
         self.current_hand_index = 0
@@ -1611,10 +1619,10 @@ class BlackjackGame:
             return True
         return False
 
-    def is_busted(self, hand_index=None):
-        if hand_index is None:
-            hand_index = self.current_hand_index
-        return calculate_total(self.player_hands[hand_index]) > 21
+    def is_busted(self, index=None):
+        if index is None:
+            index = self.current_hand_index
+        return calculate_total(self.player_hands[index]) > 21
 
     def dealer_play(self):
         while calculate_total(self.dealer_hand) < 17:
@@ -1629,25 +1637,16 @@ class BlackjackGame:
         return False
 
     def get_game_embed(self):
-        embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())
+        embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blurple())
+
         for i, (hand, emojis) in enumerate(zip(self.player_hands, self.player_emojis)):
             total = calculate_total(hand)
-            status = " (Actuel)" if i == self.current_hand_index else ""
-            cards_str = " ".join(emojis)
-            embed.add_field(
-                name=f"Main {i + 1}{status} - Total : {total}",
-                value=cards_str,
-                inline=False
-            )
+            status = " (main actuelle)" if i == self.current_hand_index else ""
+            embed.add_field(name=f"Main {i+1}{status} - Total : {total}", value=" ".join(emojis), inline=False)
 
-        if self.dealer_hand:
-            dealer_total = calculate_total(self.dealer_hand)
-            dealer_cards = " ".join(self.dealer_emojis)
-            embed.add_field(
-                name=f"Main du croupier - Total : {dealer_total}",
-                value=dealer_cards,
-                inline=False
-            )
+        dealer_total = calculate_total(self.dealer_hand)
+        embed.add_field(name=f"Main du croupier - Total : {dealer_total}", value=" ".join(self.dealer_emojis), inline=False)
+
         return embed
 
 # Lorsqu'un joueur joue au blackjack
