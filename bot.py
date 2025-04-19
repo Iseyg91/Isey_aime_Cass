@@ -2008,7 +2008,7 @@ async def russianroulette(ctx, arg: str):
                 description="> Pour démarrer cette partie : `!!rr start`\n"
                             "> Pour rejoindre : `!!rr <montant>`\n\n"
                             "**Temps restant :** 5 minutes ou 5 joueurs maximum",
-                color=discord.Color.from_rgb(28, 75, 180)
+                color=discord.Color.from_rgb(20, 60, 140)
             )
             msg = await ctx.send(embed=embed)
 
