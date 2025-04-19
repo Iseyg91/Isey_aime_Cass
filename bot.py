@@ -1630,27 +1630,56 @@ class BlackjackView(discord.ui.View):
             await self.end_game(interaction, "lose")
 
 @bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
-async def blackjack(ctx: commands.Context, mise: int):
+async def blackjack(ctx: commands.Context, mise: str = None):
     if ctx.guild is None:
         return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+    
+    # Si la commande est "!!bj all"
+    if mise == "all":
+        user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+        max_bet = 15000  # La mise maximale
 
-    user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+        if user_data["cash"] <= max_bet:
+            mise = user_data["cash"]  # Mise toute la somme disponible
+        else:
+            return await ctx.send(f"Ton solde est trop élevé pour miser tout, la mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.")
 
-    # Vérification de la mise
-    max_bet = 15000  # Par exemple, la mise maximale définie
-    if mise <= 0:
-        return await ctx.send("Tu dois miser une somme supérieure à 0.")
-    if mise > max_bet:
-        return await ctx.send(f"La mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.")
-    if user_data["cash"] < mise:
-        return await ctx.send("Tu n'as pas assez d'argent pour miser cette somme.")
+    # Si la commande est "!!bj half"
+    elif mise == "half":
+        user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+        max_bet = 15000  # La mise maximale
+        half_cash = user_data["cash"] // 2
 
+        if half_cash > max_bet:
+            return await ctx.send(f"La moitié de ton solde est trop élevée, la mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.")
+        else:
+            mise = half_cash
+
+    # Si une valeur de mise est fournie
+    elif mise:
+        mise = int(mise)
+        user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+        max_bet = 15000  # La mise maximale
+
+        if mise <= 0:
+            return await ctx.send("Tu dois miser une somme supérieure à 0.")
+        if mise > max_bet:
+            return await ctx.send(f"La mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.")
+        if user_data["cash"] < mise:
+            return await ctx.send("Tu n'as pas assez d'argent pour miser cette somme.")
+        
+    # Si aucune option n'est valide, retourne une erreur
+    if mise is None:
+        return await ctx.send("Tu dois spécifier une mise, ou utiliser `all` ou `half` pour miser tout ou la moitié de ton solde.")
+    
+    # Mise à jour du solde
     user_data["cash"] -= mise
     collection.update_one(
         {"guild_id": ctx.guild.id, "user_id": ctx.author.id},
         {"$set": {"cash": user_data["cash"]}}
     )
 
+    # Démarrer le jeu
     player_hand = [draw_card()[0] for _ in range(2)]
     dealer_hand = [draw_card()[0] for _ in range(2)]
 
