@@ -1680,7 +1680,7 @@ async def blackjack(ctx: commands.Context, mise: str = None):
     player_hand = [draw_card()[0] for _ in range(2)]
     dealer_hand = [draw_card()[0] for _ in range(2)]
 
-    embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue()())
+    embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())
     embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
     embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
     await ctx.send(embed=embed, view=BlackjackView(ctx, player_hand, dealer_hand, mise, user_data, max_bet))
