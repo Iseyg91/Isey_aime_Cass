@@ -1737,12 +1737,20 @@ async def set_max_bj_mise_error(ctx, error):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
-
 @bot.hybrid_command(name="rob", description="Voler entre 1% et 50% du portefeuille d'un autre utilisateur.")
 async def rob(ctx, user: discord.User):
     guild_id = ctx.guild.id
     user_id = ctx.author.id
     target_id = user.id
+
+    # Vérifier si la cible est un bot
+    if user.bot:
+        embed = discord.Embed(
+            description="Tu ne peux pas voler un bot.",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+        return await ctx.send(embed=embed)
 
     if user_id == target_id:
         embed = discord.Embed(
@@ -1795,7 +1803,7 @@ async def rob(ctx, user: discord.User):
     target_wallet = target_data.get("wallet", 0)
     if target_wallet <= 0:
         embed = discord.Embed(
-            description=f"<:classic_x_mark:1362711858829725729> You attempted to rob {user.display_name}, but they had no money in cash for you to take.",
+            description=f"<:classic_x_mark:1362711858829725729> Tu as tenté de voler {user.display_name}, mais ils n'ont pas d'argent en liquide.",
             color=discord.Color.red()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
@@ -1826,7 +1834,7 @@ async def rob(ctx, user: discord.User):
         await log_eco_channel(bot, guild_id, ctx.author, "Vol", amount_stolen, user_data["wallet"], new_user_wallet, f"Volé à {user.display_name}")
 
         embed = discord.Embed(
-            description=f"<:Check:1362710665663615147> You robbed <:ecoEther:1341862366249357374> **{amount_stolen:.2f}** from **{user.display_name}**",
+            description=f"<:Check:1362710665663615147> Tu as volé <:ecoEther:1341862366249357374> **{amount_stolen:.2f}** à **{user.display_name}**",
             color=discord.Color.green()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
@@ -1847,7 +1855,7 @@ async def rob(ctx, user: discord.User):
         )
 
         embed = discord.Embed(
-            description=f"<:classic_x_mark:1362711858829725729> You were caught attempting to rob {user.display_name}, and have been fined <:ecoEther:1341862366249357374> **{loss_amount:.2f}**",
+            description=f"<:classic_x_mark:1362711858829725729> Tu as été attrapé en train de tenter de voler {user.display_name}, et tu as été puni en perdant <:ecoEther:1341862366249357374> **{loss_amount:.2f}**",
             color=discord.Color.red()
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
