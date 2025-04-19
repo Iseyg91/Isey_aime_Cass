@@ -1566,10 +1566,6 @@ class BlackjackView(discord.ui.View):
         self.user_id = ctx.author.id
         self.max_bet = max_bet
 
-        # Définir les boutons à l'initialisation
-        self.add_item(discord.ui.Button(label="Hit", style=discord.ButtonStyle.green, emoji="➕", custom_id="hit"))
-        self.add_item(discord.ui.Button(label="Stand", style=discord.ButtonStyle.blurple, emoji="🛑", custom_id="stand"))
-
     async def interaction_check(self, interaction: discord.Interaction):
         return interaction.user.id == self.ctx.author.id
 
@@ -1602,6 +1598,36 @@ class BlackjackView(discord.ui.View):
             await self.end_game(interaction, "draw")
         else:
             await self.end_game(interaction, "lose")
+
+    # Fonction pour finir la partie
+    async def end_game(self, interaction: discord.Interaction, result: str):
+        player_total = calculate_hand_value(self.player_hand)
+        dealer_total = calculate_hand_value(self.dealer_hand)
+
+        if result == "win":
+            self.player_data["cash"] += self.bet * 2
+            message = f"<:Check:1362710665663615147> Tu as **gagné** !"
+            color = discord.Color.green()  # Couleur verte pour la victoire
+        elif result == "draw":
+            self.player_data["cash"] += self.bet
+            message = f"<:Check:1362710665663615147> Égalité !"
+            color = discord.Color.gold()  # Couleur dorée pour l'égalité
+        else:
+            message = f"<:classic_x_mark:1362711858829725729> Tu as **perdu**..."
+            color = discord.Color.red()  # Couleur rouge pour la défaite
+
+        # Mise à jour des données de l'utilisateur
+        collection.update_one(
+            {"guild_id": self.guild_id, "user_id": self.user_id},
+            {"$set": {"cash": self.player_data["cash"]}}
+        )
+
+        embed = discord.Embed(title="🃏 Résultat du Blackjack", color=color)
+        embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
+        embed.add_field(name="🤖 Main du croupier", value=" ".join([card_emojis[c][0] for c in self.dealer_hand]) + f"\n**Total : {dealer_total}**", inline=False)
+        embed.add_field(name="Résultat", value=message, inline=False)
+
+        await interaction.response.edit_message(embed=embed, view=None)
 
 # Lorsqu'un joueur joue au blackjack
 @bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
