@@ -1954,86 +1954,93 @@ async def set_rr_limite(ctx: commands.Context, limite: int):
     await ctx.send(f"La limite de mise pour la roulette russe a été fixée à {limite:,} coins.")
 
 
-@bot.hybrid_command(
-    name="russianroulette",
-    aliases=["rr"],
-    description="Participe à une roulette russe avec d'autres utilisateurs."
-)
-async def russian_roulette(ctx: commands.Context, bet: int):
-    if ctx.guild is None:
-        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+active_rr_games = {}  # guild_id: {starter_id, bet, players, message_id, task}
 
+@bot.command(aliases=["rr"])
+async def russianroulette(ctx, arg: str):
     guild_id = ctx.guild.id
-    user_id = ctx.author.id
+    user = ctx.author
 
-    # Récupérer la limite de mise depuis la collection info_rr
-    rr_data = collection11.find_one({"guild_id": guild_id})
-    rr_limite = rr_data.get("rr_limite", 0)  # Si la limite n'est pas définie, la valeur par défaut est 0
+    # Gestion du lancement de la partie
+    if arg.isdigit():
+        bet = int(arg)
 
-    # Vérifier que la mise respecte la limite
-    if bet > rr_limite > 0:
-        return await ctx.send(f"La mise ne peut pas dépasser la limite de {rr_limite:,} coins fixée par l'admin.")
-    
-    # Récupérer ou créer les données de l'utilisateur
-    def get_or_create_user_data(guild_id: int, user_id: int):
-        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-        if not data:
-            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
-            collection.insert_one(data)
-        return data
+        if guild_id in active_rr_games:
+            # Tentative de rejoindre une partie
+            game = active_rr_games[guild_id]
+            if user in game["players"]:
+                return await ctx.send("Tu as déjà rejoint cette partie.")
+            if bet != game["bet"]:
+                return await ctx.send(f"Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.")
+            game["players"].append(user)
+            await ctx.send(f"{user.mention} a rejoint cette partie de Roulette Russe avec une mise de <:ecoEther:1341862366249357374> {bet}.")
 
-    data = get_or_create_user_data(guild_id, user_id)
-    cash = data.get("cash", 0)
+        else:
+            # Création d'une nouvelle partie
+            embed = Embed(
+                title="New game of Russian Roulette has begun!",
+                description="To start this game use the command `!!rr start`\n"
+                            "To join this game use the command `!!rr <amount>`\n"
+                            "Time remaining: 5 minutes or 5 more players",
+                color=0xFF0000
+            )
+            msg = await ctx.send(embed=embed)
 
-    # Vérification que l'utilisateur a assez d'argent
-    if cash < bet:
-        return await ctx.send(f"Tu n'as pas assez d'argent pour parier {bet:,} coins.")
+            # Sauvegarde de la partie
+            active_rr_games[guild_id] = {
+                "starter": user,
+                "bet": bet,
+                "players": [user],
+                "message_id": msg.id
+            }
 
-    # On commence le jeu, le bot demande aux autres joueurs de rejoindre
-    def get_players():
-        # On récupère tous les joueurs qui ont suffisamment d'argent et qui sont en ligne
-        players = [user for user in ctx.guild.members if user != ctx.author and get_or_create_user_data(guild_id, user.id)["cash"] >= bet]
-        return players
+            # Annulation automatique après 5 minutes
+            async def cancel_rr():
+                await asyncio.sleep(300)
+                if guild_id in active_rr_games and len(active_rr_games[guild_id]["players"]) == 1:
+                    await ctx.send("Personne n'a rejoint la roulette russe. La partie est annulée.")
+                    del active_rr_games[guild_id]
 
-    players = get_players()
-    players.append(ctx.author)  # Ajouter l'initiateur du jeu
+            active_rr_games[guild_id]["task"] = asyncio.create_task(cancel_rr())
 
-    # S'il n'y a pas assez de joueurs
-    if len(players) < 2:
-        return await ctx.send("Il faut au moins 2 joueurs pour jouer à la roulette russe.")
+    elif arg.lower() == "start":
+        # Démarrage de la partie
+        game = active_rr_games.get(guild_id)
+        if not game:
+            return await ctx.send("Aucune partie en cours.")
+        if game["starter"] != user:
+            return await ctx.send("Seul le créateur de la partie peut la démarrer.")
+        if len(game["players"]) < 2:
+            return await ctx.send("Pas assez de joueurs pour démarrer la roulette russe.")
 
-    # Annonce les joueurs
-    player_names = [player.display_name for player in players]
-    await ctx.send(f"Le jeu commence ! Joueurs : {', '.join(player_names)}")
+        await ctx.send("The Russian Roulette game has begun!")
 
-    # Choisir un joueur aléatoirement pour être éliminé
-    eliminated_player = random.choice(players)
-    players.remove(eliminated_player)
+        eliminated = random.choice(game["players"])
+        survivors = [p for p in game["players"] if p != eliminated]
 
-    # Calcul des gains : les joueurs restants se partagent la mise totale
-    total_pot = bet * len(players)
-    gain_per_player = total_pot // len(players) if players else 0
+        result = ""
+        if eliminated == game["starter"]:
+            result += f"{eliminated.display_name} pulls the trigger... and gets hit <:imageremovebgpreview53:1362693948702855360>\n\n"
+            result += "**__Russian Roulette Survivors__**\n"
+            for p in survivors:
+                result += f"{p.mention} won <:ecoEther:1341862366249357374> {game['bet']}\n"
+        else:
+            result += f"{game['starter'].display_name} pulls the trigger... and survives!\n\n"
+            result += f"{eliminated.display_name} pulls the trigger... and gets hit <:imageremovebgpreview53:1362693948702855360>\n\n"
+            result += "**__Russian Roulette Survivors__**\n"
+            for p in survivors:
+                result += f"{p.mention} won <:ecoEther:1341862366249357374> {game['bet']}\n"
 
-    # Éliminer l'utilisateur
-    await ctx.send(f"{eliminated_player.display_name} a été éliminé de la roulette russe !")
+        await ctx.send(result)
 
-    # Distribuer les gains
-    for player in players:
-        user_data = get_or_create_user_data(guild_id, player.id)
-        user_data["cash"] += gain_per_player
-        collection.update_one({"guild_id": guild_id, "user_id": player.id}, {"$set": user_data})
+        # Gestion des coins ici (ajoute gain, enlève mise, etc.)
 
-    # Mise à jour de l'utilisateur qui a perdu
-    user_data = get_or_create_user_data(guild_id, eliminated_player.id)
-    user_data["cash"] -= bet  # Perte de la mise
-    collection.update_one({"guild_id": guild_id, "user_id": eliminated_player.id}, {"$set": user_data})
+        # Annuler la tâche de timeout et supprimer la partie
+        game["task"].cancel()
+        del active_rr_games[guild_id]
 
-    # Annonce des résultats
-    if players:
-        winner_names = [player.display_name for player in players]
-        await ctx.send(f"Les gagnants sont : {', '.join(winner_names)} ! Ils remportent {gain_per_player:,} coins chacun.")
     else:
-        await ctx.send("Aucun gagnant cette fois-ci !")
+        await ctx.send("Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.")
 
 # Fonction d'affichage de l'aide
 def help_text():
