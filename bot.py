@@ -1867,78 +1867,51 @@ async def set_anti_rob(ctx):
 
     embed = discord.Embed(
         title="Gestion des rôles anti-rob",
-        description=f"**Rôles actuellement protégés :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}",
+        description=f"**Rôles actuellement protégés :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}\n\nSélectionne les rôles à ajouter/enlever de l’anti-rob.",
         color=discord.Color.blurple()
     )
 
-    add_button = Button(label="Ajouter un rôle", style=discord.ButtonStyle.green)
-    remove_button = Button(label="Supprimer un rôle", style=discord.ButtonStyle.red)
+    class AntiRobSelect(Select):
+        def __init__(self):
+            options = [
+                discord.SelectOption(label=role.name, value=str(role.id), default=(role.name in anti_rob_roles))
+                for role in ctx.guild.roles
+                if role != ctx.guild.default_role and not role.managed
+            ][:25]  # Discord limite à 25 options
 
-    view = View()
-    view.add_item(add_button)
-    view.add_item(remove_button)
-
-    async def ask_for_role(action):
-        prompt = await ctx.send(f"✏️ Merci de **taper le nom du rôle** à {action.lower()} :")
-
-        try:
-            msg = await bot.wait_for(
-                "message",
-                timeout=30,
-                check=lambda m: m.author == ctx.author and m.channel == ctx.channel
+            super().__init__(
+                placeholder="Choisis les rôles à ajouter ou retirer",
+                min_values=1,
+                max_values=len(options),
+                options=options
             )
-            role_name = msg.content.strip()
 
-            # Vérifie que le rôle existe
-            role = discord.utils.get(ctx.guild.roles, name=role_name)
-            if not role:
-                return await ctx.send(embed=discord.Embed(
-                    description="❌ Rôle introuvable.",
-                    color=discord.Color.red()
-                ))
+        async def callback(self, interaction: discord.Interaction):
+            if interaction.user != ctx.author:
+                return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
 
-            if action == "ajouter":
-                if role_name in anti_rob_roles:
-                    return await ctx.send(embed=discord.Embed(
-                        description="⚠️ Ce rôle est déjà dans la liste anti-rob.",
-                        color=discord.Color.orange()
-                    ))
-                anti_rob_roles.append(role_name)
-                msg_result = f"✅ Le rôle **{role_name}** a été **ajouté** à la liste anti-rob."
-            else:
-                if role_name not in anti_rob_roles:
-                    return await ctx.send(embed=discord.Embed(
-                        description="⚠️ Ce rôle n'est pas dans la liste anti-rob.",
-                        color=discord.Color.orange()
-                    ))
-                anti_rob_roles.remove(role_name)
-                msg_result = f"✅ Le rôle **{role_name}** a été **supprimé** de la liste anti-rob."
+            changes = []
+            for role_id in self.values:
+                role = discord.utils.get(ctx.guild.roles, id=int(role_id))
+                if role.name in anti_rob_roles:
+                    anti_rob_roles.remove(role.name)
+                    changes.append(f"➖ {role.name}")
+                else:
+                    anti_rob_roles.append(role.name)
+                    changes.append(f"➕ {role.name}")
 
-            # Mise à jour de la base de données
+            # Mise à jour BDD
             collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}}, upsert=True)
 
-            await ctx.send(embed=discord.Embed(
-                description=msg_result,
+            # Feedback
+            await interaction.response.edit_message(embed=discord.Embed(
+                title="✅ Mise à jour des rôles anti-rob",
+                description="\n".join(changes) + f"\n\n**Rôles protégés actuels :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}",
                 color=discord.Color.green()
-            ))
+            ), view=None)
 
-        except asyncio.TimeoutError:
-            await ctx.send("⏱️ Temps écoulé. Recommence la commande.")
-
-    @add_button.callback
-    async def add_callback(interaction):
-        if interaction.user != ctx.author:
-            return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
-        await interaction.response.defer()
-        await ask_for_role("ajouter")
-
-    @remove_button.callback
-    async def remove_callback(interaction):
-        if interaction.user != ctx.author:
-            return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
-        await interaction.response.defer()
-        await ask_for_role("supprimer")
-
+    view = View()
+    view.add_item(AntiRobSelect())
     await ctx.send(embed=embed, view=view)
 
 # Token pour démarrer le bot (à partir des secrets)
