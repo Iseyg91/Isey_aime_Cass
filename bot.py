@@ -408,6 +408,52 @@ async def deposit(ctx: commands.Context, amount: str):
 
     await ctx.send(embed=embed)
 
+@bot.hybrid_command(name="withdraw", aliases=["with"], description="Retire de l'argent de ta banque vers ton portefeuille.")
+async def withdraw(ctx: commands.Context, amount: str):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
+
+    # Chercher les données actuelles
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 0, "bank": 0}
+
+    cash = data.get("cash", 0)
+    bank = data.get("bank", 0)
+
+    # Gérer le cas "all"
+    if amount.lower() == "all":
+        if bank == 0:
+            return await ctx.send("💸 Tu n'as rien à retirer.")
+        withdrawn_amount = bank
+    else:
+        # Vérifie que c'est un nombre valide
+        if not amount.isdigit():
+            return await ctx.send("❌ Montant invalide. Utilise un nombre ou `all`.")
+        withdrawn_amount = int(amount)
+        if withdrawn_amount <= 0:
+            return await ctx.send("❌ Tu dois retirer un montant supérieur à zéro.")
+        if withdrawn_amount > bank:
+            return await ctx.send(
+                f"<:classic_x_mark:1362711858829725729> You don't have that much money to withdraw. "
+                f"You currently have <:ecoEther:1341862366249357374> {bank} in the bank."
+            )
+
+    # Mise à jour dans la base de données
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": withdrawn_amount, "bank": -withdrawn_amount}},
+        upsert=True
+    )
+
+    # Création de l'embed de succès
+    embed = discord.Embed(
+        description=f"<:Check:1362710665663615147> Withdrew <:ecoEther:1341862366249357374> {withdrawn_amount} from your bank!",
+        color=discord.Color.green()
+    )
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+
+    await ctx.send(embed=embed)
+
 @bot.hybrid_command(name="add-money", description="Ajoute de l'argent à un utilisateur (réservé aux administrateurs).")
 @app_commands.describe(
     user="L'utilisateur à créditer",
