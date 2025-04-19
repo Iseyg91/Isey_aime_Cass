@@ -2049,7 +2049,7 @@ async def russianroulette(ctx, arg: str):
         del active_rr_games[guild_id]
 
     else:
-        await ctx.send(embed=Embed(description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.", color=0xFFA500)))
+        await ctx.send(embed=Embed(description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.", color=0xFFA500))
 
 # Fonction d'affichage de l'aide
 def help_text():
