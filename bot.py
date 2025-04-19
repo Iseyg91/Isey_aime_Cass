@@ -1973,17 +1973,15 @@ async def russianroulette(ctx, arg: str):
         return 0  # Retourne 0 si les données n'existent pas
 
     # Rejoindre ou créer une partie
-    if arg.isdigit():
-        bet = int(arg)
-        user_cash = get_user_cash(guild_id, user.id)
-
-        # Vérification du montant pour "all" et "half"
-        if bet.lower() == "all":
-            bet = user_cash
-        elif bet.lower() == "half":
-            bet = user_cash // 2
+    if arg.isdigit() or arg.lower() == "all" or arg.lower() == "half":  # Vérification ajoutée pour "all" et "half"
+        if arg.lower() == "all":
+            bet = get_user_cash(guild_id, user.id)
+        elif arg.lower() == "half":
+            bet = get_user_cash(guild_id, user.id) // 2
         else:
             bet = int(arg)
+
+        user_cash = get_user_cash(guild_id, user.id)
 
         if bet > user_cash:
             return await ctx.send(embed=discord.Embed(
@@ -2065,9 +2063,19 @@ async def russianroulette(ctx, arg: str):
         winner = survivors[0]
         winner_data = get_or_create_user_data(guild_id, winner.id)
         winner_data["cash"] += game["bet"] * len(game["players"])
+
+        # Retirer la mise du perdant
+        loser_data = get_or_create_user_data(guild_id, eliminated.id)
+        loser_data["cash"] -= game["bet"]
+
+        # Mise à jour des données
         collection.update_one(
             {"guild_id": guild_id, "user_id": winner.id},
             {"$set": {"cash": winner_data["cash"]}}
+        )
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": loser_data["user_id"]},
+            {"$set": {"cash": loser_data["cash"]}}
         )
 
         # Suppression de la partie
