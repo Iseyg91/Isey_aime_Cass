@@ -307,9 +307,6 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     role_name = f"Tu as le rôle **[𝑺ץ] Top {rank}** ! Félicitations !" if rank in TOP_ROLES else None
 
     # Emojis distincts
-    emoji_cash = "💵"
-    emoji_bank = "🏦"
-    emoji_total = "📈"
     emoji_currency = "<:ecoEther:1341862366249357374>"
 
     # Création de l'embed
@@ -320,19 +317,16 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     if rank:
         embed.add_field(
             name=f"🏆 Classement : #{rank}",
-            value=role_name or "Tu fais partie des meilleurs !",
             inline=False
         )
     else:
         embed.add_field(
             name="🏆 Classement :",
-            value="Tu n'es actuellement pas dans le top 3.",
             inline=False
         )
 
-    # Infos financières
     embed.add_field(
-        name="💰 Tes informations financières",
+        name="\u200b",
         value=(
             f"**{emoji_cash} Cash :** {cash:,} {emoji_currency}\n"
             f"**{emoji_bank} Banque :** {bank:,} {emoji_currency}\n"
@@ -341,7 +335,6 @@ async def bal(ctx: commands.Context, user: discord.User = None):
         inline=False
     )
 
-    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
 @app_commands.describe(amount="Montant à déposer (ou 'all')")
@@ -1952,11 +1945,6 @@ async def set_rr_limite(ctx: commands.Context, limite: int):
     )
 
     await ctx.send(f"La limite de mise pour la roulette russe a été fixée à {limite:,} coins.")
-
-import discord
-from discord.ext import commands
-import random
-import asyncio
 
 active_rr_games = {}
 
