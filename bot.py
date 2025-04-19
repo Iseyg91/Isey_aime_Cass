@@ -1700,6 +1700,48 @@ class BlackjackView(discord.ui.View):
         else:
             await self.end_game(interaction, "lose")
 
+    @discord.ui.button(label="Double Down", style=discord.ButtonStyle.red, emoji="💰")
+    async def double_down(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.player_data.has_doubled_down and len(self.player_hand) == 2:
+            value, _ = draw_card()
+            self.player_hand.append(value)
+            self.player_data.has_doubled_down = True
+
+            player_total = calculate_hand_value(self.player_hand)
+
+            if player_total > 21:
+                await self.end_game(interaction, "lose")
+            else:
+                embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+                embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
+                embed.add_field(name="🤖 Main du croupier", value=card_emojis[self.dealer_hand[0]][0] + " 🂠", inline=False)
+                await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            await interaction.response.send_message("Vous ne pouvez pas doubler à ce moment.", ephemeral=True)
+
+    @discord.ui.button(label="Split", style=discord.ButtonStyle.blurple, emoji="✂️")
+    async def split(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.can_split():
+            self.split()
+            embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+            embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand[0]]) + f"\n**Total : {calculate_hand_value(self.player_hand[0])}**", inline=False)
+            embed.add_field(name="🧑 Ta seconde main", value=" ".join([card_emojis[c][0] for c in self.player_hand[1]]) + f"\n**Total : {calculate_hand_value(self.player_hand[1])}**", inline=False)
+            embed.add_field(name="🤖 Main du croupier", value=" ".join([card_emojis[c][0] for c in self.dealer_hand]) + " 🂠", inline=False)
+            await interaction.response.edit_message(embed=embed, view=self)
+        else:
+            await interaction.response.send_message("Vous ne pouvez pas diviser à ce moment.", ephemeral=True)
+
+    def can_split(self):
+        return len(self.player_hand) == 2 and self.player_hand[0][0] == self.player_hand[0][1]
+
+    async def end_game(self, interaction: discord.Interaction, result: str):
+        if result == "win":
+            await interaction.response.send_message("Félicitations ! Vous avez gagné!", ephemeral=True)
+        elif result == "lose":
+            await interaction.response.send_message("Désolé, vous avez perdu.", ephemeral=True)
+        else:
+            await interaction.response.send_message("C'est un match nul.", ephemeral=True)
+        self.stop()  # Stoppe la vue après la fin du jeu
 # Lorsqu'un joueur joue au blackjack
 @bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
 async def blackjack(ctx: commands.Context, mise: str = None):
