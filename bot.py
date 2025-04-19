@@ -1961,95 +1961,116 @@ async def russianroulette(ctx, arg: str):
     guild_id = ctx.guild.id
     user = ctx.author
 
-    # Rejoindre ou créer une partie
+    # Récupération limite de mise
+    config = collection11.find_one({"guild_id": guild_id})
+    limite = config.get("rr_limite") if config else None
+
+    # Récupération du solde cash
+    econ_data = collection10.find_one({"user_id": user.id, "guild_id": guild_id}) or {"cash": 0}
+    cash = econ_data.get("cash", 0)
+
+    # Détermination du montant de la mise
     if arg.isdigit():
         bet = int(arg)
-
-        if guild_id in active_rr_games:
-            game = active_rr_games[guild_id]
-            if user in game["players"]:
-                return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> Tu as déjà rejoint cette partie.", color=0xFF0000))
-            if bet != game["bet"]:
-                return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.", color=0xFF0000))
-            game["players"].append(user)
-            return await ctx.send(embed=Embed(description=f"{user.mention} a rejoint cette partie de Roulette Russe avec une mise de <:ecoEther:1341862366249357374> {bet}.", color=0x00FF00))
-
-        else:
-            embed = Embed(
-                title="Nouvelle partie de Roulette Russe",
-                description="> Pour démarrer cette partie : `!!rr start`\n"
-                            "> Pour rejoindre : `!!rr <montant>`\n\n"
-                            "**Temps restant :** 5 minutes ou 5 joueurs maximum",
-                color=0xFF0000
-            )
-            msg = await ctx.send(embed=embed)
-
-            active_rr_games[guild_id] = {
-                "starter": user,
-                "bet": bet,
-                "players": [user],
-                "message_id": msg.id
-            }
-
-            async def cancel_rr():
-                await asyncio.sleep(300)
-                if guild_id in active_rr_games and len(active_rr_games[guild_id]["players"]) == 1:
-                    await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Personne n'a rejoint la roulette russe. La partie est annulée.", color=0xFF0000))
-                    del active_rr_games[guild_id]
-
-            active_rr_games[guild_id]["task"] = asyncio.create_task(cancel_rr())
-
+    elif arg.lower() == "all":
+        bet = cash
+        if limite and bet > limite:
+            return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> La mise maximale autorisée est de <:ecoEther:1341862366249357374> {limite:,}.", color=0xF08080))
+    elif arg.lower() == "half":
+        bet = cash // 2
+        if limite and bet > limite:
+            return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> La mise maximale autorisée est de <:ecoEther:1341862366249357374> {limite:,}.", color=0xF08080))
     elif arg.lower() == "start":
         game = active_rr_games.get(guild_id)
         if not game:
-            return await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Aucune partie en cours.", color=0xFF0000))
+            return await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Aucune partie en cours.", color=0xF08080))
         if game["starter"] != user:
-            return await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Seul le créateur de la partie peut la démarrer.", color=0xFF0000))
-
+            return await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Seul le créateur de la partie peut la démarrer.", color=0xF08080))
         if len(game["players"]) < 2:
-            await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Pas assez de joueurs pour démarrer. La partie est annulée.", color=0xFF0000))
+            await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Pas assez de joueurs pour démarrer. La partie est annulée.", color=0xF08080))
             game["task"].cancel()
             del active_rr_games[guild_id]
             return
 
-        # Début du jeu
         await ctx.send(embed=Embed(description="<:Check:1362710665663615147> La roulette russe commence...", color=0x00FF00))
         await asyncio.sleep(1)
 
         eliminated = random.choice(game["players"])
         survivors = [p for p in game["players"] if p != eliminated]
 
-        # Phase 1 : qui meurt
-        embed1 = Embed(
+        total_eliminated_bet = game["bet"]
+        bonus = total_eliminated_bet // len(survivors)
+
+        for survivor in survivors:
+            collection10.update_one(
+                {"user_id": survivor.id, "guild_id": guild_id},
+                {"$inc": {"cash": game["bet"] + bonus}},
+                upsert=True
+            )
+
+        await ctx.send(embed=Embed(
             description=f"{eliminated.display_name} tire... et se fait avoir <:imageremovebgpreview53:1362693948702855360>",
             color=0xFF0000
-        )
-        await ctx.send(embed=embed1)
+        ))
         await asyncio.sleep(1)
 
-        # Phase 2 : les survivants
-        result_embed = Embed(
+        await ctx.send(embed=Embed(
             title="Survivants de la Roulette Russe",
-            description="\n".join([f"{p.mention} remporte <:ecoEther:1341862366249357374> {game['bet']}" for p in survivors]),
+            description="\n".join([f"{p.mention} remporte <:ecoEther:1341862366249357374> {game['bet'] + bonus:,}" for p in survivors]),
             color=0x00FF00
-        )
-        await ctx.send(embed=result_embed)
-
-        # Phase 3 : félicitations
-        await asyncio.sleep(1)
-        final_embed = Embed(
-            description=f"<:Check:1362710665663615147> Partie terminée ! Merci d'avoir joué.",
-            color=0x00FF00
-        )
-        await ctx.send(embed=final_embed)
-
-        # Gestion des coins ici
+        ))
 
         game["task"].cancel()
         del active_rr_games[guild_id]
+        return
 
     else:
-        await ctx.send(embed=Embed(description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.", color=0xFFA500))
+        return await ctx.send(embed=Embed(description="Utilise `!!rr <montant>`, `!!rr all`, ou `!!rr half` pour lancer ou rejoindre une roulette russe.", color=0xF08080))
+
+    if bet > cash:
+        return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> Tu n'as pas assez d'argent. Solde actuel : <:ecoEther:1341862366249357374> {cash:,}", color=0xF08080))
+    if limite and bet > limite:
+        return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> La mise maximale autorisée est de <:ecoEther:1341862366249357374> {limite:,}.", color=0xF08080))
+
+    # Déduis la mise
+    collection10.update_one(
+        {"user_id": user.id, "guild_id": guild_id},
+        {"$inc": {"cash": -bet}},
+        upsert=True
+    )
+
+    if guild_id in active_rr_games:
+        game = active_rr_games[guild_id]
+        if user in game["players"]:
+            return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> Tu as déjà rejoint cette partie.", color=0xF08080))
+        if bet != game["bet"]:
+            return await ctx.send(embed=Embed(description=f"<:classic_x_mark:1362711858829725729> Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.", color=0xF08080))
+        game["players"].append(user)
+        return await ctx.send(embed=Embed(description=f"{user.mention} a rejoint cette partie de Roulette Russe avec une mise de <:ecoEther:1341862366249357374> {bet}.", color=0x00FF00))
+
+    embed = Embed(
+        title="Nouvelle partie de Roulette Russe",
+        description="> Pour démarrer cette partie : `!!rr start`\n"
+                    "> Pour rejoindre : `!!rr <montant>`\n\n"
+                    "**Temps restant :** 5 minutes ou 5 joueurs maximum",
+        color=0xFF0000
+    )
+    msg = await ctx.send(embed=embed)
+
+    active_rr_games[guild_id] = {
+        "starter": user,
+        "bet": bet,
+        "players": [user],
+        "message_id": msg.id
+    }
+
+    async def cancel_rr():
+        await asyncio.sleep(300)
+        if guild_id in active_rr_games and len(active_rr_games[guild_id]["players"]) == 1:
+            await ctx.send(embed=Embed(description="<:classic_x_mark:1362711858829725729> Personne n'a rejoint la roulette russe. La partie est annulée.", color=0xF08080))
+            del active_rr_games[guild_id]
+
+    active_rr_games[guild_id]["task"] = asyncio.create_task(cancel_rr())
 
 # Fonction d'affichage de l'aide
 def help_text():
