@@ -1737,6 +1737,9 @@ async def set_max_bj_mise_error(ctx, error):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
+
+from datetime import datetime, timedelta
+
 @bot.hybrid_command(name="rob", description="Voler entre 1% et 50% du portefeuille d'un autre utilisateur.")
 async def rob(ctx, user: discord.User):
     guild_id = ctx.guild.id
@@ -1759,6 +1762,23 @@ async def rob(ctx, user: discord.User):
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
+
+    # Vérifier le cooldown global de l'utilisateur
+    last_rob = collection14.find_one({"guild_id": guild_id, "user_id": user_id})
+    
+    if last_rob:
+        last_rob_time = last_rob.get("last_rob")
+        if last_rob_time:
+            cooldown_time = timedelta(hours=1)  # 1 heure de cooldown
+            time_left = last_rob_time + cooldown_time - datetime.utcnow()
+            
+            if time_left > timedelta(0):
+                embed = discord.Embed(
+                    description=f"Tu dois attendre encore {time_left} avant de pouvoir voler à nouveau.",
+                    color=discord.Color.red()
+                )
+                embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+                return await ctx.send(embed=embed)
 
     # Récupérer le membre du serveur cible (si possible)
     target_member = ctx.guild.get_member(target_id)
@@ -1784,7 +1804,7 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # Si pas de rôle anti-rob, poursuivre avec le vol
+    # Si pas de cooldown, procéder avec le vol
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
 
@@ -1825,8 +1845,9 @@ async def rob(ctx, user: discord.User):
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
         collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"wallet": new_target_wallet}})
 
+        # Mettre à jour la dernière tentative de vol dans collection14 (indépendamment de la cible)
         collection14.update_one(
-            {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
+            {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"last_rob": datetime.utcnow()}},
             upsert=True
         )
@@ -1848,8 +1869,9 @@ async def rob(ctx, user: discord.User):
         new_user_wallet = user_data["wallet"] - loss_amount
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$set": {"wallet": new_user_wallet}})
 
+        # Mettre à jour la dernière tentative de vol dans collection14 (indépendamment de la cible)
         collection14.update_one(
-            {"guild_id": guild_id, "user_id": user_id, "target_id": target_id},
+            {"guild_id": guild_id, "user_id": user_id},
             {"$set": {"last_rob": datetime.utcnow()}},
             upsert=True
         )
