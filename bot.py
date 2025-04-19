@@ -1607,12 +1607,14 @@ class BlackjackView(discord.ui.View):
         else:
             await self.end_game(interaction, "lose")
 
-@bot.hybrid_command(name="blackjack", description="Joue au blackjack et tente de gagner !")
+@bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
 async def blackjack(ctx: commands.Context, mise: int):
     if ctx.guild is None:
         return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
 
     user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
+    if mise <= 0:
+        return await ctx.send("Tu dois miser une somme supérieure à 0.")
     if user_data["cash"] < mise:
         return await ctx.send("Tu n'as pas assez d'argent pour miser cette somme.")
 
@@ -1625,7 +1627,8 @@ async def blackjack(ctx: commands.Context, mise: int):
     player_hand = [draw_card()[0] for _ in range(2)]
     dealer_hand = [draw_card()[0] for _ in range(2)]
 
-    embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+    embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.gold())
+    embed.add_field(name="💰 Mise", value=f"{mise} 💵", inline=False)
     embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
     embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
 
