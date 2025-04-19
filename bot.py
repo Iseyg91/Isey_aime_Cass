@@ -55,6 +55,7 @@ collection11 = db['info_rr'] #Stock les Info de RR
 collection12 = db['info_roulette'] #Stock les Info de SM
 collection13 = db['info_sm'] #Stock les Info de SM
 collection14 = db['ether_rob'] #Stock les cd de Rob
+collection15 = db['anti_rob'] #Stock les rôle anti-rob
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -111,6 +112,7 @@ def load_guild_settings(guild_id):
     info_roulette_data = collection12.find_one({"guild_id": guild_id}) or {}
     info_sm_roulette_data = collection13.find_one({"guild_id": guild_id}) or {}
     ether_rob_data = collection14.find_one({"guild_id": guild_id}) or {}
+    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -129,7 +131,8 @@ def load_guild_settings(guild_id):
         "info_rr": info_rr_data,
         "info_roulette": info_roulette_data,
         "info_sm": info_sm_data,
-        "ether_rob": ether_rob_data
+        "ether_rob": ether_rob_data,
+        "anti_rob": anti_rob_data
 
     }
 
@@ -1749,18 +1752,20 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    cooldown_data = collection14.find_one({"guild_id": guild_id, "user_id": user_id, "target_id": target_id})
-    if cooldown_data:
-        last_rob_time = cooldown_data.get("last_rob", datetime.utcnow())
-        if datetime.utcnow() - last_rob_time < timedelta(hours=1):
-            remaining_time = (timedelta(hours=1) - (datetime.utcnow() - last_rob_time)).seconds
-            embed = discord.Embed(
-                description=f"<:classic_x_mark:1362711858829725729> You attempted to rob {user.display_name}, but they had no money in cash for you to take.",
-                color=discord.Color.red()
-            )
-            embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
-            return await ctx.send(embed=embed)
+    # Vérifier si la victime a un rôle anti-rob
+    anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
+    target_roles = [role.name for role in user.roles]
+    has_anti_rob_role = any(role in anti_rob_data["roles"] for role in target_roles)
 
+    if has_anti_rob_role:
+        embed = discord.Embed(
+            description=f"Tu ne peux pas voler {user.display_name} car ils ont un rôle anti-rob.",
+            color=discord.Color.red()
+        )
+        embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
+        return await ctx.send(embed=embed)
+
+    # Si pas de rôle anti-rob, poursuivre avec le vol
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
 
@@ -1785,8 +1790,11 @@ async def rob(ctx, user: discord.User):
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
 
-    # 1 chance sur 2 de réussir
-    success = random.choice([True, False])
+    # Calcul du pourcentage de réussite en fonction du solde total
+    target_total = target_data["wallet"] + target_data["bank"]
+    rob_chance = max(80 - (target_total // 1000), 10)  # Max 80%, min 10%
+    
+    success = random.randint(1, 100) <= rob_chance
 
     if success:
         steal_percentage = random.randint(1, 50)
@@ -1814,7 +1822,7 @@ async def rob(ctx, user: discord.User):
         return await ctx.send(embed=embed)
 
     else:
-        loss_percentage = random.uniform(1, 3)
+        loss_percentage = random.uniform(1, 5)  # Entre 1% et 5%
         loss_amount = (loss_percentage / 100) * user_data["wallet"]
         loss_amount = min(loss_amount, user_data["wallet"])
 
@@ -1833,6 +1841,68 @@ async def rob(ctx, user: discord.User):
         )
         embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url)
         return await ctx.send(embed=embed)
+
+from discord.ui import Select, View
+
+@bot.command(name="set-anti_rob")
+async def set_anti_rob(ctx):
+    if not ctx.author.guild_permissions.administrator:
+        embed = discord.Embed(
+            description="Tu n'as pas la permission d'exécuter cette commande.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Récupération des rôles dans le serveur
+    roles = [role.name for role in ctx.guild.roles]
+    if not roles:
+        embed = discord.Embed(
+            description="Aucun rôle trouvé sur ce serveur.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Créer le menu de sélection
+    select = Select(
+        placeholder="Choisir un rôle à ajouter/supprimer pour anti-rob",
+        options=[discord.SelectOption(label=role, value=role) for role in roles]
+    )
+
+    # Fonction pour gérer l'interaction
+    async def select_callback(interaction):
+        selected_role = select.values[0]
+        guild_id = ctx.guild.id
+        anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
+
+        if selected_role in anti_rob_data["roles"]:
+            anti_rob_data["roles"].remove(selected_role)
+            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_data["roles"]}})
+            embed = discord.Embed(
+                description=f"Le rôle **{selected_role}** a été retiré de la liste des rôles anti-rob.",
+                color=discord.Color.green()
+            )
+        else:
+            anti_rob_data["roles"].append(selected_role)
+            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_data["roles"]}})
+            embed = discord.Embed(
+                description=f"Le rôle **{selected_role}** a été ajouté à la liste des rôles anti-rob.",
+                color=discord.Color.green()
+            )
+
+        await interaction.response.send_message(embed=embed)
+
+    select.callback = select_callback
+
+    view = View()
+    view.add_item(select)
+
+    embed = discord.Embed(
+        title="Gestion des rôles anti-rob",
+        description="Sélectionne un rôle à ajouter ou supprimer de la liste des rôles anti-rob.",
+        color=discord.Color.blue()
+    )
+
+    await ctx.send(embed=embed, view=view)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
