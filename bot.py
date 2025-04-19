@@ -1844,8 +1844,12 @@ async def rob(ctx, user: discord.User):
 
 from discord.ui import Select, View
 
+from discord.ui import Select, View
+import discord
+
 @bot.command(name="set-anti_rob")
 async def set_anti_rob(ctx):
+    # Vérification des permissions
     if not ctx.author.guild_permissions.administrator:
         embed = discord.Embed(
             description="Tu n'as pas la permission d'exécuter cette commande.",
@@ -1854,7 +1858,7 @@ async def set_anti_rob(ctx):
         return await ctx.send(embed=embed)
 
     # Récupération des rôles dans le serveur
-    roles = [role.name for role in ctx.guild.roles]
+    roles = [role.name for role in ctx.guild.roles if role.name != "@everyone"]
     if not roles:
         embed = discord.Embed(
             description="Aucun rôle trouvé sur ce serveur.",
@@ -1862,16 +1866,17 @@ async def set_anti_rob(ctx):
         )
         return await ctx.send(embed=embed)
 
-    # Créer le menu de sélection
+    # Créer le menu de sélection avec une limite de rôles pour éviter une liste trop longue
     select = Select(
         placeholder="Choisir un rôle à ajouter/supprimer pour anti-rob",
-        options=[discord.SelectOption(label=role, value=role) for role in roles]
+        options=[discord.SelectOption(label=role, value=role) for role in roles[:25]]  # Limite à 25 rôles
     )
 
     # Fonction pour gérer l'interaction
     async def select_callback(interaction):
         selected_role = select.values[0]
         guild_id = ctx.guild.id
+        # Récupère ou initialise les données de la collection anti-rob
         anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {"guild_id": guild_id, "roles": []}
 
         if selected_role in anti_rob_data["roles"]:
@@ -1889,7 +1894,7 @@ async def set_anti_rob(ctx):
                 color=discord.Color.green()
             )
 
-        await interaction.response.send_message(embed=embed)
+        await interaction.response.send_message(embed=embed, ephemeral=True)  # Le message est envoyé de façon éphémère
 
     select.callback = select_callback
 
@@ -1903,6 +1908,7 @@ async def set_anti_rob(ctx):
     )
 
     await ctx.send(embed=embed, view=view)
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
