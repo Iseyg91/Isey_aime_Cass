@@ -270,7 +270,7 @@ async def uptime(ctx):
     embed.set_footer(text=f"♥️by Iseyg", icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(
+@bot.hybrid_command( 
     name="balance",
     aliases=["bal", "money"],
     description="Affiche ta balance ou celle d'un autre utilisateur."
@@ -306,17 +306,17 @@ async def bal(ctx: commands.Context, user: discord.User = None):
 
     role_name = f"Tu as le rôle **[𝑺ץ] Top {rank}** ! Félicitations !" if rank in TOP_ROLES else None
 
-    # Emojis distincts
     emoji_currency = "<:ecoEther:1341862366249357374>"
 
     # Création de l'embed
     embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
+    # Affiche d'abord le rank
     if rank:
         embed.add_field(
-            name=f"🏆 Classement : #{rank}",
-            value="\u200b",
+            name="🏆 Classement :",
+            value=role_name or "\u200b",
             inline=False
         )
     else:
@@ -326,17 +326,18 @@ async def bal(ctx: commands.Context, user: discord.User = None):
             inline=False
         )
 
+    # Infos financières
     embed.add_field(
-        name="\u200b",
+        name="💰 Tes informations financières",
         value=(
-            f"** Cash :** {cash:,} {emoji_currency}\n"
-            f"** Banque :** {bank:,} {emoji_currency}\n"
-            f"** Total :** {total:,} {emoji_currency}"
+            f"**Cash :** {cash:,} {emoji_currency}\n"
+            f"**Banque :** {bank:,} {emoji_currency}\n"
+            f"**Total :** {total:,} {emoji_currency}"
         ),
         inline=False
     )
 
-
+    await ctx.send(embed=embed)
 
 @bot.hybrid_command(name="deposit", aliases=["dep"], description="Dépose de l'argent de ton portefeuille vers ta banque.")
 @app_commands.describe(amount="Montant à déposer (ou 'all')")
