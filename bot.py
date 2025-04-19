@@ -1933,6 +1933,109 @@ async def set_anti_rob(ctx):
     view.add_item(AntiRobSelect())
     await ctx.send(embed=embed, view=view)
 
+@bot.hybrid_command(
+    name="set-rr-limite",
+    description="Fixe une limite de mise pour la roulette russe. (Admin seulement)"
+)
+@commands.has_permissions(administrator=True)  # Permet uniquement aux admins de modifier la limite
+async def set_rr_limite(ctx: commands.Context, limite: int):
+    if limite <= 0:
+        return await ctx.send("La limite de mise doit être un nombre positif.")
+    
+    guild_id = ctx.guild.id
+
+    # Mettre à jour la limite dans la collection info_rr
+    collection11.update_one(
+        {"guild_id": guild_id},
+        {"$set": {"rr_limite": limite}},
+        upsert=True  # Si la donnée n'existe pas, elle sera créée
+    )
+
+    await ctx.send(f"La limite de mise pour la roulette russe a été fixée à {limite:,} coins.")
+
+
+@bot.hybrid_command(
+    name="russianroulette",
+    aliases=["rr"],
+    description="Participe à une roulette russe avec d'autres utilisateurs."
+)
+async def russian_roulette(ctx: commands.Context, bet: int):
+    if ctx.guild is None:
+        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Récupérer la limite de mise depuis la collection info_rr
+    rr_data = collection11.find_one({"guild_id": guild_id})
+    rr_limite = rr_data.get("rr_limite", 0)  # Si la limite n'est pas définie, la valeur par défaut est 0
+
+    # Vérifier que la mise respecte la limite
+    if bet > rr_limite > 0:
+        return await ctx.send(f"La mise ne peut pas dépasser la limite de {rr_limite:,} coins fixée par l'admin.")
+    
+    # Récupérer ou créer les données de l'utilisateur
+    def get_or_create_user_data(guild_id: int, user_id: int):
+        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not data:
+            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(data)
+        return data
+
+    data = get_or_create_user_data(guild_id, user_id)
+    cash = data.get("cash", 0)
+
+    # Vérification que l'utilisateur a assez d'argent
+    if cash < bet:
+        return await ctx.send(f"Tu n'as pas assez d'argent pour parier {bet:,} coins.")
+
+    # On commence le jeu, le bot demande aux autres joueurs de rejoindre
+    def get_players():
+        # On récupère tous les joueurs qui ont suffisamment d'argent et qui sont en ligne
+        players = [user for user in ctx.guild.members if user != ctx.author and get_or_create_user_data(guild_id, user.id)["cash"] >= bet]
+        return players
+
+    players = get_players()
+    players.append(ctx.author)  # Ajouter l'initiateur du jeu
+
+    # S'il n'y a pas assez de joueurs
+    if len(players) < 2:
+        return await ctx.send("Il faut au moins 2 joueurs pour jouer à la roulette russe.")
+
+    # Annonce les joueurs
+    player_names = [player.display_name for player in players]
+    await ctx.send(f"Le jeu commence ! Joueurs : {', '.join(player_names)}")
+
+    # Choisir un joueur aléatoirement pour être éliminé
+    eliminated_player = random.choice(players)
+    players.remove(eliminated_player)
+
+    # Calcul des gains : les joueurs restants se partagent la mise totale
+    total_pot = bet * len(players)
+    gain_per_player = total_pot // len(players) if players else 0
+
+    # Éliminer l'utilisateur
+    await ctx.send(f"{eliminated_player.display_name} a été éliminé de la roulette russe !")
+
+    # Distribuer les gains
+    for player in players:
+        user_data = get_or_create_user_data(guild_id, player.id)
+        user_data["cash"] += gain_per_player
+        collection.update_one({"guild_id": guild_id, "user_id": player.id}, {"$set": user_data})
+
+    # Mise à jour de l'utilisateur qui a perdu
+    user_data = get_or_create_user_data(guild_id, eliminated_player.id)
+    user_data["cash"] -= bet  # Perte de la mise
+    collection.update_one({"guild_id": guild_id, "user_id": eliminated_player.id}, {"$set": user_data})
+
+    # Annonce des résultats
+    if players:
+        winner_names = [player.display_name for player in players]
+        await ctx.send(f"Les gagnants sont : {', '.join(winner_names)} ! Ils remportent {gain_per_player:,} coins chacun.")
+    else:
+        await ctx.send("Aucun gagnant cette fois-ci !")
+
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
