@@ -329,9 +329,9 @@ async def bal(ctx: commands.Context, user: discord.User = None):
     embed.add_field(
         name="\u200b",
         value=(
-            f"**{emoji_cash} Cash :** {cash:,} {emoji_currency}\n"
-            f"**{emoji_bank} Banque :** {bank:,} {emoji_currency}\n"
-            f"**{emoji_total} Total :** {total:,} {emoji_currency}"
+            f"** Cash :** {cash:,} {emoji_currency}\n"
+            f"** Banque :** {bank:,} {emoji_currency}\n"
+            f"** Total :** {total:,} {emoji_currency}"
         ),
         inline=False
     )
