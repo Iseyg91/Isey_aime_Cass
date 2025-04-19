@@ -1970,10 +1970,17 @@ async def russianroulette(ctx, arg: str):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
         if data:
             return data.get("cash", 0)
-        return 0  # Retourne 0 si les données n'existent pas
+        return 0
 
-    # Rejoindre ou créer une partie
-    if arg.isdigit() or arg.lower() == "all" or arg.lower() == "half":  # Vérification ajoutée pour "all" et "half"
+    # Fonction pour créer ou récupérer les données utilisateur
+    def get_or_create_user_data(guild_id, user_id):
+        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not data:
+            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(data)
+        return data
+
+    if arg.isdigit() or arg.lower() == "all" or arg.lower() == "half":
         if arg.lower() == "all":
             bet = get_user_cash(guild_id, user.id)
         elif arg.lower() == "half":
@@ -1986,17 +1993,26 @@ async def russianroulette(ctx, arg: str):
         if bet > user_cash:
             return await ctx.send(embed=discord.Embed(
                 description=f"<:classic_x_mark:1362711858829725729> Tu n'as pas assez de cash pour cette mise. Tu as {user_cash} coins.",
-                color=discord.Color.from_rgb(240, 128, 128)  # Lightcoral
+                color=discord.Color.from_rgb(240, 128, 128)
             ))
 
         if guild_id in active_rr_games:
             game = active_rr_games[guild_id]
             if user in game["players"]:
-                return await ctx.send(embed=discord.Embed(description=f"<:classic_x_mark:1362711858829725729> Tu as déjà rejoint cette partie.", color=discord.Color.from_rgb(240, 128, 128)))
+                return await ctx.send(embed=discord.Embed(
+                    description=f"<:classic_x_mark:1362711858829725729> Tu as déjà rejoint cette partie.",
+                    color=discord.Color.from_rgb(240, 128, 128)
+                ))
             if bet != game["bet"]:
-                return await ctx.send(embed=discord.Embed(description=f"<:classic_x_mark:1362711858829725729> Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.", color=discord.Color.from_rgb(240, 128, 128)))
+                return await ctx.send(embed=discord.Embed(
+                    description=f"<:classic_x_mark:1362711858829725729> Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.",
+                    color=discord.Color.from_rgb(240, 128, 128)
+                ))
             game["players"].append(user)
-            return await ctx.send(embed=discord.Embed(description=f"{user.mention} a rejoint cette partie de Roulette Russe avec une mise de <:ecoEther:1341862366249357374> {bet}.", color=0x00FF00))
+            return await ctx.send(embed=discord.Embed(
+                description=f"{user.mention} a rejoint cette partie de Roulette Russe avec une mise de <:ecoEther:1341862366249357374> {bet}.",
+                color=0x00FF00
+            ))
 
         else:
             embed = discord.Embed(
@@ -2004,7 +2020,7 @@ async def russianroulette(ctx, arg: str):
                 description="> Pour démarrer cette partie : `!!rr start`\n"
                             "> Pour rejoindre : `!!rr <montant>`\n\n"
                             "**Temps restant :** 5 minutes ou 5 joueurs maximum",
-                color=discord.Color.from_rgb(240, 128, 128)  # Lightcoral
+                color=discord.Color.from_rgb(240, 128, 128)
             )
             msg = await ctx.send(embed=embed)
 
@@ -2018,7 +2034,10 @@ async def russianroulette(ctx, arg: str):
             async def cancel_rr():
                 await asyncio.sleep(300)
                 if guild_id in active_rr_games and len(active_rr_games[guild_id]["players"]) == 1:
-                    await ctx.send(embed=discord.Embed(description="<:classic_x_mark:1362711858829725729> Personne n'a rejoint la roulette russe. La partie est annulée.", color=discord.Color.from_rgb(240, 128, 128)))
+                    await ctx.send(embed=discord.Embed(
+                        description="<:classic_x_mark:1362711858829725729> Personne n'a rejoint la roulette russe. La partie est annulée.",
+                        color=discord.Color.from_rgb(240, 128, 128)
+                    ))
                     del active_rr_games[guild_id]
 
             active_rr_games[guild_id]["task"] = asyncio.create_task(cancel_rr())
@@ -2026,18 +2045,30 @@ async def russianroulette(ctx, arg: str):
     elif arg.lower() == "start":
         game = active_rr_games.get(guild_id)
         if not game:
-            return await ctx.send(embed=discord.Embed(description="<:classic_x_mark:1362711858829725729> Aucune partie en cours.", color=discord.Color.from_rgb(240, 128, 128)))
+            return await ctx.send(embed=discord.Embed(
+                description="<:classic_x_mark:1362711858829725729> Aucune partie en cours.",
+                color=discord.Color.from_rgb(240, 128, 128)
+            ))
         if game["starter"] != user:
-            return await ctx.send(embed=discord.Embed(description="<:classic_x_mark:1362711858829725729> Seul le créateur de la partie peut la démarrer.", color=discord.Color.from_rgb(240, 128, 128)))
+            return await ctx.send(embed=discord.Embed(
+                description="<:classic_x_mark:1362711858829725729> Seul le créateur de la partie peut la démarrer.",
+                color=discord.Color.from_rgb(240, 128, 128)
+            ))
 
         if len(game["players"]) < 2:
-            await ctx.send(embed=discord.Embed(description="<:classic_x_mark:1362711858829725729> Pas assez de joueurs pour démarrer. La partie est annulée.", color=discord.Color.from_rgb(240, 128, 128)))
+            await ctx.send(embed=discord.Embed(
+                description="<:classic_x_mark:1362711858829725729> Pas assez de joueurs pour démarrer. La partie est annulée.",
+                color=discord.Color.from_rgb(240, 128, 128)
+            ))
             game["task"].cancel()
             del active_rr_games[guild_id]
             return
 
         # Début du jeu
-        await ctx.send(embed=discord.Embed(description="<:Check:1362710665663615147> La roulette russe commence...", color=0x00FF00))
+        await ctx.send(embed=discord.Embed(
+            description="<:Check:1362710665663615147> La roulette russe commence...",
+            color=0x00FF00
+        ))
         await asyncio.sleep(1)
 
         eliminated = random.choice(game["players"])
@@ -2046,7 +2077,7 @@ async def russianroulette(ctx, arg: str):
         # Phase 1 : qui meurt
         embed1 = discord.Embed(
             description=f"{eliminated.display_name} tire... et se fait avoir <:imageremovebgpreview53:1362693948702855360>",
-            color=discord.Color.from_rgb(240, 128, 128)  # Lightcoral
+            color=discord.Color.from_rgb(240, 128, 128)
         )
         await ctx.send(embed=embed1)
         await asyncio.sleep(1)
@@ -2054,27 +2085,25 @@ async def russianroulette(ctx, arg: str):
         # Phase 2 : les survivants
         result_embed = discord.Embed(
             title="Survivants de la Roulette Russe",
-            description="\n".join([f"{p.mention} remporte <:ecoEther:1341862366249357374> {game['bet']}" for p in survivors]),
+            description="\n".join([f"{p.mention} remporte <:ecoEther:1341862366249357374> {game['bet'] * 2}" for p in survivors]),
             color=0x00FF00
         )
         await ctx.send(embed=result_embed)
 
-        # Gestion des coins ici : mise + mise du perdant
-        winner = survivors[0]
-        winner_data = get_or_create_user_data(guild_id, winner.id)
-        winner_data["cash"] += game["bet"] * len(game["players"])
+        # Distribution des gains
+        for survivor in survivors:
+            data = get_or_create_user_data(guild_id, survivor.id)
+            data["cash"] += game["bet"] * 2  # Leur propre mise + celle du perdant
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": survivor.id},
+                {"$set": {"cash": data["cash"]}}
+            )
 
-        # Retirer la mise du perdant
+        # Retirer la mise au perdant
         loser_data = get_or_create_user_data(guild_id, eliminated.id)
         loser_data["cash"] -= game["bet"]
-
-        # Mise à jour des données
         collection.update_one(
-            {"guild_id": guild_id, "user_id": winner.id},
-            {"$set": {"cash": winner_data["cash"]}}
-        )
-        collection.update_one(
-            {"guild_id": guild_id, "user_id": loser_data["user_id"]},
+            {"guild_id": guild_id, "user_id": eliminated.id},
             {"$set": {"cash": loser_data["cash"]}}
         )
 
@@ -2083,7 +2112,10 @@ async def russianroulette(ctx, arg: str):
         del active_rr_games[guild_id]
 
     else:
-        await ctx.send(embed=discord.Embed(description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.", color=discord.Color.from_rgb(240, 128, 128)))
+        await ctx.send(embed=discord.Embed(
+            description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.",
+            color=discord.Color.from_rgb(240, 128, 128)
+        ))
 
 # Fonction d'affichage de l'aide
 def help_text():
