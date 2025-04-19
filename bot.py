@@ -1981,7 +1981,7 @@ async def russianroulette(ctx, arg: str):
         if bet > user_cash:
             return await ctx.send(embed=discord.Embed(
                 description=f"<:classic_x_mark:1362711858829725729> Tu n'as pas assez de cash pour cette mise. Tu as {user_cash} coins.",
-                color=discord.Color.from_rgb(240, 128, 128)
+                color=discord.Color.from_rgb(255, 92, 92)
             ))
 
         if guild_id in active_rr_games:
@@ -1989,12 +1989,12 @@ async def russianroulette(ctx, arg: str):
             if user in game["players"]:
                 return await ctx.send(embed=discord.Embed(
                     description=f"<:classic_x_mark:1362711858829725729> Tu as déjà rejoint cette partie.",
-                    color=discord.Color.from_rgb(240, 128, 128)
+                    color=discord.Color.from_rgb(255, 92, 92)
                 ))
             if bet != game["bet"]:
                 return await ctx.send(embed=discord.Embed(
                     description=f"<:classic_x_mark:1362711858829725729> Tu dois miser exactement {game['bet']} coins pour rejoindre cette partie.",
-                    color=discord.Color.from_rgb(240, 128, 128)
+                    color=discord.Color.from_rgb(255, 92, 92)
                 ))
             game["players"].append(user)
             return await ctx.send(embed=discord.Embed(
@@ -2008,7 +2008,7 @@ async def russianroulette(ctx, arg: str):
                 description="> Pour démarrer cette partie : `!!rr start`\n"
                             "> Pour rejoindre : `!!rr <montant>`\n\n"
                             "**Temps restant :** 5 minutes ou 5 joueurs maximum",
-                color=discord.Color.from_rgb(240, 128, 128)
+                color=discord.Color.from_rgb(0, 0, 255)
             )
             msg = await ctx.send(embed=embed)
 
@@ -2024,7 +2024,7 @@ async def russianroulette(ctx, arg: str):
                 if guild_id in active_rr_games and len(active_rr_games[guild_id]["players"]) == 1:
                     await ctx.send(embed=discord.Embed(
                         description="<:classic_x_mark:1362711858829725729> Personne n'a rejoint la roulette russe. La partie est annulée.",
-                        color=discord.Color.from_rgb(240, 128, 128)
+                        color=discord.Color.from_rgb(255, 92, 92)
                     ))
                     del active_rr_games[guild_id]
 
@@ -2040,13 +2040,13 @@ async def russianroulette(ctx, arg: str):
         if game["starter"] != user:
             return await ctx.send(embed=discord.Embed(
                 description="<:classic_x_mark:1362711858829725729> Seul le créateur de la partie peut la démarrer.",
-                color=discord.Color.from_rgb(240, 128, 128)
+                color=discord.Color.from_rgb(255, 92, 92)
             ))
 
         if len(game["players"]) < 2:
             await ctx.send(embed=discord.Embed(
                 description="<:classic_x_mark:1362711858829725729> Pas assez de joueurs pour démarrer. La partie est annulée.",
-                color=discord.Color.from_rgb(240, 128, 128)
+                color=discord.Color.from_rgb(255, 92, 92)
             ))
             game["task"].cancel()
             del active_rr_games[guild_id]
@@ -2065,7 +2065,7 @@ async def russianroulette(ctx, arg: str):
         # Phase 1 : qui meurt
         embed1 = discord.Embed(
             description=f"{eliminated.display_name} tire... et se fait avoir <:imageremovebgpreview53:1362693948702855360>",
-            color=discord.Color.from_rgb(240, 128, 128)
+            color=discord.Color.from_rgb(255, 92, 92)
         )
         await ctx.send(embed=embed1)
         await asyncio.sleep(1)
@@ -2074,7 +2074,7 @@ async def russianroulette(ctx, arg: str):
         result_embed = discord.Embed(
             title="Survivants de la Roulette Russe",
             description="\n".join([f"{p.mention} remporte <:ecoEther:1341862366249357374> {game['bet'] * 2}" for p in survivors]),
-            color=0x00FF00
+            color=0xFF5C5C
         )
         await ctx.send(embed=result_embed)
 
@@ -2102,7 +2102,7 @@ async def russianroulette(ctx, arg: str):
     else:
         await ctx.send(embed=discord.Embed(
             description="Utilise `!!rr <montant>` pour lancer ou rejoindre une roulette russe.",
-            color=discord.Color.from_rgb(240, 128, 128)
+            color=discord.Color.from_rgb(255, 92, 92)
         ))
 
 # Fonction d'affichage de l'aide
