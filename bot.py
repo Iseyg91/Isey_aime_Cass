@@ -1655,6 +1655,51 @@ def draw_card():
     emoji = random.choice(card_emojis[card])
     return card, emoji
 
+class BlackjackView(discord.ui.View):
+    def __init__(self, ctx, player_hand, dealer_hand, bet, player_data, max_bet):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.player_hand = player_hand
+        self.dealer_hand = dealer_hand
+        self.bet = bet
+        self.player_data = player_data
+        self.guild_id = ctx.guild.id
+        self.user_id = ctx.author.id
+        self.max_bet = max_bet
+
+    async def interaction_check(self, interaction: discord.Interaction):
+        return interaction.user.id == self.ctx.author.id
+
+    @discord.ui.button(label="Hit", style=discord.ButtonStyle.green, emoji="➕")
+    async def hit(self, interaction: discord.Interaction, button: discord.ui.Button):
+        value, _ = draw_card()
+        self.player_hand.append(value)
+        player_total = calculate_hand_value(self.player_hand)
+
+        if player_total > 21:
+            await self.end_game(interaction, "lose")
+        else:
+            embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.dark_gold())
+            embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {player_total}**", inline=False)
+            embed.add_field(name="🤖 Main du croupier", value=card_emojis[self.dealer_hand[0]][0] + " 🂠", inline=False)
+            await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Stand", style=discord.ButtonStyle.blurple, emoji="🛑")
+    async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
+        while calculate_hand_value(self.dealer_hand) < 17:
+            value, _ = draw_card()
+            self.dealer_hand.append(value)
+
+        player_total = calculate_hand_value(self.player_hand)
+        dealer_total = calculate_hand_value(self.dealer_hand)
+
+        if dealer_total > 21 or player_total > dealer_total:
+            await self.end_game(interaction, "win")
+        elif player_total == dealer_total:
+            await self.end_game(interaction, "draw")
+        else:
+            await self.end_game(interaction, "lose")
+
 # Lorsqu'un joueur joue au blackjack
 @bot.hybrid_command(name="blackjack", aliases=["bj"], description="Joue au blackjack et tente de gagner !")
 async def blackjack(ctx: commands.Context, mise: str = None):
