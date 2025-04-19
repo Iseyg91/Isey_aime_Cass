@@ -308,27 +308,30 @@ async def bal(ctx: commands.Context, user: discord.User = None):
 
     emoji_currency = "<:ecoEther:1341862366249357374>"
 
+    def ordinal(n: int) -> str:
+        return f"{n}{'st' if n == 1 else 'nd' if n == 2 else 'rd' if n == 3 else 'th'}"
+
     # Création de l'embed
     embed = discord.Embed(color=discord.Color.blue())
     embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
 
-    # Affiche d'abord le rank
+    # Champ classement
     if rank:
         embed.add_field(
-            name="🏆 Classement :",
-            value=role_name or "\u200b",
+            name="Leaderboard Rank",
+            value=f"{ordinal(rank)}",
             inline=False
         )
     else:
         embed.add_field(
-            name="🏆 Classement :",
+            name="Leaderboard Rank",
             value="\u200b",
             inline=False
         )
 
-    # Infos financières
+    # Champ des finances
     embed.add_field(
-        name="💰 Tes informations financières",
+        name="\u200b",  # Titre invisible
         value=(
             f"**Cash :** {cash:,} {emoji_currency}\n"
             f"**Banque :** {bank:,} {emoji_currency}\n"
