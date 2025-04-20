@@ -2355,7 +2355,7 @@ async def leaderboard(
             bank = user_data.get("bank", 0)
             total = cash + bank
 
-    # Choix du montant à afficher
+    # Choisir la valeur à afficher en fonction du tri
             if sort == "cash":
                 amount = cash
             elif sort == "bank":
@@ -2363,15 +2363,16 @@ async def leaderboard(
             else:
                 amount = total
 
-            # Formatage avec padding du chiffre (ex : "  1.", " 10.", "100.")
-            rank_str = f"{i}.".rjust(4)
+            # Formatage pour que tout soit sur la même ligne
+            rank_str = f"{i}.".rjust(4)  # Numéro de classement avec padding
             line = f"{rank_str}  `{name}` • {emoji_currency} {amount:,}"
 
             embed.add_field(
                 name=line,
-                value="\u200b",
+                value="\u200b",  # Espace vide pour ne pas créer d'autre champ
                 inline=False
             )
+
 
         # Pagination info
         user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
