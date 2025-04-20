@@ -2290,7 +2290,10 @@ async def daily(ctx: commands.Context):
 from discord import app_commands
 from typing import Optional
 import discord
+from discord.ext import commands
 from discord.ui import Button, View
+
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
 @bot.hybrid_command(
     name="leaderboard",
@@ -2299,16 +2302,16 @@ from discord.ui import Button, View
 )
 async def leaderboard(
     ctx: commands.Context,
-    sort: Optional[str] = "total"  # On accepte une chaîne de texte pour sort, default to "total"
+    sort: Optional[str] = "total"
 ):
     if ctx.guild is None:
         return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
 
     guild_id = ctx.guild.id
     emoji_currency = "<:ecoEther:1341862366249357374>"
-    bank_logo = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/1344747420159967293.png?raw=true"  # URL du logo de la banque
+    bank_logo = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/1344747420159967293.png?raw=true"
 
-    # Vérification si l'argument contient -cash, -bank ou -total (message préfixé)
+    # Détection du tri via arguments dans le message
     if isinstance(ctx, commands.Context) and ctx.message.content:
         content = ctx.message.content.lower()
         if "-cash" in content:
@@ -2318,7 +2321,6 @@ async def leaderboard(
         else:
             sort = "total"
 
-    # Déterminer clé de tri
     if sort == "cash":
         sort_key = lambda u: u.get("cash", 0)
         title = f"Leaderboard - Cash"
@@ -2332,24 +2334,24 @@ async def leaderboard(
     all_users_data = list(collection.find({"guild_id": guild_id}))
     sorted_users = sorted(all_users_data, key=sort_key, reverse=True)
 
-    # Pagination (10 par page)
     page_size = 10
-    total_pages = len(sorted_users) // page_size + (1 if len(sorted_users) % page_size > 0 else 0)
-    
+    total_pages = (len(sorted_users) + page_size - 1) // page_size
+
     def get_page(page_num: int):
         start_index = page_num * page_size
         end_index = start_index + page_size
         users_on_page = sorted_users[start_index:end_index]
 
-        embed = discord.Embed(color=discord.Color.blue())  # Couleur bleue
-        embed.set_author(name="Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
-
-        leaderboard_content = ""
+        embed = discord.Embed(color=discord.Color.blue())
+        embed.set_author(name="Leaderboard", icon_url=bank_logo)
 
         lines = []
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
-            user = ctx.guild.get_member(user_data["user_id"])
-            name = user.display_name if user else f"Utilisateur {user_data['user_id']}"
+            user_id = user_data.get("user_id")
+            if not user_id:
+                continue
+            user = ctx.guild.get_member(user_id)
+            name = user.display_name if user else f"Utilisateur {user_id}"
             cash = user_data.get("cash", 0)
             bank = user_data.get("bank", 0)
             total = cash + bank
@@ -2361,48 +2363,39 @@ async def leaderboard(
             else:
                 amount = total
 
-            rank_str = f"{i}.".rjust(4)
-            line = f"{rank_str} `{name}` • {emoji_currency} {amount:,}"
+            line = f"{str(i).rjust(2)}. `{name}` • {emoji_currency} {amount:,}"
             lines.append(line)
 
-        embed.add_field(
-            name=title,
-            value="\n".join(lines),
-            inline=False
-        )
+        embed.add_field(name=title, value="\n".join(lines), inline=False)
 
-
-        # Pagination info
-        user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
+        author_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
         user_rank = next((i + 1 for i, u in enumerate(sorted_users) if u["user_id"] == ctx.author.id), None)
-        embed.set_footer(text=f"Page {page_num + 1}/{total_pages}  •  Your leaderboard rank: {user_rank}")
-
+        embed.set_footer(text=f"Page {page_num + 1}/{total_pages}  •  Ton rang: {user_rank}")
         return embed
 
-    # Create pagination buttons
     class LeaderboardView(View):
         def __init__(self, page_num):
-            super().__init__()
+            super().__init__(timeout=60)
             self.page_num = page_num
 
-        @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary)
+        @discord.ui.button(label="⬅️ Précédent", style=discord.ButtonStyle.primary)
         async def previous_page(self, button: Button, interaction: discord.Interaction):
             if self.page_num > 0:
                 self.page_num -= 1
                 embed = get_page(self.page_num)
                 await interaction.response.edit_message(embed=embed, view=self)
 
-        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        @discord.ui.button(label="➡️ Suivant", style=discord.ButtonStyle.primary)
         async def next_page(self, button: Button, interaction: discord.Interaction):
             if self.page_num < total_pages - 1:
                 self.page_num += 1
                 embed = get_page(self.page_num)
                 await interaction.response.edit_message(embed=embed, view=self)
 
-    # Send first page
     view = LeaderboardView(0)
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
