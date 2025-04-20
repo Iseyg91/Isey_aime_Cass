@@ -2293,8 +2293,6 @@ import discord
 from discord.ext import commands
 from discord.ui import Button, View
 
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
-
 @bot.hybrid_command(
     name="leaderboard",
     aliases=["lb"],
