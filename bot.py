@@ -2286,6 +2286,7 @@ async def daily(ctx: commands.Context):
         balance_after=new_cash,
         note="Commande /daily"
     )
+
 from discord import app_commands
 from typing import Optional
 import discord
@@ -2341,13 +2342,8 @@ async def leaderboard(
         users_on_page = sorted_users[start_index:end_index]
 
         embed = discord.Embed(color=discord.Color.blue())  # Couleur bleue
-        embed.add_field(
-            name="View the leaderboard online here.",
-            value="\u200b",  # Espace vide
-            inline=False
-        )
         embed.set_author(name="Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
-        
+
         leaderboard_content = ""
 
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
@@ -2365,9 +2361,13 @@ async def leaderboard(
             else:
                 amount = total
 
-            # Formatage pour que tout soit sur la même ligne
-            rank_str = f"{i}.".rjust(4)  # Numéro de classement avec padding
-            line = f"{rank_str}  `{name}` • {emoji_currency} {amount:,}"
+            # Formatage avec alignement
+            rank_str = f"{i:3}."  # Numéro de classement avec padding pour aligner
+            name_str = f"`{name}`"  # Utiliser des backticks pour le nom
+            amount_str = f"{emoji_currency} {amount:,}"  # Formatage avec une virgule pour les milliers
+
+            # Aligner sur une même ligne
+            line = f"{rank_str} {name_str:<30} • {amount_str:>10}"
 
             leaderboard_content += line + "\n"  # Ajouter un retour à la ligne après chaque utilisateur
 
