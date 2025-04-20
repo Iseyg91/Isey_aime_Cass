@@ -2423,17 +2423,16 @@ def insert_items_into_db():
         if not collection16.find_one({"id": item["id"]}):
             collection16.insert_one(item)
 
-# Fonction pour générer un embed d'une page boutique
 def get_page_embed(page: int, items_per_page=10):
     start = page * items_per_page
     end = start + items_per_page
     items = ITEMS[start:end]
 
-    embed = discord.Embed(title="🛒 Boutique", color=discord.Color.green())
+    embed = discord.Embed(title="🛒 Boutique", color=discord.Color.blue())
 
     for item in items:
         embed.add_field(
-            name=f"{item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
+            name=f"[#{item['id']}] {item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
             value=f"{item['description']}",
             inline=False
         )
