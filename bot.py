@@ -59,6 +59,7 @@ collection12 = db['info_roulette'] #Stock les Info de SM
 collection13 = db['info_sm'] #Stock les Info de SM
 collection14 = db['ether_rob'] #Stock les cd de Rob
 collection15 = db['anti_rob'] #Stock les rôle anti-rob
+collection16 = db['ether_boutique'] #Stock les Items dans la boutique
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -116,6 +117,7 @@ def load_guild_settings(guild_id):
     info_sm_roulette_data = collection13.find_one({"guild_id": guild_id}) or {}
     ether_rob_data = collection14.find_one({"guild_id": guild_id}) or {}
     anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {}
+    ether_boutique_data = collection16.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -135,7 +137,8 @@ def load_guild_settings(guild_id):
         "info_roulette": info_roulette_data,
         "info_sm": info_sm_data,
         "ether_rob": ether_rob_data,
-        "anti_rob": anti_rob_data
+        "anti_rob": anti_rob_data,
+        "ether_boutique": ether_boutique_data
 
     }
 
@@ -2283,6 +2286,120 @@ async def daily(ctx: commands.Context):
         balance_after=new_cash,
         note="Commande /daily"
     )
+from discord import app_commands
+from typing import Literal
+import discord
+from discord.ui import Button, View
+
+@bot.hybrid_command(
+    name="leaderboard",
+    aliases=["lb"],
+    description="Affiche le classement des plus riches"
+)
+@app_commands.describe(sort="Choisir le type de classement")
+async def leaderboard(
+    ctx: commands.Context,
+    sort: Literal["total", "cash", "bank"] = "total"
+):
+    if ctx.guild is None:
+        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+
+    guild_id = ctx.guild.id
+    emoji_currency = "<:ecoEther:1341862366249357374>"
+    emoji_banque = "<:Banque:1363532913563402411>"
+
+    # Gestion du préfixé (message.content)
+    if isinstance(ctx, commands.Context) and ctx.message.content:
+        content = ctx.message.content.lower()
+        if "-cash" in content:
+            sort = "cash"
+        elif "-bank" in content:
+            sort = "bank"
+        else:
+            sort = "total"
+
+    # Déterminer clé de tri
+    if sort == "cash":
+        sort_key = lambda u: u.get("cash", 0)
+        title = f"{emoji_banque} Leaderboard - Cash"
+    elif sort == "bank":
+        sort_key = lambda u: u.get("bank", 0)
+        title = f"{emoji_banque} Leaderboard - Banque"
+    else:
+        sort_key = lambda u: u.get("cash", 0) + u.get("bank", 0)
+        title = f"{emoji_banque} Leaderboard - Total"
+
+    all_users_data = list(collection.find({"guild_id": guild_id}))
+    sorted_users = sorted(all_users_data, key=sort_key, reverse=True)
+
+    # Pagination (10 par page)
+    page_size = 10
+    total_pages = len(sorted_users) // page_size + (1 if len(sorted_users) % page_size > 0 else 0)
+    
+    def get_page(page_num: int):
+        start_index = page_num * page_size
+        end_index = start_index + page_size
+        users_on_page = sorted_users[start_index:end_index]
+
+        embed = discord.Embed(title=title, color=discord.Color.gold())
+        embed.add_field(
+            name=f"{emoji_banque} Leaderboard",
+            value="View the leaderboard online here.",
+            inline=False
+        )
+        
+        # Liste des 10 premiers utilisateurs
+        for i, user_data in enumerate(users_on_page, start=start_index + 1):
+            user = ctx.guild.get_member(user_data["user_id"])
+            name = user.display_name if user else f"Utilisateur {user_data['user_id']}"
+            cash = user_data.get("cash", 0)
+            bank = user_data.get("bank", 0)
+            total = cash + bank
+
+            if sort == "cash":
+                value = f"💸 {cash:,} {emoji_currency}"
+            elif sort == "bank":
+                value = f"🏦 {bank:,} {emoji_currency}"
+            else:
+                value = f"📊 {total:,} {emoji_currency}"
+
+            embed.add_field(
+                name=f"{i}. {name}",
+                value=value,
+                inline=False
+            )
+
+        # Pagination info
+        user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
+        user_rank = next((i + 1 for i, u in enumerate(sorted_users) if u["user_id"] == ctx.author.id), None)
+        embed.set_footer(text=f"Page {page_num + 1}/{total_pages}  •  Your leaderboard rank: {user_rank}")
+
+        return embed
+
+    # Create pagination buttons
+    class LeaderboardView(View):
+        def __init__(self, page_num):
+            super().__init__()
+            self.page_num = page_num
+
+        @discord.ui.button(label="Previous", style=discord.ButtonStyle.primary)
+        async def previous_page(self, button: Button, interaction: discord.Interaction):
+            if self.page_num > 0:
+                self.page_num -= 1
+                embed = get_page(self.page_num)
+                await interaction.response.edit_message(embed=embed, view=self)
+
+        @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
+        async def next_page(self, button: Button, interaction: discord.Interaction):
+            if self.page_num < total_pages - 1:
+                self.page_num += 1
+                embed = get_page(self.page_num)
+                await interaction.response.edit_message(embed=embed, view=self)
+
+    # Send first page
+    view = LeaderboardView(0)
+    embed = get_page(0)
+    await ctx.send(embed=embed, view=view)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
