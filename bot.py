@@ -2432,7 +2432,7 @@ def get_page_embed(page: int, items_per_page=10):
 
     for item in items:
         embed.add_field(
-            name=f"[#{item['id']}] {item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
+            name=f"ID: {item['id']} | {item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
             value=f"{item['description']}",
             inline=False
         )
