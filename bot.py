@@ -2394,42 +2394,47 @@ async def leaderboard(
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-
-# Liste d'items avec un stock limité
+# Exemple d'items dans la boutique
 ITEMS = [
     {
-        "emoji": "<:emoji_11:1363592552103674096>",
+        "id": 1,
+        "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
-        "price": 100000,  # Prix en chiffres
+        "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
-        "quantity": 5  # Limite de stock (modifiable)
+        "quantity": 0,
+        "tradeable": False,
+        "usable": True,
+        "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker."
     },
+    # Tu peux ajouter plus d'items ici...
 ]
 
-# Simulons un solde d'utilisateur
-user_balances = {
-    "user1_id": 1000000,  # Exemple : 1 million de ecoEther pour un utilisateur
-    # Ajoute plus d'utilisateurs ici si besoin
-}
+# Fonction pour insérer les items dans MongoDB
+def insert_items_into_db():
+    for item in ITEMS:
+        # Vérifie si l'item existe déjà (basé sur l'id)
+        if not collection16.find_one({"id": item["id"]}):
+            collection16.insert_one(item)
 
-# Fonction pour afficher les items avec un stock limité
+# Fonction pour générer un embed d'une page boutique
 def get_page_embed(page: int, items_per_page=10):
     start = page * items_per_page
     end = start + items_per_page
     items = ITEMS[start:end]
 
     embed = discord.Embed(title="🛒 Boutique", color=discord.Color.green())
+
     for item in items:
         embed.add_field(
             name=f"{item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
-            value=f"{item['description']}\nStock: {item['quantity']}",
+            value=f"{item['description']}",
             inline=False
         )
-    embed.set_footer(text=f"Page {page + 1}/{(len(ITEMS) - 1) // items_per_page + 1}")
+
+    total_pages = (len(ITEMS) - 1) // items_per_page + 1
+    embed.set_footer(text=f"Page {page + 1}/{total_pages}")
     return embed
 
 # Vue pour les boutons de navigation
@@ -2446,7 +2451,7 @@ class Paginator(discord.ui.View):
     @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
     async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.user:
-            return await interaction.response.send_message("Ce menu ne t'appartient pas !", ephemeral=True)
+            return await interaction.response.send_message("❌ Ce menu ne t'appartient pas !", ephemeral=True)
         if self.page > 0:
             self.page -= 1
             await self.update(interaction)
@@ -2454,17 +2459,86 @@ class Paginator(discord.ui.View):
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
     async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.user:
-            return await interaction.response.send_message("Ce menu ne t'appartient pas !", ephemeral=True)
+            return await interaction.response.send_message("❌ Ce menu ne t'appartient pas !", ephemeral=True)
         if (self.page + 1) * 10 < len(ITEMS):
             self.page += 1
             await self.update(interaction)
 
-# Commande pour afficher la boutique
-@bot.tree.command(name="item store", description="Affiche la boutique d'items")
+# Slash command /item_store
+@bot.tree.command(name="item_store", description="Affiche la boutique d'items")
 async def item_store(interaction: discord.Interaction):
     embed = get_page_embed(0)
     view = Paginator(user=interaction.user)
     await interaction.response.send_message(embed=embed, view=view)
+
+# Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
+insert_items_into_db()
+
+from discord import app_commands
+
+from discord import app_commands
+
+# Commande slash pour acheter un item
+@bot.tree.command(name="item_buy", description="Achète un item de la boutique via son ID.")
+@app_commands.describe(item_id="ID de l'item à acheter", quantity="Quantité à acheter (défaut: 1)")
+async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int = 1):
+    user_id = interaction.user.id
+    guild_id = interaction.guild.id
+
+    # Récupère l'item depuis la collection MongoDB
+    item = collection16.find_one({"guild_id": guild_id, "item_id": item_id})
+
+    if not item:
+        return await interaction.response.send_message("❌ Item introuvable.", ephemeral=True)
+
+    # Vérifie stock
+    if quantity <= 0:
+        return await interaction.response.send_message("❌ Quantité invalide.", ephemeral=True)
+
+    if item["quantity"] < quantity:
+        return await interaction.response.send_message("❌ Stock insuffisant pour cet achat.", ephemeral=True)
+
+    # Vérifie solde utilisateur
+    user_data = collection.find_one({"user_id": user_id, "guild_id": guild_id}) or {"cash": 0}
+    total_price = item["price"] * quantity
+
+    if user_data["cash"] < total_price:
+        return await interaction.response.send_message("❌ Tu n'as pas assez de <:ecoEther:1341862366249357374>.", ephemeral=True)
+
+    # Mise à jour du solde utilisateur (retirer l'argent)
+    collection.update_one(
+        {"user_id": user_id, "guild_id": guild_id},
+        {"$inc": {"cash": -total_price}},  # Réduit le solde en cash de l'utilisateur
+        upsert=True
+    )
+
+    # Stocker les items dans le MongoDB (collection7 = inventory)
+    existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
+    if existing:
+        inventory = existing.get("items", {})
+        inventory[str(item_id)] = inventory.get(str(item_id), 0) + quantity
+        collection7.update_one(
+            {"user_id": user_id, "guild_id": guild_id},
+            {"$set": {"items": inventory}}
+        )
+    else:
+        collection7.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "items": {str(item_id): quantity}
+        })
+
+    # Mise à jour du stock dans la collection MongoDB (collection16)
+    collection16.update_one(
+        {"guild_id": guild_id, "item_id": item_id},
+        {"$inc": {"quantity": -quantity}}
+    )
+
+    # Message de confirmation
+    await interaction.response.send_message(
+        f"✅ Tu as acheté {quantity}x **{item['title']}** {item['emoji']} pour {total_price:,} {item['emoji_price']} !",
+        ephemeral=True
+    )
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
