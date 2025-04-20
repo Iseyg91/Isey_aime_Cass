@@ -2377,14 +2377,14 @@ async def leaderboard(
             self.page_num = page_num
 
         @discord.ui.button(label="⬅️ Précédent", style=discord.ButtonStyle.primary)
-        async def previous_page(self, button: Button, interaction: discord.Interaction):
+        async def previous_page(self, interaction: discord.Interaction, button: Button):
             if self.page_num > 0:
                 self.page_num -= 1
                 embed = get_page(self.page_num)
                 await interaction.response.edit_message(embed=embed, view=self)
 
         @discord.ui.button(label="➡️ Suivant", style=discord.ButtonStyle.primary)
-        async def next_page(self, button: Button, interaction: discord.Interaction):
+        async def next_page(self, interaction: discord.Interaction, button: Button):
             if self.page_num < total_pages - 1:
                 self.page_num += 1
                 embed = get_page(self.page_num)
@@ -2393,7 +2393,6 @@ async def leaderboard(
     view = LeaderboardView(0)
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
