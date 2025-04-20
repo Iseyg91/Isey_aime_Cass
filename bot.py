@@ -2348,7 +2348,6 @@ async def leaderboard(
         )
         embed.set_author(name="Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
         
-        # Liste des 10 premiers utilisateurs
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
             user = ctx.guild.get_member(user_data["user_id"])
             name = user.display_name if user else f"Utilisateur {user_data['user_id']}"
@@ -2356,19 +2355,19 @@ async def leaderboard(
             bank = user_data.get("bank", 0)
             total = cash + bank
 
-            # Formattage sur une seule ligne : pseudo • emoji montant
-            if sort == "cash":
-                value = f"{name} • {emoji_currency} {cash:,}"
-            elif sort == "bank":
-                value = f"{name} • {emoji_currency} {bank:,}"
-            else:
-                value = f"{name} • {emoji_currency} {total:,}"
+        # Ligne de leaderboard formatée correctement
+        if sort == "cash":
+            line = f"{i}.  ``{name}`` • {emoji_currency} {cash:,}"
+        elif sort == "bank":
+            line = f"{i}.  ``{name}`` • {emoji_currency} {bank:,}"
+        else:
+            line = f"{i}.  ``{name}`` • {emoji_currency} {total:,}"
 
-            embed.add_field(
-                name=f"{i}.",
-                value=value,
-                inline=False
-            )
+        embed.add_field(
+            name=line,
+            value="\u200b",
+            inline=False
+        )
 
         # Pagination info
         user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
