@@ -2112,79 +2112,28 @@ from discord.ui import View, Button
 import random
 import asyncio
 
-# Liste des résultats possibles
-CHOICES = [
-    "red", "black", "evend", "odd", "1-18", "19-36", "1st", "2nd", "3rd",
-    "1-12", "13-24", "25-36", "0", "1", "3", "5", "7", "9", "12", "14", "16",
-    "18", "19", "21", "23", "4", "6", "8", "10", "11", "13", "15", "17", "20", 
-    "22", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "36"
-]
+# Liste des numéros rouges et noirs
+RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
+BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35]
 
-@bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
-@app_commands.describe(
-    amount="Le montant que vous souhaitez miser",
-    space="L'endroit sur lequel vous voulez parier"
-)
-@app_commands.choices(space=[
-    app_commands.Choice(name="Red", value="red"),
-    app_commands.Choice(name="Black", value="black"),
-    app_commands.Choice(name="Evend", value="evend"),
-    app_commands.Choice(name="Odd", value="odd"),
-    app_commands.Choice(name="1-18", value="1-18"),
-    app_commands.Choice(name="19-36", value="19-36"),
-    app_commands.Choice(name="1st", value="1st"),
-    app_commands.Choice(name="2nd", value="2nd"),
-    app_commands.Choice(name="3rd", value="3rd"),
-    app_commands.Choice(name="1-12", value="1-12"),
-    app_commands.Choice(name="13-24", value="13-24"),
-    app_commands.Choice(name="25-36", value="25-36"),
-    app_commands.Choice(name="0", value="0"),
-    app_commands.Choice(name="1", value="1"),
-    app_commands.Choice(name="3", value="3"),
-    app_commands.Choice(name="4", value="4"),
-    app_commands.Choice(name="5", value="5"),
-    app_commands.Choice(name="6", value="6"),
-    app_commands.Choice(name="7", value="7"),
-    app_commands.Choice(name="8", value="8"),
-    app_commands.Choice(name="9", value="9"),
-    app_commands.Choice(name="10", value="10"),
-    app_commands.Choice(name="11", value="11"),
-    app_commands.Choice(name="12", value="12"),
-    app_commands.Choice(name="13", value="13"),
-    app_commands.Choice(name="14", value="14"),
-    app_commands.Choice(name="15", value="15"),
-    app_commands.Choice(name="16", value="16"),
-    app_commands.Choice(name="17", value="17"),
-    app_commands.Choice(name="18", value="18"),
-    app_commands.Choice(name="19", value="19"),
-    app_commands.Choice(name="20", value="20"),
-    app_commands.Choice(name="21", value="21"),
-    app_commands.Choice(name="22", value="22"),
-    app_commands.Choice(name="23", value="23"),
-    app_commands.Choice(name="24", value="24"),
-    app_commands.Choice(name="25", value="25"),
-    app_commands.Choice(name="26", value="26"),
-    app_commands.Choice(name="27", value="27"),
-    app_commands.Choice(name="28", value="28"),
-    app_commands.Choice(name="29", value="29"),
-    app_commands.Choice(name="30", value="30"),
-    app_commands.Choice(name="31", value="31"),
-    app_commands.Choice(name="32", value="32"),
-    app_commands.Choice(name="33", value="33"),
-    app_commands.Choice(name="34", value="34"),
-    app_commands.Choice(name="36", value="36"),
-])
+# Fonction pour vérifier si un numéro est rouge
+def is_red(number):
+    return number in RED_NUMBERS
+
+# Fonction pour vérifier si un numéro est noir
+def is_black(number):
+    return number in BLACK_NUMBERS
+
+# Fonction pour gérer les paris
 async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choice[str]):
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
 
-    # Signale à Discord qu'une réponse viendra plus tard
     await ctx.defer()
 
     guild_id = ctx.guild.id
     user_id = ctx.author.id
 
-    # Fonction pour récupérer ou créer les données de l'utilisateur
     def get_or_create_user_data(guild_id: int, user_id: int):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
         if not data:
@@ -2192,17 +2141,14 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
             collection.insert_one(data)
         return data
 
-    # Récupère les données de l'utilisateur
     user_data = get_or_create_user_data(guild_id, user_id)
     cash = user_data.get("cash", 0)
 
     if cash < amount:
         return await ctx.send("❌ Tu n'as pas assez de cash pour parier ce montant.")
 
-    # Déduire le montant du cash de l'utilisateur
     collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -amount}})
 
-    # Embed principal (confirmation du pari)
     embed = discord.Embed(
         title="New roulette game started!",
         description=f"<:Check:1362710665663615147> Tu as placé un pari de <:ecoEther:1341862366249357374> {amount} sur **{space.name}**",
@@ -2210,7 +2156,6 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     )
     embed.set_footer(text="Time remaining: 10 seconds after each bet (maximum 1 minute)")
 
-    # Vue avec bouton d'aide
     view = View()
     help_button = Button(label="Help", style=discord.ButtonStyle.primary)
 
@@ -2242,24 +2187,40 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
 
     await ctx.send(embed=embed, view=view)
 
-    # Attente avant le résultat (entre 10 et 60 secondes)
     await asyncio.sleep(random.randint(10, 60))
 
     # Tirage aléatoire du résultat
     result = random.choice(CHOICES)
 
-    # Calcul des gains
-    if result == space.value:
-        win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents
-        # Ajout du gain en cash
+    # Si le résultat est 0
+    if result == "0":
+        # Si l'utilisateur a misé sur le 0
+        if space.value == "0":
+            win_amount = amount * 36  # Le pari sur le 0 rapporte x36
+            collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
+            await ctx.send(f"La balle est tombée sur **0** : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
+        else:
+            await ctx.send(f"La balle est tombée sur **0**. Pas de gagnants.")
+        return
+
+    # Vérification des autres paris
+    if space.value == "red" and is_red(int(result)):
+        win_amount = amount * 2
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(
-            f"La balle est tombée sur **{result}**\n\n**Gagnants:**\n{ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}"
-        )
+        await ctx.send(f"La balle est tombée sur **{result}** (Rouge) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
+    
+    elif space.value == "black" and is_black(int(result)):
+        win_amount = amount * 2
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
+        await ctx.send(f"La balle est tombée sur **{result}** (Noir) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
+    
+    elif space.value == result:  # Si le pari correspond au numéro exact
+        win_amount = amount * 36  # C'est le multiplicateur standard pour un numéro exact
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
+        await ctx.send(f"La balle est tombée sur **{result}** : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
+
     else:
-        await ctx.send(
-            f"La balle est tombée sur **{result}**\n\nPas de gagnants"
-        )
+        await ctx.send(f"La balle est tombée sur **{result}**\nPas de gagnants")
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
