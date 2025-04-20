@@ -2460,7 +2460,7 @@ class Paginator(discord.ui.View):
             await self.update(interaction)
 
 # Commande pour afficher la boutique
-@bot.tree.command(name="item_store", description="Affiche la boutique d'items")
+@bot.tree.command(name="item store", description="Affiche la boutique d'items")
 async def item_store(interaction: discord.Interaction):
     embed = get_page_embed(0)
     view = Paginator(user=interaction.user)
