@@ -2179,16 +2179,49 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
 
+    # Récupérer et vérifier le solde de l'utilisateur
+    user_id = ctx.author.id
+    guild_id = ctx.guild.id
+
+    def get_or_create_user_data(guild_id: int, user_id: int):
+        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not data:
+            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(data)
+        return data
+
+    data = get_or_create_user_data(guild_id, user_id)
+    cash = data.get("cash", 0)
+
+    if cash < amount:
+        # Création d'un embed pour l'erreur
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Erreur : Solde insuffisant",
+            description=(
+                f"Vous n'avez pas assez d'argent pour ce pari.\n"
+                f"Vous avez actuellement **{cash:,} <:ecoEther:1341862366249357374>** en cash."
+            ),
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
+        return
+
+    # Retirer la mise du solde de l'utilisateur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": -amount}}
+    )
+
     # Signale à Discord qu'une réponse viendra plus tard
     await ctx.defer()
 
     # Embed principal (confirmation du pari)
     embed = discord.Embed(
         title="New roulette game started!",
-        description=f"<:Check:1362710665663615147> You have placed a bet of <:ecoEther:1341862366249357374> {amount} on **{space.name}**",
+        description=f"<:Check:1362710665663615147> Vous avez misé **{amount}** sur **{space.name}**.",
         color=discord.Color.green()
     )
-    embed.set_footer(text="Time remaining: 10 seconds after each bet (maximum 1 minute)")
+    embed.set_footer(text="Temps restant: 10 secondes après chaque pari (maximum 1 minute)")
 
     # Vue avec bouton d'aide
     view = View()
@@ -2230,14 +2263,18 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
 
     # Calcul des gains
     if result == space.value:
-        win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents
-        await ctx.send(
-            f"The ball landed on **{result}**\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {win_amount}"
+        win_amount = amount * 2  # Multiplicateur par 2 si gagné
+        # Mise à jour de la balance de l'utilisateur en cas de gain
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"cash": win_amount}}
         )
-        # Ajoute ici le gain en DB si nécessaire
+        await ctx.send(
+            f"La balle a atterri sur **{result}**\n\n**Gagnant :**\n{ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount} !"
+        )
     else:
         await ctx.send(
-            f"The ball landed on **{result}**\n\nNo winners"
+            f"La balle a atterri sur **{result}**\n\nPas de gagnant cette fois."
         )
 
 # Token pour démarrer le bot (à partir des secrets)
