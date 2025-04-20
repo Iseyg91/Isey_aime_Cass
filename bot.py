@@ -2105,13 +2105,6 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-from discord.ui import View, Button
-import random
-import asyncio
-
 # Liste des numéros rouges et noirs
 RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 24, 26, 28, 29, 31, 33, 35]
 BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 25, 27, 30, 32, 34, 36]
@@ -2120,7 +2113,22 @@ BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 25, 27, 30, 32, 34, 36]
 EVEN_NUMBERS = [i for i in range(2, 37, 2)]  # 2, 4, 6, ..., 36
 ODD_NUMBERS = [i for i in range(1, 37, 2)]   # 1, 3, 5, ..., 35
 
-# Fonction principale pour gérer les paris
+# Fonction pour vérifier si un numéro est pair
+def is_even(number):
+    return number in EVEN_NUMBERS
+
+# Fonction pour vérifier si un numéro est impair
+def is_odd(number):
+    return number in ODD_NUMBERS
+
+# Fonction pour vérifier si un numéro est rouge
+def is_red(number):
+    return number in RED_NUMBERS
+
+# Fonction pour vérifier si un numéro est noir
+def is_black(number):
+    return number in BLACK_NUMBERS
+
 @bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
     amount="Le montant que vous souhaitez miser",
@@ -2175,6 +2183,7 @@ ODD_NUMBERS = [i for i in range(1, 37, 2)]   # 1, 3, 5, ..., 35
     app_commands.Choice(name="34", value="34"),
     app_commands.Choice(name="36", value="36"),
 ])
+# Fonction principale pour gérer les paris
 async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choice[str]):
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
@@ -2282,7 +2291,6 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     
     else:
         await ctx.send(f"La balle est tombée sur **{result}**\nPas de gagnants")
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
