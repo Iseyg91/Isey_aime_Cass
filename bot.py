@@ -2485,8 +2485,8 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
     user_id = interaction.user.id
     guild_id = interaction.guild.id
 
-    # Récupère l'item depuis la collection MongoDB
-    item = collection16.find_one({"guild_id": guild_id, "item_id": item_id})
+    # Récupère l'item depuis la collection MongoDB en utilisant l'ID
+    item = collection16.find_one({"guild_id": guild_id, "id": item_id})
 
     if not item:
         return await interaction.response.send_message("❌ Item introuvable.", ephemeral=True)
@@ -2530,7 +2530,7 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
 
     # Mise à jour du stock dans la collection MongoDB (collection16)
     collection16.update_one(
-        {"guild_id": guild_id, "item_id": item_id},
+        {"guild_id": guild_id, "id": item_id},
         {"$inc": {"quantity": -quantity}}
     )
 
