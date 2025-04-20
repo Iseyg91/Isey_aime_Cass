@@ -2394,6 +2394,67 @@ async def leaderboard(
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
 
+# Exemple d'item boutique
+ITEMS = [
+    {
+        "emoji": "<:emoji_11:1363592552103674096>",
+        "title": "Armure du Berserker",
+        "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
+        "price": "100,000 <:ecoEther:1341862366249357374>"
+    }
+] * 25  # Pour simuler 25 items dans la boutique
+
+# Pagination des items
+def get_page_embed(page: int, items_per_page=10):
+    start = page * items_per_page
+    end = start + items_per_page
+    items = ITEMS[start:end]
+
+    embed = discord.Embed(title="🛒 Boutique", color=discord.Color.green())
+    for item in items:
+        embed.add_field(
+            name=f"{item['price']} - {item['title']} {item['emoji']}",
+            value=item['description'],
+            inline=False
+        )
+    embed.set_footer(text=f"Page {page + 1}/{(len(ITEMS) - 1) // items_per_page + 1}")
+    return embed
+
+# Vue pour les boutons de navigation
+class Paginator(discord.ui.View):
+    def __init__(self, user: discord.User):
+        super().__init__(timeout=60)
+        self.page = 0
+        self.user = user
+
+    async def update(self, interaction: discord.Interaction):
+        embed = get_page_embed(self.page)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("Ce menu ne t'appartient pas !", ephemeral=True)
+        if self.page > 0:
+            self.page -= 1
+            await self.update(interaction)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            return await interaction.response.send_message("Ce menu ne t'appartient pas !", ephemeral=True)
+        if (self.page + 1) * 10 < len(ITEMS):
+            self.page += 1
+            await self.update(interaction)
+
+# Slash command
+@bot.tree.command(name="item_store", description="Affiche la boutique d'items")
+async def item_store(interaction: discord.Interaction):
+    embed = get_page_embed(0)
+    view = Paginator(user=interaction.user)
+    await interaction.response.send_message(embed=embed, view=view)
+
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
