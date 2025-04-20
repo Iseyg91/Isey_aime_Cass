@@ -2356,7 +2356,7 @@ async def leaderboard(
             bank = user_data.get("bank", 0)
             total = cash + bank
 
-            # Formattage sur la même ligne : pseudo • emoji montant
+            # Formattage sur une seule ligne : pseudo • emoji montant
             if sort == "cash":
                 value = f"{name} • {emoji_currency} {cash:,}"
             elif sort == "bank":
@@ -2365,7 +2365,7 @@ async def leaderboard(
                 value = f"{name} • {emoji_currency} {total:,}"
 
             embed.add_field(
-                name=f"{i}. {name}",
+                name=f"{i}.",
                 value=value,
                 inline=False
             )
@@ -2401,7 +2401,6 @@ async def leaderboard(
     view = LeaderboardView(0)
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
