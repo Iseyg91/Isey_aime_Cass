@@ -2105,43 +2105,59 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
-@bot.hybrid_command(name="roulette", description="Lancez une roulette et placez vos paris !")
+@bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
-    amount="Montant que vous souhaitez miser"
+    amount="Le montant que vous souhaitez miser",
+    space="L'endroit sur lequel vous voulez parier"
 )
-async def roulette(ctx: commands.Context, amount: int):
+@app_commands.choices(space=[
+    app_commands.Choice(name="Rouge", value="red"),
+    app_commands.Choice(name="Noir", value="black"),
+    app_commands.Choice(name="Pair", value="evend"),
+    app_commands.Choice(name="Impair", value="odd"),
+    app_commands.Choice(name="1 à 18", value="1-18"),
+    app_commands.Choice(name="19 à 36", value="19-36"),
+    app_commands.Choice(name="1ère colonne", value="1st"),
+    app_commands.Choice(name="2e colonne", value="2nd"),
+    app_commands.Choice(name="3e colonne", value="3rd"),
+    app_commands.Choice(name="1 à 12", value="1-12"),
+    app_commands.Choice(name="13 à 24", value="13-24"),
+    app_commands.Choice(name="25 à 36", value="25-36"),
+    app_commands.Choice(name="0", value="0"),
+    app_commands.Choice(name="1", value="1"),
+    app_commands.Choice(name="3", value="3"),
+    app_commands.Choice(name="5", value="5"),
+    app_commands.Choice(name="7", value="7"),
+    app_commands.Choice(name="9", value="9"),
+    app_commands.Choice(name="12", value="12"),
+    app_commands.Choice(name="14", value="14"),
+    app_commands.Choice(name="16", value="16"),
+    app_commands.Choice(name="18", value="18"),
+    app_commands.Choice(name="19", value="19"),
+    app_commands.Choice(name="21", value="21"),
+    app_commands.Choice(name="23", value="23"),
+])
+async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choice[str]):
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
 
-    bet_options = [
-        "red", "black", "evend", "odd", "1-18", "19-36", "1st", "2nd", "3rd",
-        "1-12", "13-24", "25-36", "0", "1", "3", "5", "7", "9", "12", "14",
-        "16", "18", "19", "21", "23"
-    ]
+    # Embed principal
+    embed = discord.Embed(
+        title="🎰 Roulette lancée !",
+        description=(
+            f":white_check_mark: Tu as parié **<:ecoEther:1341862366249357374>{amount}** sur **{space.name}**.\n"
+            "Le résultat sera annoncé bientôt !"
+        ),
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Pari placé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-    # Vue contenant tous les boutons
-    view = View(timeout=60)
-
-    for option in bet_options:
-        button = Button(label=option, style=discord.ButtonStyle.secondary, custom_id=f"bet_{option}")
-        
-        async def callback(interaction: discord.Interaction, opt=option):
-            if interaction.user.id != ctx.author.id:
-                return await interaction.response.send_message("❌ Tu n'as pas lancé cette roulette.", ephemeral=True)
-
-            await interaction.response.send_message(
-                f":white_check_mark: Tu as parié **<:ecoEther:1341862366249357374>{amount}** sur **{opt}**.",
-                ephemeral=True
-            )
-        
-        button.callback = callback
-        view.add_item(button)
-
-    # Bouton d'aide
+    # Vue avec bouton d'aide
+    view = View()
     help_button = Button(label="Aide", style=discord.ButtonStyle.primary)
-    
+
     async def help_callback(interaction: discord.Interaction):
-        embed = discord.Embed(
+        help_embed = discord.Embed(
             title="📘 Comment jouer à la Roulette",
             description=(
                 "**🎯 Parier**\n"
@@ -2160,22 +2176,13 @@ async def roulette(ctx: commands.Context, amount: int):
             ),
             color=discord.Color.gold()
         )
-        embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unknown.png?raw=true")
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        help_embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unknown.png?raw=true")
+        await interaction.response.send_message(embed=help_embed, ephemeral=True)
 
     help_button.callback = help_callback
     view.add_item(help_button)
 
-    # Embed principal
-    embed = discord.Embed(
-        title="🎰 Roulette lancée !",
-        description=f"Tu as misé **<:ecoEther:1341862366249357374>{amount}**.\nChoisis ton pari ci-dessous ⬇️",
-        color=discord.Color.green()
-    )
-    embed.set_footer(text=f"Lancé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
-
     await ctx.send(embed=embed, view=view)
-
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
