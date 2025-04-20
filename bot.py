@@ -2305,7 +2305,7 @@ async def leaderboard(
 
     guild_id = ctx.guild.id
     emoji_currency = "<:ecoEther:1341862366249357374>"
-    emoji_banque = "<:Banque:1363532913563402411>"
+    bank_logo = "<:Banque:1363532913563402411>"  # Logo de la banque en haut
 
     # Vérification si l'argument contient -cash, -bank ou -total (message préfixé)
     if isinstance(ctx, commands.Context) and ctx.message.content:
@@ -2320,13 +2320,13 @@ async def leaderboard(
     # Déterminer clé de tri
     if sort == "cash":
         sort_key = lambda u: u.get("cash", 0)
-        title = f"{emoji_banque} Leaderboard - Cash"
+        title = f"Leaderboard - Cash"
     elif sort == "bank":
         sort_key = lambda u: u.get("bank", 0)
-        title = f"{emoji_banque} Leaderboard - Banque"
+        title = f"Leaderboard - Banque"
     else:
         sort_key = lambda u: u.get("cash", 0) + u.get("bank", 0)
-        title = f"{emoji_banque} Leaderboard - Total"
+        title = f"Leaderboard - Total"
 
     all_users_data = list(collection.find({"guild_id": guild_id}))
     sorted_users = sorted(all_users_data, key=sort_key, reverse=True)
@@ -2340,12 +2340,13 @@ async def leaderboard(
         end_index = start_index + page_size
         users_on_page = sorted_users[start_index:end_index]
 
-        embed = discord.Embed(title=title, color=discord.Color.gold())
+        embed = discord.Embed(title=title, color=discord.Color.blue())  # Couleur bleue
         embed.add_field(
-            name=f"{emoji_banque} Leaderboard",
+            name="Leaderboard",
             value="View the leaderboard online here.",
             inline=False
         )
+        embed.set_author(name="🏦 Banque Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
         
         # Liste des 10 premiers utilisateurs
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
@@ -2356,11 +2357,11 @@ async def leaderboard(
             total = cash + bank
 
             if sort == "cash":
-                value = f"💸 {cash:,} {emoji_currency}"
+                value = f"{cash:,} {emoji_currency}"
             elif sort == "bank":
-                value = f"🏦 {bank:,} {emoji_currency}"
+                value = f"{bank:,} {emoji_currency}"
             else:
-                value = f"📊 {total:,} {emoji_currency}"
+                value = f"{total:,} {emoji_currency}"
 
             embed.add_field(
                 name=f"{i}. {name}",
@@ -2386,14 +2387,14 @@ async def leaderboard(
             if self.page_num > 0:
                 self.page_num -= 1
                 embed = get_page(self.page_num)
-                await interaction.response.edit_message(embed=embed, view=self)
+                await interaction.message.edit(embed=embed, view=self)
 
         @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
         async def next_page(self, button: Button, interaction: discord.Interaction):
             if self.page_num < total_pages - 1:
                 self.page_num += 1
                 embed = get_page(self.page_num)
-                await interaction.response.edit_message(embed=embed, view=self)
+                await interaction.message.edit(embed=embed, view=self)
 
     # Send first page
     view = LeaderboardView(0)
