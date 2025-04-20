@@ -2120,21 +2120,6 @@ BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 25, 27, 30, 32, 34, 36]
 EVEN_NUMBERS = [i for i in range(2, 37, 2)]  # 2, 4, 6, ..., 36
 ODD_NUMBERS = [i for i in range(1, 37, 2)]   # 1, 3, 5, ..., 35
 
-# Fonction pour vérifier si un numéro est pair
-def is_even(number):
-    return number in EVEN_NUMBERS
-
-# Fonction pour vérifier si un numéro est impair
-def is_odd(number):
-    return number in ODD_NUMBERS
-
-# Fonction pour vérifier si un numéro est rouge
-def is_red(number):
-    return number in RED_NUMBERS
-
-# Fonction pour vérifier si un numéro est noir
-def is_black(number):
-    return number in BLACK_NUMBERS
 @bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
     amount="Le montant que vous souhaitez miser",
@@ -2198,6 +2183,22 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
 
     guild_id = ctx.guild.id
     user_id = ctx.author.id
+
+# Fonction pour vérifier si un numéro est pair
+def is_even(number):
+    return number in EVEN_NUMBERS
+
+# Fonction pour vérifier si un numéro est impair
+def is_odd(number):
+    return number in ODD_NUMBERS
+
+# Fonction pour vérifier si un numéro est rouge
+def is_red(number):
+    return number in RED_NUMBERS
+
+# Fonction pour vérifier si un numéro est noir
+def is_black(number):
+    return number in BLACK_NUMBERS
 
     def get_or_create_user_data(guild_id: int, user_id: int):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
