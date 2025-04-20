@@ -2176,13 +2176,12 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     # Déduction du montant parié
     collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -bet}})
 
-    # Embed de démarrage
     embed = discord.Embed(
-        title="New roulette game started!",
-        description=f"🎰 Tu as parié <:ecoEther:1341862366249357374>{bet} sur **{space}**\n"
-                    f"⏳ Temps restant: 10 secondes",
-        color=discord.Color.green()
+        title=ctx.author.name,  # ou interaction.user.name selon ton contexte
+        description=f"You have placed a bet of <:ecoEther:1341862366249357374>{bet} on **{space}**.",
+        color=discord.Color.blue()
     )
+    embed.set_footer(text="Time remaining: 10 seconds")
 
     # Bouton Help
     view = View()
