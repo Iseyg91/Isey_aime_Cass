@@ -2257,6 +2257,79 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     # Libération du joueur
     active_roulette_players.remove(user_id)
 
+@bot.hybrid_command(name="daily", aliases=["dy"], description="Réclame tes Coins quotidiens.")
+async def daily(ctx: commands.Context):
+    if ctx.guild is None:
+        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+    
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+    now = datetime.utcnow()
+
+    cooldown_data = collection2.find_one({"guild_id": guild_id, "user_id": user_id})
+    cooldown_duration = timedelta(hours=24)
+
+    if cooldown_data and "last_claim" in cooldown_data:
+        last_claim = cooldown_data["last_claim"]
+        next_claim = last_claim + cooldown_duration
+
+        if now < next_claim:
+            remaining = next_claim - now
+            hours, remainder = divmod(remaining.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            cooldown_embed = discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> Vous devez attendre encore "
+                            f"**{remaining.days * 24 + hours} heures, {minutes} minutes et {seconds} secondes** "
+                            f"avant de pouvoir recevoir vos Coins quotidiens.",
+                color=discord.Color.red()
+            )
+            return await ctx.send(embed=cooldown_embed)
+
+    # Génération du montant
+    amount = random.randint(500, 4000)
+
+    # Récupération ou création du document utilisateur
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not user_data:
+        user_data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+        collection.insert_one(user_data)
+
+    # Mise à jour du solde
+    old_cash = user_data["cash"]
+    new_cash = old_cash + amount
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": amount}}
+    )
+
+    # Mise à jour du cooldown
+    collection2.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_claim": now}},
+        upsert=True
+    )
+
+    # Embed de succès
+    success_embed = discord.Embed(
+        description=f"<:ecoEther:1341862366249357374> Vous avez reçu vos **{amount:,}** Coins quotidiens.\n"
+                    f"Votre prochaine récompense sera disponible dans **24 heures**.",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=success_embed)
+
+    # Log
+    await log_eco_channel(
+        bot=bot,
+        guild_id=guild_id,
+        user=ctx.author,
+        action="Récompense quotidienne",
+        amount=amount,
+        balance_before=old_cash,
+        balance_after=new_cash,
+        note="Commande /daily"
+    )
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
