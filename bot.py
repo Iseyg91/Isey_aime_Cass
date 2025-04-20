@@ -28,11 +28,14 @@ import pytz
 import platform
 from discord.ui import Select, View
 
-
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
 start_time = time.time()
 bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
+
+#Configuration du Bot:
+# --- ID Owner Bot ---
+ISEY_ID = 792755123587645461
 
 # Connexion MongoDB
 mongo_uri = os.getenv("MONGO_DB")  # URI de connexion à MongoDB
@@ -322,6 +325,25 @@ async def ping(ctx):
     embed = discord.Embed(title="Pong!", description=f"Latence: {latency}ms", color=discord.Color.green())
 
     await ctx.send(embed=embed)
+
+# Vérification si l'utilisateur est l'owner du bot
+def is_owner(ctx):
+    return ctx.author.id == ISEY_ID
+
+@bot.hybrid_command()
+async def shutdown(ctx):
+    if is_owner(ctx):
+        embed = discord.Embed(
+            title="Arrêt du Bot",
+            description="Le bot va maintenant se fermer. Tous les services seront arrêtés.",
+            color=discord.Color.red()
+        )
+        embed.set_footer(text="Cette action est irréversible.")
+        await ctx.send(embed=embed)
+        await bot.close()
+    else:
+        await ctx.send("Seul l'owner peut arrêter le bot.")
+
 
 @bot.hybrid_command( 
     name="balance",
