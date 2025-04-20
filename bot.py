@@ -2112,9 +2112,6 @@ from discord.ui import View, Button
 import random
 import asyncio
 
-# Bot setup
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
-
 # Liste des résultats possibles
 CHOICES = [
     "red", "black", "evend", "odd", "1-18", "19-36", "1st", "2nd", "3rd",
@@ -2145,26 +2142,26 @@ CHOICES = [
     app_commands.Choice(name="0", value="0"),
     app_commands.Choice(name="1", value="1"),
     app_commands.Choice(name="3", value="3"),
-    app_commands.Choice(name="5", value="5"),
-    app_commands.Choice(name="7", value="7"),
-    app_commands.Choice(name="9", value="9"),
-    app_commands.Choice(name="12", value="12"),
-    app_commands.Choice(name="14", value="14"),
-    app_commands.Choice(name="16", value="16"),
-    app_commands.Choice(name="18", value="18"),
-    app_commands.Choice(name="19", value="19"),
-    app_commands.Choice(name="21", value="21"),
-    app_commands.Choice(name="23", value="23"),
     app_commands.Choice(name="4", value="4"),
+    app_commands.Choice(name="5", value="5"),
     app_commands.Choice(name="6", value="6"),
+    app_commands.Choice(name="7", value="7"),
     app_commands.Choice(name="8", value="8"),
+    app_commands.Choice(name="9", value="9"),
     app_commands.Choice(name="10", value="10"),
     app_commands.Choice(name="11", value="11"),
+    app_commands.Choice(name="12", value="12"),
     app_commands.Choice(name="13", value="13"),
+    app_commands.Choice(name="14", value="14"),
     app_commands.Choice(name="15", value="15"),
+    app_commands.Choice(name="16", value="16"),
     app_commands.Choice(name="17", value="17"),
+    app_commands.Choice(name="18", value="18"),
+    app_commands.Choice(name="19", value="19"),
     app_commands.Choice(name="20", value="20"),
+    app_commands.Choice(name="21", value="21"),
     app_commands.Choice(name="22", value="22"),
+    app_commands.Choice(name="23", value="23"),
     app_commands.Choice(name="24", value="24"),
     app_commands.Choice(name="25", value="25"),
     app_commands.Choice(name="26", value="26"),
@@ -2195,7 +2192,7 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
 
     # Vue avec bouton d'aide
     view = View()
-    help_button = Button(label="Aide", style=discord.ButtonStyle.primary)
+    help_button = Button(label="Help", style=discord.ButtonStyle.primary)
 
     async def help_callback(interaction: discord.Interaction):
         help_embed = discord.Embed(
@@ -2242,6 +2239,7 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
         await ctx.send(
             f"The ball landed on **{result}**\n\nNo winners"
         )
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
