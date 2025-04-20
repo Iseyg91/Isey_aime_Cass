@@ -2596,16 +2596,18 @@ async def item_info(interaction: discord.Interaction, id: int):
 
     user = interaction.user
     user_avatar_url = user.avatar.url if user.avatar else None
-
     formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable
 
     embed = discord.Embed(
-        description=f"**Description:** {item['description']}",
+        title=user.name,  # Titre = nom de l'utilisateur
         color=discord.Color.orange()
     )
 
-    # Afficher le nom de l'item en champ séparé
-    embed.add_field(name="**Name:**", value=item['title'], inline=False)
+    # Nom de l'item en haut
+    embed.add_field(name="**Nom de l'item**", value=item['title'], inline=False)
+    # Description ensuite
+    embed.add_field(name="**Description**", value=item['description'], inline=False)
+
     embed.add_field(name="ID", value=str(item["id"]), inline=True)
     embed.add_field(name="Prix", value=f"{formatted_price} {item['emoji_price']}", inline=True)
     embed.add_field(name="Quantité", value=str(item.get("quantity", "Indisponible")), inline=True)
@@ -2623,11 +2625,10 @@ async def item_info(interaction: discord.Interaction, id: int):
         embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
 
     if user_avatar_url:
-        embed.set_thumbnail(url=user_avatar_url)  # pp en haut à gauche
+        embed.set_thumbnail(url=user_avatar_url)  # Petite image à gauche : avatar utilisateur
 
-    # Affichage image de l’emoji à droite (si lien fourni)
     if item.get("emoji_url"):
-        embed.set_image(url=item["emoji_url"])
+        embed.set_image(url=item["emoji_url"])  # Grande image à droite : emoji de l'item
 
     embed.set_footer(text="🛒 Etherya • Détails de l'item")
 
