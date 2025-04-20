@@ -2599,13 +2599,11 @@ async def item_info(interaction: discord.Interaction, id: int):
     formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable
 
     embed = discord.Embed(
-        title=user.name,  # Titre = nom de l'utilisateur
+        title=user.name,
         color=discord.Color.orange()
     )
 
-    # Nom de l'item en haut
     embed.add_field(name="**Nom de l'item**", value=item['title'], inline=False)
-    # Description ensuite
     embed.add_field(name="**Description**", value=item['description'], inline=False)
 
     embed.add_field(name="ID", value=str(item["id"]), inline=True)
@@ -2624,11 +2622,13 @@ async def item_info(interaction: discord.Interaction, id: int):
     if item.get("requirements"):
         embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
 
+    # Avatar de l'utilisateur en miniature (à gauche)
     if user_avatar_url:
-        embed.set_thumbnail(url=user_avatar_url)  # Petite image à gauche : avatar utilisateur
+        embed.set_thumbnail(url=user_avatar_url)
 
+    # Image de l'item (emoji) en grand (en bas de l'embed)
     if item.get("emoji_url"):
-        embed.set_image(url=item["emoji_url"])  # Grande image à droite : emoji de l'item
+        embed.set_image(url=item["emoji_url"])
 
     embed.set_footer(text="🛒 Etherya • Détails de l'item")
 
