@@ -2105,91 +2105,73 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
-# Liste des numéros rouges et noirs
+# Liste des numéros par catégorie
 RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 24, 26, 28, 29, 31, 33, 35]
 BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 25, 27, 30, 32, 34, 36]
+EVEN_NUMBERS = [i for i in range(2, 37, 2)]
+ODD_NUMBERS = [i for i in range(1, 37, 2)]
 
-# Liste des numéros pairs et impairs
-EVEN_NUMBERS = [i for i in range(2, 37, 2)]  # 2, 4, 6, ..., 36
-ODD_NUMBERS = [i for i in range(1, 37, 2)]   # 1, 3, 5, ..., 35
-
-# Fonction pour vérifier si un numéro est pair
-def is_even(number):
-    return number in EVEN_NUMBERS
-
-# Fonction pour vérifier si un numéro est impair
-def is_odd(number):
-    return number in ODD_NUMBERS
-
-# Fonction pour vérifier si un numéro est rouge
-def is_red(number):
-    return number in RED_NUMBERS
-
-# Fonction pour vérifier si un numéro est noir
-def is_black(number):
-    return number in BLACK_NUMBERS
-
-@bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
-@app_commands.describe(
-    amount="Le montant que vous souhaitez miser",
-    space="L'endroit sur lequel vous voulez parier"
+# Commande pour la roulette
+@bot.hybrid_command(
+    name="roulette",
+    description="Parie sur la roulette avec un montant spécifique",
 )
-@app_commands.choices(space=[
-    app_commands.Choice(name="Red", value="red"),
-    app_commands.Choice(name="Black", value="black"),
-    app_commands.Choice(name="Evend", value="evend"),
-    app_commands.Choice(name="Odd", value="odd"),
-    app_commands.Choice(name="1-18", value="1-18"),
-    app_commands.Choice(name="19-36", value="19-36"),
-    app_commands.Choice(name="1st", value="1st"),
-    app_commands.Choice(name="2nd", value="2nd"),
-    app_commands.Choice(name="3rd", value="3rd"),
-    app_commands.Choice(name="1-12", value="1-12"),
-    app_commands.Choice(name="13-24", value="13-24"),
-    app_commands.Choice(name="25-36", value="25-36"),
-    app_commands.Choice(name="0", value="0"),
-    app_commands.Choice(name="1", value="1"),
-    app_commands.Choice(name="3", value="3"),
-    app_commands.Choice(name="4", value="4"),
-    app_commands.Choice(name="5", value="5"),
-    app_commands.Choice(name="6", value="6"),
-    app_commands.Choice(name="7", value="7"),
-    app_commands.Choice(name="8", value="8"),
-    app_commands.Choice(name="9", value="9"),
-    app_commands.Choice(name="10", value="10"),
-    app_commands.Choice(name="11", value="11"),
-    app_commands.Choice(name="12", value="12"),
-    app_commands.Choice(name="13", value="13"),
-    app_commands.Choice(name="14", value="14"),
-    app_commands.Choice(name="15", value="15"),
-    app_commands.Choice(name="16", value="16"),
-    app_commands.Choice(name="17", value="17"),
-    app_commands.Choice(name="18", value="18"),
-    app_commands.Choice(name="19", value="19"),
-    app_commands.Choice(name="20", value="20"),
-    app_commands.Choice(name="21", value="21"),
-    app_commands.Choice(name="22", value="22"),
-    app_commands.Choice(name="23", value="23"),
-    app_commands.Choice(name="24", value="24"),
-    app_commands.Choice(name="25", value="25"),
-    app_commands.Choice(name="26", value="26"),
-    app_commands.Choice(name="27", value="27"),
-    app_commands.Choice(name="28", value="28"),
-    app_commands.Choice(name="29", value="29"),
-    app_commands.Choice(name="30", value="30"),
-    app_commands.Choice(name="31", value="31"),
-    app_commands.Choice(name="32", value="32"),
-    app_commands.Choice(name="33", value="33"),
-    app_commands.Choice(name="34", value="34"),
-    app_commands.Choice(name="36", value="36"),
-])
-# Fonction principale pour gérer les paris
-async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choice[str]):
-    if amount <= 0:
-        return await ctx.send("❌ Le montant doit être supérieur à 0.")
-
-    await ctx.defer()
-
+@app_commands.describe(
+    bet="Le montant à parier",
+    space="La zone sur laquelle tu paries (par exemple : Red, Black, Odd, Even, etc.)"
+)
+@app_commands.choices(
+    space=[
+        app_commands.Choice(name="Red", value="red"),
+        app_commands.Choice(name="Black", value="black"),
+        app_commands.Choice(name="Evend", value="evend"),
+        app_commands.Choice(name="Odd", value="odd"),
+        app_commands.Choice(name="1-18", value="1-18"),
+        app_commands.Choice(name="19-36", value="19-36"),
+        app_commands.Choice(name="1st", value="1st"),
+        app_commands.Choice(name="2nd", value="2nd"),
+        app_commands.Choice(name="3rd", value="3rd"),
+        app_commands.Choice(name="0", value="0"),
+        app_commands.Choice(name="1", value="1"),
+        app_commands.Choice(name="2", value="2"),
+        app_commands.Choice(name="3", value="3"),
+        app_commands.Choice(name="4", value="4"),
+        app_commands.Choice(name="5", value="5"),
+        app_commands.Choice(name="6", value="6"),
+        app_commands.Choice(name="7", value="7"),
+        app_commands.Choice(name="8", value="8"),
+        app_commands.Choice(name="9", value="9"),
+        app_commands.Choice(name="10", value="10"),
+        app_commands.Choice(name="11", value="11"),
+        app_commands.Choice(name="12", value="12"),
+        app_commands.Choice(name="13", value="13"),
+        app_commands.Choice(name="14", value="14"),
+        app_commands.Choice(name="15", value="15"),
+        app_commands.Choice(name="16", value="16"),
+        app_commands.Choice(name="17", value="17"),
+        app_commands.Choice(name="18", value="18"),
+        app_commands.Choice(name="19", value="19"),
+        app_commands.Choice(name="20", value="20"),
+        app_commands.Choice(name="21", value="21"),
+        app_commands.Choice(name="22", value="22"),
+        app_commands.Choice(name="23", value="23"),
+        app_commands.Choice(name="24", value="24"),
+        app_commands.Choice(name="25", value="25"),
+        app_commands.Choice(name="26", value="26"),
+        app_commands.Choice(name="27", value="27"),
+        app_commands.Choice(name="28", value="28"),
+        app_commands.Choice(name="29", value="29"),
+        app_commands.Choice(name="30", value="30"),
+        app_commands.Choice(name="31", value="31"),
+        app_commands.Choice(name="32", value="32"),
+        app_commands.Choice(name="33", value="33"),
+        app_commands.Choice(name="34", value="34"),
+        app_commands.Choice(name="35", value="35"),
+        app_commands.Choice(name="36", value="36"),
+    ]
+)
+async def roulette(ctx: commands.Context, bet: int, space: str):
+    # Vérifie si le joueur a assez d'argent
     guild_id = ctx.guild.id
     user_id = ctx.author.id
 
@@ -2200,97 +2182,56 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
             collection.insert_one(data)
         return data
 
-    user_data = get_or_create_user_data(guild_id, user_id)
-    cash = user_data.get("cash", 0)
+    data = get_or_create_user_data(guild_id, user_id)
+    cash = data.get("cash", 0)
 
-    if cash < amount:
-        return await ctx.send("❌ Tu n'as pas assez de cash pour parier ce montant.")
-
-    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -amount}})
-
-    embed = discord.Embed(
-        title="New roulette game started!",
-        description=f"<:Check:1362710665663615147> Tu as placé un pari de <:ecoEther:1341862366249357374> {amount} sur **{space.name}**",
-        color=discord.Color.green()
+    if bet > cash:
+        return await ctx.send(f"Tu n'as pas assez d'argent ! Tu as {cash} en cash.")
+    
+    # Déduction du montant parié
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": -bet}},
     )
-    embed.set_footer(text="Time remaining: 10 seconds after each bet (maximum 1 minute)")
 
-    view = View()
-    help_button = Button(label="Help", style=discord.ButtonStyle.primary)
-
-    async def help_callback(interaction: discord.Interaction):
-        help_embed = discord.Embed(
-            title="📘 Comment jouer à la Roulette",
-            description=(
-                "**🎯 Parier**\n"
-                "Choisis l'espace sur lequel tu penses que la balle va atterrir.\n"
-                "Tu peux parier sur plusieurs espaces en exécutant la commande à nouveau.\n"
-                "Les espaces avec une chance plus faible de gagner ont un multiplicateur de gains plus élevé.\n\n"
-                "**⏱️ Temps restant**\n"
-                "Chaque fois qu'un pari est placé, le temps restant est réinitialisé à 10 secondes, jusqu'à un maximum de 1 minute.\n\n"
-                "**💸 Multiplicateurs de gains**\n"
-                "[x36] Numéro seul\n"
-                "[x3] Douzaines (1-12, 13-24, 25-36)\n"
-                "[x3] Colonnes (1st, 2nd, 3rd)\n"
-                "[x2] Moitiés (1-18, 19-36)\n"
-                "[x2] Pair/Impair\n"
-                "[x2] Couleurs (red, black)"
-            ),
-            color=discord.Color.gold()
+    # Déroulement de la roulette
+    spin_result = random.randint(0, 36)  # Le résultat du tirage (0-36)
+    win = False
+    result_str = f"Le résultat est le {spin_result}."
+    
+    if space == "red" and spin_result in RED_NUMBERS:
+        win = True
+    elif space == "black" and spin_result in BLACK_NUMBERS:
+        win = True
+    elif space == "evend" and spin_result in EVEN_NUMBERS:
+        win = True
+    elif space == "odd" and spin_result in ODD_NUMBERS:
+        win = True
+    elif space == "1-18" and 1 <= spin_result <= 18:
+        win = True
+    elif space == "19-36" and 19 <= spin_result <= 36:
+        win = True
+    elif space == "1st" and spin_result in range(1, 37, 3):
+        win = True
+    elif space == "2nd" and spin_result in range(2, 37, 3):
+        win = True
+    elif space == "3rd" and spin_result in range(3, 37, 3):
+        win = True
+    elif space == str(spin_result):
+        win = True
+    
+    # Si le joueur gagne, il reçoit le double de sa mise
+    if win:
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"cash": bet * 2}},
         )
-        help_embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unknown.png?raw=true")
-        await interaction.response.send_message(embed=help_embed, ephemeral=True)
-
-    help_button.callback = help_callback
-    view.add_item(help_button)
-
-    await ctx.send(embed=embed, view=view)
-
-    await asyncio.sleep(random.randint(10, 60))
-
-    # Tirage aléatoire du résultat
-    result = random.choice(CHOICES)
-
-    # Cas spécifique pour le 0
-    if result == "0":
-        if space.value == "0":
-            win_amount = amount * 36
-            collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-            await ctx.send(f"La balle est tombée sur **0** : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-        else:
-            await ctx.send(f"La balle est tombée sur **0**. Pas de gagnants.")
-        return
-
-    # Vérification des paris pour "red" et "black"
-    if space.value == "red" and is_red(int(result)):
-        win_amount = amount * 2
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(f"La balle est tombée sur **{result}** (Rouge) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-    
-    elif space.value == "black" and is_black(int(result)):
-        win_amount = amount * 2
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(f"La balle est tombée sur **{result}** (Noir) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-    
-    # Vérification des paris pour "even" et "odd"
-    elif space.value == "evend" and is_even(int(result)):
-        win_amount = amount * 2
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(f"La balle est tombée sur **{result}** (Pair) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-    
-    elif space.value == "odd" and is_odd(int(result)):
-        win_amount = amount * 2
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(f"La balle est tombée sur **{result}** (Impair) : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-    
-    # Vérification des paris pour un numéro exact
-    elif space.value == result:  # Si le pari correspond au numéro exact
-        win_amount = amount * 36  # C'est le multiplicateur standard pour un numéro exact
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
-        await ctx.send(f"La balle est tombée sur **{result}** : {ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}")
-    
+        result_str += f" Félicitations ! Tu as gagné {bet * 2}."
     else:
-        await ctx.send(f"La balle est tombée sur **{result}**\nPas de gagnants")
+        result_str += " Désolé, tu as perdu."
+
+    # Envoi du message avec le résultat
+    await ctx.send(result_str)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
