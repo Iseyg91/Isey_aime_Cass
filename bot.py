@@ -877,77 +877,82 @@ async def work_error(ctx, error):
 
 @bot.hybrid_command(name="slut", description="Essaie ta chance et gagne ou perds de l'argent.")
 async def slut(ctx: commands.Context):
-    user = ctx.author
-    guild_id = ctx.guild.id
-    user_id = user.id
-    now = datetime.utcnow()
+    try:
+        user = ctx.author
+        guild_id = ctx.guild.id
+        user_id = user.id
+        now = datetime.utcnow()
 
-    print("Vérification du cooldown...")
-    cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
-    last_time = cooldown_data.get("last_slut_time")
-    print(f"Cooldown trouvé: {last_time}")
+        print("Vérification du cooldown...")
+        cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+        last_time = cooldown_data.get("last_slut_time")
+        print(f"Cooldown trouvé: {last_time}")
 
-    if last_time and (now - last_time) < timedelta(minutes=30):
-        remaining = timedelta(minutes=30) - (now - last_time)
-        minutes_left = int(remaining.total_seconds() // 60)
-        print(f"Cooldown actif. Temps restant: {minutes_left} minutes.")
-        return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{minutes_left} minutes** avant de retenter ta chance.")
+        if last_time and (now - last_time) < timedelta(minutes=30):
+            remaining = timedelta(minutes=30) - (now - last_time)
+            minutes_left = int(remaining.total_seconds() // 60)
+            print(f"Cooldown actif. Temps restant: {minutes_left} minutes.")
+            return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{minutes_left} minutes** avant de retenter ta chance.")
 
-    # Déterminer gain ou perte
-    result = random.choice(["gain", "loss"])
-    amount = random.randint(250, 2000)
-    print(f"Résultat choisi: {result}, Montant: {amount}")
+        # Déterminer gain ou perte
+        result = random.choice(["gain", "loss"])
+        amount = random.randint(250, 2000)
+        print(f"Résultat choisi: {result}, Montant: {amount}")
 
-    # Messages aléatoires
-    if result == "gain":
-        message = random.choice(gain_messages)
-        print(f"Message de gain choisi: {message}")
-        collection.update_one(
+        # Messages aléatoires
+        if result == "gain":
+            message = random.choice(gain_messages)
+            print(f"Message de gain choisi: {message}")
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$inc": {"wallet": amount}},
+                upsert=True
+            )
+            final_amount = amount
+        else:
+            message = random.choice(loss_messages)
+            print(f"Message de perte choisi: {message}")
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": user_id},
+                {"$inc": {"wallet": -amount}},
+                upsert=True
+            )
+            final_amount = -amount
+
+        # Mise à jour du cooldown
+        collection3.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": amount}},
+            {"$set": {"last_slut_time": now}},
             upsert=True
         )
-        final_amount = amount
-    else:
-        message = random.choice(loss_messages)
-        print(f"Message de perte choisi: {message}")
-        collection.update_one(
-            {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"wallet": -amount}},
-            upsert=True
+        print(f"Cooldown mis à jour pour {user_id}")
+
+        # Log économique
+        await log_eco_channel(
+            bot=bot,
+            guild_id=guild_id,
+            user=user,
+            action="Chance",
+            amount=final_amount,
+            before=None,
+            after=None,
+            reason=message
         )
-        final_amount = -amount
 
-    # Mise à jour du cooldown
-    collection3.update_one(
-        {"guild_id": guild_id, "user_id": user_id},
-        {"$set": {"last_slut_time": now}},
-        upsert=True
-    )
-    print(f"Cooldown mis à jour pour {user_id}")
+        # Embed résultat
+        embed = discord.Embed(
+            title="🎲 Résultat de ta chance",
+            description=message,
+            color=discord.Color.green() if result == "gain" else discord.Color.red()
+        )
+        embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
-    # Log économique
-    await log_eco_channel(
-        bot=bot,
-        guild_id=guild_id,
-        user=user,
-        action="Chance",
-        amount=final_amount,
-        before=None,
-        after=None,
-        reason=message
-    )
+        await ctx.send(embed=embed)
+        print("Commande exécutée avec succès.")
 
-    # Embed résultat
-    embed = discord.Embed(
-        title="🎲 Résultat de ta chance",
-        description=message,
-        color=discord.Color.green() if result == "gain" else discord.Color.red()
-    )
-    embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
-
-    await ctx.send(embed=embed)
-    print("Commande exécutée avec succès.")
+    except Exception as e:
+        print(f"Erreur dans la commande 'slut': {str(e)}")
+        await ctx.send(":classic_x_mark: Une erreur est survenue. Veuillez réessayer plus tard.")
 
 # Gestion des erreurs
 @slut.error
