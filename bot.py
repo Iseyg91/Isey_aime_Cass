@@ -2105,6 +2105,15 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
+import discord
+from discord.ext import commands
+from discord import app_commands
+from discord.ui import View, Button
+import random
+import asyncio
+
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+
 @bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
     amount="Le montant que vous souhaitez miser",
@@ -2141,16 +2150,13 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
 
-    # Embed principal
+    # Embed principal (confirmation du pari)
     embed = discord.Embed(
-        title="🎰 Roulette lancée !",
-        description=(
-            f":white_check_mark: Tu as parié **<:ecoEther:1341862366249357374>{amount}** sur **{space.name}**.\n"
-            "Le résultat sera annoncé bientôt !"
-        ),
+        title="New roulette game started!",
+        description=f"<:Check:1362710665663615147> You have placed a bet of <:ecoEther:1341862366249357374> {amount} on **{space.name}**",
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Pari placé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_footer(text="Time remaining: 10 seconds after each bet (maximum 1 minute)")
 
     # Vue avec bouton d'aide
     view = View()
@@ -2169,10 +2175,10 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
                 "**💸 Multiplicateurs de gains**\n"
                 "[x36] Numéro seul\n"
                 "[x3] Douzaines (1-12, 13-24, 25-36)\n"
-                "[x3] Colonnes (1ère, 2e, 3e)\n"
+                "[x3] Colonnes (1st, 2nd, 3rd)\n"
                 "[x2] Moitiés (1-18, 19-36)\n"
                 "[x2] Pair/Impair\n"
-                "[x2] Couleurs (rouge, noir)"
+                "[x2] Couleurs (red, black)"
             ),
             color=discord.Color.gold()
         )
@@ -2183,6 +2189,24 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     view.add_item(help_button)
 
     await ctx.send(embed=embed, view=view)
+
+    # Attente avant le résultat (entre 10 et 60 secondes)
+    await asyncio.sleep(random.randint(10, 60))
+
+    # Liste des résultats possibles (identique aux choix disponibles)
+    possible_results = [choice.value for choice in roulette.params['space'].choices]
+    result = random.choice(possible_results)
+
+    if result == space.value:
+        win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents selon l’espace
+        await ctx.send(
+            f"The ball landed on **{result}**\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {win_amount}"
+        )
+        # Ajoute ici le gain en DB si besoin
+    else:
+        await ctx.send(
+            f"The ball landed on **{result}**\n\nNo winners"
+        )
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
