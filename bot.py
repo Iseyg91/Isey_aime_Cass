@@ -2205,7 +2205,7 @@ ODD_NUMBERS = [i for i in range(1, 37, 2)]
     space=[
         app_commands.Choice(name="Red", value="red"),
         app_commands.Choice(name="Black", value="black"),
-        app_commands.Choice(name="Evend", value="evend"),
+        app_commands.Choice(name="Even", value="even"),
         app_commands.Choice(name="Odd", value="odd"),
         app_commands.Choice(name="1-18", value="1-18"),
         app_commands.Choice(name="19-36", value="19-36"),
@@ -2299,7 +2299,7 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     elif space == "black" and spin_result in BLACK_NUMBERS:
         win = True
         multiplier = 2
-    elif space == "evend" and spin_result in EVEN_NUMBERS:
+    elif space == "even" and spin_result in EVEN_NUMBERS:
         win = True
         multiplier = 2
     elif space == "odd" and spin_result in ODD_NUMBERS:
