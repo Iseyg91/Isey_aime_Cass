@@ -2416,7 +2416,19 @@ def insert_items_into_db():
     for item in ITEMS:
         # Vérifie si l'item existe déjà (basé sur l'id)
         if not collection16.find_one({"id": item["id"]}):
-            collection16.insert_one(item)
+            collection16.insert_one({
+                "id": item["id"],  # Utilisation explicite de 'id'
+                "emoji": item["emoji"],
+                "title": item["title"],
+                "description": item["description"],
+                "price": item["price"],
+                "emoji_price": item["emoji_price"],
+                "quantity": item["quantity"],
+                "tradeable": item["tradeable"],
+                "usable": item["usable"],
+                "use_effect": item["use_effect"],
+                "guild_id": item.get("guild_id", None)  # Si tu veux ajouter guild_id pour filtrer
+            })
 
 # Fonction pour générer un embed d'une page boutique
 def get_page_embed(page: int, items_per_page=10):
@@ -2473,10 +2485,6 @@ async def item_store(interaction: discord.Interaction):
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
-
-from discord import app_commands
-
-from discord import app_commands
 
 # Commande slash pour acheter un item
 @bot.tree.command(name="item_buy", description="Achète un item de la boutique via son ID.")
@@ -2539,6 +2547,7 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
         f"✅ Tu as acheté {quantity}x **{item['title']}** {item['emoji']} pour {total_price:,} {item['emoji_price']} !",
         ephemeral=True
     )
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
