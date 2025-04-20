@@ -2598,9 +2598,11 @@ async def item_info(interaction: discord.Interaction, id: int):
     user_avatar_url = user.avatar.url if user.avatar else None
 
     formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable
+
+    # Embed avec pseudo en titre et nom/description bien formatés
     embed = discord.Embed(
-        title=f"{item['emoji']} {item['title']}",
-        description=item["description"],
+        title=f"{user.display_name}",  # Pseudo en titre
+        description=f"**Name:** {item['title']}\n**Description:** {item['description']}",
         color=discord.Color.orange()
     )
 
@@ -2621,7 +2623,7 @@ async def item_info(interaction: discord.Interaction, id: int):
         embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
 
     if user_avatar_url:
-        embed.set_thumbnail(url=user_avatar_url)
+        embed.set_thumbnail(url=user_avatar_url)  # Petit en haut à gauche
 
     embed.set_footer(text="🛒 Etherya • Détails de l'item")
 
