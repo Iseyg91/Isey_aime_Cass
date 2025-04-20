@@ -195,11 +195,11 @@ async def update_top_roles():
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} est connecté.")
-    
+ 
     # Démarrage de la tâche de mise à jour des rôles
     if not update_top_roles.is_running():
         update_top_roles.start()
-    
+ 
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
     # Mise à jour du statut avec l'activité de stream "Etherya"
@@ -213,20 +213,13 @@ async def on_ready():
     for command in bot.commands:
         print(f"- {command.name}")
 
+    # Synchronisation des commandes avec un délai
+    await asyncio.sleep(1)  # Ajouter un petit délai avant de synchroniser
     try:
-        # Synchroniser les commandes avec Discord
         synced = await bot.tree.sync()  # Synchronisation des commandes slash
         print(f"✅ Commandes slash synchronisées : {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
-
-    # Vérification et re-synchronisation si nécessaire (utilisation d'un délai)
-    await asyncio.sleep(1)  # Ajouter un petit délai avant de vérifier à nouveau
-    try:
-        synced = await bot.tree.sync()  # Tentative de synchronisation supplémentaire
-        print(f"✅ Commandes slash après délai : {[cmd.name for cmd in synced]}")
-    except Exception as e:
-        print(f"❌ Erreur de synchronisation des commandes après délai : {e}")
 
 # Gestion des erreurs globales pour toutes les commandes
 @bot.event
