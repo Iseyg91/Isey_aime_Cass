@@ -2105,58 +2105,77 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
-# Fonction d'affichage de l'aide
-def help_text():
-    return """
-    **Comment jouer à la Roulette**
-    
-    **Parier**  
-    Choisis l'espace sur lequel tu penses que la balle va atterrir.  
-    Tu peux parier sur plusieurs espaces en exécutant la commande à nouveau.  
-    Les espaces avec une chance plus faible de gagner ont un multiplicateur de gains plus élevé.
-
-    **Temps restant**  
-    Chaque fois qu'un pari est placé, le temps restant est réinitialisé à 10 secondes, jusqu'à un maximum de 1 minute.
-
-    **Multiplicateurs de gains**  
-    [x36] Numéro seul  
-    [x 3] Douzaines (1-12, 13-24, 25-36)  
-    [x 3] Colonnes (1ère, 2e, 3e)  
-    [x 2] Moitiés (1-18, 19-36)  
-    [x 2] Pair/Impair  
-    [x 2] Couleurs (rouge, noir)
-    """
-
-# Commande pour démarrer un jeu de roulette
 @bot.hybrid_command(name="roulette", description="Lancez une roulette et placez vos paris !")
-async def roulette(ctx):
-    # Simuler une mise de l'utilisateur
-    amount = 100  # Exemple de montant (tu devrais le récupérer dynamiquement)
-    bet_type = "numéro 7"  # Exemple de type de pari (par exemple, "numéro 7")
+@app_commands.describe(
+    amount="Montant que vous souhaitez miser"
+)
+async def roulette(ctx: commands.Context, amount: int):
+    if amount <= 0:
+        return await ctx.send("❌ Le montant doit être supérieur à 0.")
+
+    bet_options = [
+        "red", "black", "evend", "odd", "1-18", "19-36", "1st", "2nd", "3rd",
+        "1-12", "13-24", "25-36", "0", "1", "3", "5", "7", "9", "12", "14",
+        "16", "18", "19", "21", "23"
+    ]
+
+    # Vue contenant tous les boutons
+    view = View(timeout=60)
+
+    for option in bet_options:
+        button = Button(label=option, style=discord.ButtonStyle.secondary, custom_id=f"bet_{option}")
+        
+        async def callback(interaction: discord.Interaction, opt=option):
+            if interaction.user.id != ctx.author.id:
+                return await interaction.response.send_message("❌ Tu n'as pas lancé cette roulette.", ephemeral=True)
+
+            await interaction.response.send_message(
+                f":white_check_mark: Tu as parié **<:ecoEther:1341862366249357374>{amount}** sur **{opt}**.",
+                ephemeral=True
+            )
+        
+        button.callback = callback
+        view.add_item(button)
+
+    # Bouton d'aide
+    help_button = Button(label="Aide", style=discord.ButtonStyle.primary)
     
-    # Création du bouton d'aide
-    button_help = Button(label="Aide", style=discord.ButtonStyle.primary)
+    async def help_callback(interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="📘 Comment jouer à la Roulette",
+            description=(
+                "**🎯 Parier**\n"
+                "Choisis l'espace sur lequel tu penses que la balle va atterrir.\n"
+                "Tu peux parier sur plusieurs espaces en exécutant la commande à nouveau.\n"
+                "Les espaces avec une chance plus faible de gagner ont un multiplicateur de gains plus élevé.\n\n"
+                "**⏱️ Temps restant**\n"
+                "Chaque fois qu'un pari est placé, le temps restant est réinitialisé à 10 secondes, jusqu'à un maximum de 1 minute.\n\n"
+                "**💸 Multiplicateurs de gains**\n"
+                "[x36] Numéro seul\n"
+                "[x3] Douzaines (1-12, 13-24, 25-36)\n"
+                "[x3] Colonnes (1ère, 2e, 3e)\n"
+                "[x2] Moitiés (1-18, 19-36)\n"
+                "[x2] Pair/Impair\n"
+                "[x2] Couleurs (rouge, noir)"
+            ),
+            color=discord.Color.gold()
+        )
+        embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unknown.png?raw=true")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    # Fonction d'affichage de l'aide
-    async def button_help_callback(interaction):
-        # Répondre avec l'embed d'aide
-        await interaction.response.send_message(help_text(), ephemeral=True)
+    help_button.callback = help_callback
+    view.add_item(help_button)
 
-    # Ajouter le bouton à la vue
-    button_help.callback = button_help_callback
-    view = View()
-    view.add_item(button_help)
-
-    # Création de l'embed pour la roulette
+    # Embed principal
     embed = discord.Embed(
-        title="New roulette game started!",
-        description=f":white_check_mark: You have placed a bet of <:ecoEther:1341862366249357374>{amount} on {bet_type}\n"
-                    "Time remaining: 10 seconds after each bet (maximum 1 minute)",
+        title="🎰 Roulette lancée !",
+        description=f"Tu as misé **<:ecoEther:1341862366249357374>{amount}**.\nChoisis ton pari ci-dessous ⬇️",
         color=discord.Color.green()
     )
-    
-    # Envoi de l'embed avec le bouton
+    embed.set_footer(text=f"Lancé par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
     await ctx.send(embed=embed, view=view)
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
