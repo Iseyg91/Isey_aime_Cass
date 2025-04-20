@@ -2137,9 +2137,14 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
+import random
+import discord
+from discord.ext import commands
+import asyncio
+
 # Liste des numéros par catégorie
-RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 24, 26, 28, 29, 31, 33, 35]
-BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 25, 27, 30, 32, 34, 36]
+RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
+BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35]
 EVEN_NUMBERS = [i for i in range(2, 37, 2)]
 ODD_NUMBERS = [i for i in range(1, 37, 2)]
 
@@ -2208,13 +2213,13 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     elif space == "19-36" and 19 <= spin_result <= 36:
         win = True
         multiplier = 2
-    elif space == "1st" and spin_result in range(1, 37, 3):
+    elif space == "1st" and spin_result in [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]:
         win = True
         multiplier = 3  # x3 pour 1st, 2nd, 3rd
-    elif space == "2nd" and spin_result in range(2, 37, 3):
+    elif space == "2nd" and spin_result in [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35]:
         win = True
         multiplier = 3
-    elif space == "3rd" and spin_result in range(3, 37, 3):
+    elif space == "3rd" and spin_result in [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36]:
         win = True
         multiplier = 3
     elif space == str(spin_result):
@@ -2231,8 +2236,8 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
         result_str += f" Félicitations ! Tu as gagné <:ecoEther:1341862366249357374>{bet * multiplier}."
         embed_end = discord.Embed(
             title="Roulette Result",
-            description=f"The ball landed on {space} {spin_result}.\n"
-                        f"**Winners:** {ctx.author.mention} won <:ecoEther:1341862366249357374>{bet * multiplier}",
+            description=f"La bille est tombée sur {space} {spin_result}.\n"
+                        f"**Gagnant:** {ctx.author.mention} a gagné <:ecoEther:1341862366249357374>{bet * multiplier}",
             color=discord.Color.blue()
         )
     else:
@@ -2240,8 +2245,8 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
         result_str += " Désolé, tu as perdu."
         embed_end = discord.Embed(
             title="Roulette Result",
-            description=f"The ball landed on {spin_result}.\n"
-                        f"**No winners**",
+            description=f"La bille est tombée sur {spin_result}.\n"
+                        f"**Pas de gagnant**",
             color=discord.Color.red()
         )
 
