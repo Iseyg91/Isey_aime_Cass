@@ -2112,8 +2112,18 @@ from discord.ui import View, Button
 import random
 import asyncio
 
+# Bot setup
 bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
+# Liste des résultats possibles
+CHOICES = [
+    "red", "black", "evend", "odd", "1-18", "19-36", "1st", "2nd", "3rd",
+    "1-12", "13-24", "25-36", "0", "1", "3", "5", "7", "9", "12", "14", "16",
+    "18", "19", "21", "23", "4", "6", "8", "10", "11", "13", "15", "17", "20", 
+    "22", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "36"
+]
+
+# Commande roulette
 @bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
     amount="Le montant que vous souhaitez miser",
@@ -2145,10 +2155,35 @@ bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
     app_commands.Choice(name="19", value="19"),
     app_commands.Choice(name="21", value="21"),
     app_commands.Choice(name="23", value="23"),
+    app_commands.Choice(name="4", value="4"),
+    app_commands.Choice(name="6", value="6"),
+    app_commands.Choice(name="8", value="8"),
+    app_commands.Choice(name="10", value="10"),
+    app_commands.Choice(name="11", value="11"),
+    app_commands.Choice(name="13", value="13"),
+    app_commands.Choice(name="15", value="15"),
+    app_commands.Choice(name="17", value="17"),
+    app_commands.Choice(name="20", value="20"),
+    app_commands.Choice(name="22", value="22"),
+    app_commands.Choice(name="24", value="24"),
+    app_commands.Choice(name="25", value="25"),
+    app_commands.Choice(name="26", value="26"),
+    app_commands.Choice(name="27", value="27"),
+    app_commands.Choice(name="28", value="28"),
+    app_commands.Choice(name="29", value="29"),
+    app_commands.Choice(name="30", value="30"),
+    app_commands.Choice(name="31", value="31"),
+    app_commands.Choice(name="32", value="32"),
+    app_commands.Choice(name="33", value="33"),
+    app_commands.Choice(name="34", value="34"),
+    app_commands.Choice(name="36", value="36"),
 ])
 async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choice[str]):
     if amount <= 0:
         return await ctx.send("❌ Le montant doit être supérieur à 0.")
+
+    # Signale à Discord qu'une réponse viendra plus tard
+    await ctx.defer()
 
     # Embed principal (confirmation du pari)
     embed = discord.Embed(
@@ -2193,16 +2228,16 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     # Attente avant le résultat (entre 10 et 60 secondes)
     await asyncio.sleep(random.randint(10, 60))
 
-    # Liste des résultats possibles (identique aux choix disponibles)
-    possible_results = [choice.value for choice in roulette.params['space'].choices]
-    result = random.choice(possible_results)
+    # Tirage aléatoire du résultat
+    result = random.choice(CHOICES)
 
+    # Calcul des gains
     if result == space.value:
-        win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents selon l’espace
+        win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents
         await ctx.send(
             f"The ball landed on **{result}**\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {win_amount}"
         )
-        # Ajoute ici le gain en DB si besoin
+        # Ajoute ici le gain en DB si nécessaire
     else:
         await ctx.send(
             f"The ball landed on **{result}**\n\nNo winners"
