@@ -2305,7 +2305,7 @@ async def leaderboard(
 
     guild_id = ctx.guild.id
     emoji_currency = "<:ecoEther:1341862366249357374>"
-    bank_logo = "<:Banque:1363532913563402411>"  # Logo de la banque en haut
+    bank_logo = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/1344747420159967293.png?raw=true"  # URL du logo de la banque
 
     # Vérification si l'argument contient -cash, -bank ou -total (message préfixé)
     if isinstance(ctx, commands.Context) and ctx.message.content:
