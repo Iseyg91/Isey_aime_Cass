@@ -875,96 +875,135 @@ async def work_error(ctx, error):
     )
     await ctx.send(embed=embed)
 
-@bot.hybrid_command(name="slut", description="Essaie ta chance et gagne ou perds de l'argent.")
-async def slut(ctx: commands.Context):
-    try:
-        user = ctx.author
+class SlutCommand(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @commands.hybrid_command(name="slut", description="Tente ta chance avec un slut !")
+    async def slut(self, ctx: commands.Context):
+        user_id = ctx.author.id
         guild_id = ctx.guild.id
-        user_id = user.id
+
         now = datetime.utcnow()
+        cooldown = timedelta(seconds=3600)  # 1h
+        cd_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id})
 
-        print("Vérification du cooldown...")
-        cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
-        last_time = cooldown_data.get("last_slut_time")
-        print(f"Cooldown trouvé: {last_time}")
-
-        if last_time and (now - last_time) < timedelta(minutes=30):
-            remaining = timedelta(minutes=30) - (now - last_time)
-            minutes_left = int(remaining.total_seconds() // 60)
-            print(f"Cooldown actif. Temps restant: {minutes_left} minutes.")
-            return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{minutes_left} minutes** avant de retenter ta chance.")
-
-        # Déterminer gain ou perte
-        result = random.choice(["gain", "loss"])
-        amount = random.randint(250, 2000)
-        print(f"Résultat choisi: {result}, Montant: {amount}")
-
-        # Messages aléatoires
-        if result == "gain":
-            message = random.choice(gain_messages)
-            print(f"Message de gain choisi: {message}")
-            collection.update_one(
-                {"guild_id": guild_id, "user_id": user_id},
-                {"$inc": {"wallet": amount}},
-                upsert=True
+        if cd_data and cd_data.get("last_used") and now - cd_data["last_used"] < cooldown:
+            remaining = cooldown - (now - cd_data["last_used"])
+            minutes, seconds = divmod(int(remaining.total_seconds()), 60)
+            return await ctx.reply(
+                f"⏳ Tu dois attendre encore **{minutes}m {seconds}s** avant de pouvoir utiliser cette commande à nouveau.",
+                ephemeral=True
             )
-            final_amount = amount
-        else:
-            message = random.choice(loss_messages)
-            print(f"Message de perte choisi: {message}")
-            collection.update_one(
-                {"guild_id": guild_id, "user_id": user_id},
-                {"$inc": {"wallet": -amount}},
-                upsert=True
-            )
-            final_amount = -amount
 
-        # Mise à jour du cooldown
-        collection3.update_one(
+        success = random.choice([True, False, True])  # + de chance de win
+        amount = random.randint(150, 800)
+
+        eco_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not eco_data:
+            eco_data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(eco_data)
+
+        balance_before = eco_data["cash"]
+        new_cash = balance_before + amount if success else max(0, balance_before - amount)
+
+        # Update balance
+        collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"last_slut_time": now}},
+            {"$set": {"cash": new_cash}},
             upsert=True
         )
-        print(f"Cooldown mis à jour pour {user_id}")
 
-        # Log économique
+        # Update cooldown
+        collection3.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$set": {"last_used": now}},
+            upsert=True
+        )
+
+        # Messages
+        gain_messages = [
+            f"<:Check:1362710665663615147> Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"<:Check:1362710665663615147> Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
+            f"<:Check:1362710665663615147> Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"<:Check:1362710665663615147> Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
+            f"<:Check:1362710665663615147> Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
+            f"<:Check:1362710665663615147> Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
+            f"<:Check:1362710665663615147> Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
+            f"<:Check:1362710665663615147> Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
+        ]
+
+        lose_messages = [
+            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
+            f"<:classic_x_mark:1362711858829725729> Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
+            f"<:classic_x_mark:1362711858829725729> Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
+            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
+            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
+            f"<:classic_x_mark:1362711858829725729> Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
+        ]
+
+        message = random.choice(gain_messages if success else lose_messages)
+        await ctx.reply(message)
+
+        # Log éco
         await log_eco_channel(
-            bot=bot,
-            guild_id=guild_id,
-            user=user,
-            action="Chance",
-            amount=final_amount,
-            before=None,
-            after=None,
-            reason=message
+            self.bot, guild_id, ctx.author,
+            "Slut (gain)" if success else "Slut (perte)",
+            amount, balance_before, new_cash
         )
 
-        # Embed résultat
-        embed = discord.Embed(
-            title="🎲 Résultat de ta chance",
-            description=message,
-            color=discord.Color.green() if result == "gain" else discord.Color.red()
-        )
-        embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+async def log_eco_channel(bot, guild_id, user, action, amount, balance_before, balance_after, note=""):
+    config = collection9.find_one({"guild_id": guild_id})
+    channel_id = config.get("eco_log_channel") if config else None
+    if not channel_id:
+        return
 
-        await ctx.send(embed=embed)
-        print("Commande exécutée avec succès.")
+    channel = bot.get_channel(channel_id)
+    if not channel:
+        return
 
-    except Exception as e:
-        print(f"Erreur dans la commande 'slut': {str(e)}")
-        await ctx.send(":classic_x_mark: Une erreur est survenue. Veuillez réessayer plus tard.")
-
-# Gestion des erreurs
-@slut.error
-async def slut_error(ctx, error):
     embed = discord.Embed(
-        title="<:classic_x_mark:1362711858829725729> Une erreur est survenue",
-        description="Une erreur est survenue lors de l'exécution de la commande. Veuillez réessayer plus tard.",
-        color=discord.Color.red()
+        title="💸 Log Économique",
+        color=discord.Color.gold(),
+        timestamp=datetime.utcnow()
     )
-    embed.set_footer(text=f"Erreur générée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
+    embed.add_field(name="Action", value=action, inline=True)
+    embed.add_field(name="Montant", value=f"{amount} <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="Solde", value=f"Avant: {balance_before}\nAprès: {balance_after}", inline=False)
+    if note:
+        embed.add_field(name="Note", value=note, inline=False)
 
-    await ctx.send(embed=embed)
+    await channel.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(SlutCommand(bot))
 
 @bot.hybrid_command(name="crime", description="Participe à un crime pour essayer de gagner de l'argent, mais attention, tu pourrais perdre !")
 async def crime(ctx: commands.Context):
