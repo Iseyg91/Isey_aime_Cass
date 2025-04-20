@@ -875,135 +875,97 @@ async def work_error(ctx, error):
     )
     await ctx.send(embed=embed)
 
-class SlutCommand(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+@bot.hybrid_command(name="slut", description="Tente ta chance dans une aventure sexy pour gagner de l'argent... ou tout perdre.")
+async def slut(ctx: commands.Context):
+    user = ctx.author
+    guild_id = ctx.guild.id
+    user_id = user.id
 
-    @bot.hybrid_command(name="slut", description="Tente ta chance avec un slut !")
-    async def slut(self, ctx: commands.Context):
-        user_id = ctx.author.id
-        guild_id = ctx.guild.id
+    # Vérif CD 30 min
+    now = datetime.utcnow()
+    cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    last_slut_time = cooldown_data.get("last_slut_time")
 
-        now = datetime.utcnow()
-        cooldown = timedelta(seconds=3600)  # 1h
-        cd_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id})
+    if last_slut_time:
+        time_diff = now - last_slut_time
+        if time_diff < timedelta(minutes=30):
+            remaining = timedelta(minutes=30) - time_diff
+            minutes_left = int(remaining.total_seconds() // 60)
+            return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois encore patienter **{minutes_left} minutes** avant de retenter une nouvelle aventure sexy.")
 
-        if cd_data and cd_data.get("last_used") and now - cd_data["last_used"] < cooldown:
-            remaining = cooldown - (now - cd_data["last_used"])
-            minutes, seconds = divmod(int(remaining.total_seconds()), 60)
-            return await ctx.reply(
-                f"⏳ Tu dois attendre encore **{minutes}m {seconds}s** avant de pouvoir utiliser cette commande à nouveau.",
-                ephemeral=True
-            )
+    # Déterminer le gain ou perte
+    outcome = random.choice(["gain", "loss"])
+    amount = random.randint(100, 1500)
 
-        success = random.choice([True, False, True])  # + de chance de win
-        amount = random.randint(150, 800)
+    # Récupérer solde
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    balance_before = user_data.get("cash", 0)
 
-        eco_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-        if not eco_data:
-            eco_data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
-            collection.insert_one(eco_data)
-
-        balance_before = eco_data["cash"]
-        new_cash = balance_before + amount if success else max(0, balance_before - amount)
+    if outcome == "gain":
+        messages = [
+            f"<:Check:1362710665663615147> Tu as séduit la bonne personne et reçu **{amount} <:ecoEther:1341862366249357374>** en cadeau.",
+            f"<:Check:1362710665663615147> Une nuit torride t’a valu **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as été payé pour tes charmes : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Ta prestation a fait des ravages, tu gagnes **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Ce client généreux t’a offert **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as chauffé la salle et récolté **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tes talents ont été récompensés avec **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:Check:1362710665663615147> Tu as dominé la scène, et gagné **{amount} <:ecoEther:1341862366249357374>**.",
+        ]
+        message = random.choice(messages)
 
         # Update balance
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"cash": new_cash}},
+            {"$inc": {"cash": amount}},
             upsert=True
         )
 
-        # Update cooldown
-        collection3.update_one(
+        balance_after = balance_before + amount
+        await log_eco_channel(bot, guild_id, user, "Gain après slut", amount, balance_before, balance_after)
+
+    else:
+        messages = [
+            f"<:classic_x_mark:1362711858829725729> Ton plan a échoué, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Ton client a disparu sans payer. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> T’as glissé pendant ton show… Résultat : **{amount} <:ecoEther:1341862366249357374>** de frais médicaux.",
+            f"<:classic_x_mark:1362711858829725729> Mauvais choix de client, il t’a volé **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Une nuit sans succès… Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Ton charme n’a pas opéré… Pertes : **{amount} <:ecoEther:1341862366249357374>**.",
+            f"<:classic_x_mark:1362711858829725729> Tu as été arnaqué par un faux manager. Tu perds **{amount} <:ecoEther:1341862366249357374>**.",
+        ]
+        message = random.choice(messages)
+
+        # Update balance
+        collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$set": {"last_used": now}},
+            {"$inc": {"cash": -amount}},
             upsert=True
         )
 
-        # Messages
-        gain_messages = [
-            f"<:Check:1362710665663615147> Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"<:Check:1362710665663615147> Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
-            f"<:Check:1362710665663615147> Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"<:Check:1362710665663615147> Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"<:Check:1362710665663615147> Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"<:Check:1362710665663615147> Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
-            f"<:Check:1362710665663615147> Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
-            f"<:Check:1362710665663615147> Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
-        ]
+        balance_after = balance_before - amount
+        await log_eco_channel(bot, guild_id, user, "Perte après slut", -amount, balance_before, balance_after)
 
-        lose_messages = [
-            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
-            f"<:classic_x_mark:1362711858829725729> Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
-            f"<:classic_x_mark:1362711858829725729> Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
-            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
-            f"<:classic_x_mark:1362711858829725729> Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
-        ]
-
-        message = random.choice(gain_messages if success else lose_messages)
-        await ctx.reply(message)
-
-        # Log éco
-        await log_eco_channel(
-            self.bot, guild_id, ctx.author,
-            "Slut (gain)" if success else "Slut (perte)",
-            amount, balance_before, new_cash
-        )
-
-async def log_eco_channel(bot, guild_id, user, action, amount, balance_before, balance_after, note=""):
-    config = collection9.find_one({"guild_id": guild_id})
-    channel_id = config.get("eco_log_channel") if config else None
-    if not channel_id:
-        return
-
-    channel = bot.get_channel(channel_id)
-    if not channel:
-        return
-
-    embed = discord.Embed(
-        title="💸 Log Économique",
-        color=discord.Color.gold(),
-        timestamp=datetime.utcnow()
+    # Update CD
+    collection3.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_slut_time": now}},
+        upsert=True
     )
-    embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
-    embed.add_field(name="Action", value=action, inline=True)
-    embed.add_field(name="Montant", value=f"{amount} <:ecoEther:1341862366249357374>", inline=True)
-    embed.add_field(name="Solde", value=f"Avant: {balance_before}\nAprès: {balance_after}", inline=False)
-    if note:
-        embed.add_field(name="Note", value=note, inline=False)
 
-    await channel.send(embed=embed)
+    # Embed résultat
+    embed = discord.Embed(
+        title="💋 Résultat de ta prestation",
+        description=message,
+        color=discord.Color.purple() if outcome == "gain" else discord.Color.dark_red()
+    )
+    embed.set_footer(text=f"Aventure tentée par {user}", icon_url=user.display_avatar.url)
 
-async def setup(bot):
-    await bot.add_cog(SlutCommand(bot))
+    await ctx.send(embed=embed)
+
+@slut.error
+async def slut_error(ctx, error):
+    await ctx.send("<:classic_x_mark:1362711858829725729> Une erreur est survenue pendant la commande.")
 
 @bot.hybrid_command(name="crime", description="Participe à un crime pour essayer de gagner de l'argent, mais attention, tu pourrais perdre !")
 async def crime(ctx: commands.Context):
