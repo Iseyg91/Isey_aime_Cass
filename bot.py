@@ -2394,17 +2394,29 @@ async def leaderboard(
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
 
-# Exemple d'item boutique
+import discord
+from discord.ext import commands
+from discord import app_commands
+
+# Liste d'items avec un stock limité
 ITEMS = [
     {
         "emoji": "<:emoji_11:1363592552103674096>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
-        "price": "100,000 <:ecoEther:1341862366249357374>"
-    }
-] * 25  # Pour simuler 25 items dans la boutique
+        "price": 100000,  # Prix en chiffres
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 5  # Limite de stock (modifiable)
+    },
+]
 
-# Pagination des items
+# Simulons un solde d'utilisateur
+user_balances = {
+    "user1_id": 1000000,  # Exemple : 1 million de ecoEther pour un utilisateur
+    # Ajoute plus d'utilisateurs ici si besoin
+}
+
+# Fonction pour afficher les items avec un stock limité
 def get_page_embed(page: int, items_per_page=10):
     start = page * items_per_page
     end = start + items_per_page
@@ -2413,8 +2425,8 @@ def get_page_embed(page: int, items_per_page=10):
     embed = discord.Embed(title="🛒 Boutique", color=discord.Color.green())
     for item in items:
         embed.add_field(
-            name=f"{item['price']} - {item['title']} {item['emoji']}",
-            value=item['description'],
+            name=f"{item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
+            value=f"{item['description']}\nStock: {item['quantity']}",
             inline=False
         )
     embed.set_footer(text=f"Page {page + 1}/{(len(ITEMS) - 1) // items_per_page + 1}")
@@ -2447,13 +2459,12 @@ class Paginator(discord.ui.View):
             self.page += 1
             await self.update(interaction)
 
-# Slash command
+# Commande pour afficher la boutique
 @bot.tree.command(name="item_store", description="Affiche la boutique d'items")
 async def item_store(interaction: discord.Interaction):
     embed = get_page_embed(0)
     view = Paginator(user=interaction.user)
     await interaction.response.send_message(embed=embed, view=view)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
