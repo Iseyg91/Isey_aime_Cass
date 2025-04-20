@@ -2193,63 +2193,9 @@ EVEN_NUMBERS = [i for i in range(2, 37, 2)]
 ODD_NUMBERS = [i for i in range(1, 37, 2)]
 
 # Commande pour la roulette
-@bot.hybrid_command(
+@bot.command(
     name="roulette",
-    description="Parie sur la roulette avec un montant spécifique",
-)
-@app_commands.describe(
-    bet="Le montant à parier",
-    space="La zone sur laquelle tu paries (par exemple : Red, Black, Odd, Even, etc.)"
-)
-@app_commands.choices(
-    space=[
-        app_commands.Choice(name="Red", value="red"),
-        app_commands.Choice(name="Black", value="black"),
-        app_commands.Choice(name="Even", value="even"),
-        app_commands.Choice(name="Odd", value="odd"),
-        app_commands.Choice(name="1-18", value="1-18"),
-        app_commands.Choice(name="19-36", value="19-36"),
-        app_commands.Choice(name="1st", value="1st"),
-        app_commands.Choice(name="2nd", value="2nd"),
-        app_commands.Choice(name="3rd", value="3rd"),
-        app_commands.Choice(name="0", value="0"),
-        app_commands.Choice(name="1", value="1"),
-        app_commands.Choice(name="2", value="2"),
-        app_commands.Choice(name="3", value="3"),
-        app_commands.Choice(name="4", value="4"),
-        app_commands.Choice(name="5", value="5"),
-        app_commands.Choice(name="6", value="6"),
-        app_commands.Choice(name="7", value="7"),
-        app_commands.Choice(name="8", value="8"),
-        app_commands.Choice(name="9", value="9"),
-        app_commands.Choice(name="10", value="10"),
-        app_commands.Choice(name="11", value="11"),
-        app_commands.Choice(name="12", value="12"),
-        app_commands.Choice(name="13", value="13"),
-        app_commands.Choice(name="14", value="14"),
-        app_commands.Choice(name="15", value="15"),
-        app_commands.Choice(name="16", value="16"),
-        app_commands.Choice(name="17", value="17"),
-        app_commands.Choice(name="18", value="18"),
-        app_commands.Choice(name="19", value="19"),
-        app_commands.Choice(name="20", value="20"),
-        app_commands.Choice(name="21", value="21"),
-        app_commands.Choice(name="22", value="22"),
-        app_commands.Choice(name="23", value="23"),
-        app_commands.Choice(name="24", value="24"),
-        app_commands.Choice(name="25", value="25"),
-        app_commands.Choice(name="26", value="26"),
-        app_commands.Choice(name="27", value="27"),
-        app_commands.Choice(name="28", value="28"),
-        app_commands.Choice(name="29", value="29"),
-        app_commands.Choice(name="30", value="30"),
-        app_commands.Choice(name="31", value="31"),
-        app_commands.Choice(name="32", value="32"),
-        app_commands.Choice(name="33", value="33"),
-        app_commands.Choice(name="34", value="34"),
-        app_commands.Choice(name="35", value="35"),
-        app_commands.Choice(name="36", value="36"),
-    ]
+    description="Parie sur la roulette avec un montant spécifique"
 )
 async def roulette(ctx: commands.Context, bet: int, space: str):
     # Vérifie si le joueur a assez d'argent
