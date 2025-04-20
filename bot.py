@@ -2551,12 +2551,14 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
     user = user or interaction.user
     guild_id = interaction.guild.id
 
+    # Curseur synchrone avec pymongo
     items_cursor = collection17.find({"guild_id": guild_id, "user_id": user.id})
 
     item_counts = {}
     item_details = {}
 
-    async for item in items_cursor:
+    # Boucle classique (non async)
+    for item in items_cursor:
         item_id = item["item_id"]
         item_counts[item_id] = item_counts.get(item_id, 0) + 1
         if item_id not in item_details:
@@ -2580,6 +2582,7 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
         embed.description = description.strip()
 
     await interaction.response.send_message(embed=embed)
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
