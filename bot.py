@@ -200,9 +200,7 @@ async def on_ready():
     bot.uptime = time.time()
 
     # Démarrer les tâches de fond
-    update_stats.start()
-    reward_voice.start()
-    update_voice_xp.start()
+    update_top_roles.start()
 
     guild_count = len(bot.guilds)
     member_count = sum(guild.member_count for guild in bot.guilds)
