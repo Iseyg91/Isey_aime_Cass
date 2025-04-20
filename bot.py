@@ -2583,6 +2583,34 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
 
     await interaction.response.send_message(embed=embed)
 
+# Commande slash /item_info
+@bot.tree.command(name="item_info", description="Affiche toutes les informations d'un item de la boutique")
+@app_commands.describe(id="ID de l'item à consulter")
+async def item_info(interaction: discord.Interaction, id: int):
+    item = collection16.find_one({"id": id})
+    
+    if not item:
+        return await interaction.response.send_message("❌ Aucun item trouvé avec cet ID.", ephemeral=True)
+
+    embed = discord.Embed(
+        title=f"{item['emoji']} {item['title']}",
+        description=item["description"],
+        color=discord.Color.gold()
+    )
+
+    embed.add_field(name="🆔 ID", value=str(item["id"]), inline=True)
+    embed.add_field(name="💰 Prix", value=f"{item['price']} {item['emoji_price']}", inline=True)
+    embed.add_field(name="📦 Quantité disponible", value=str(item["quantity"]), inline=True)
+
+    embed.add_field(name="🔁 Échangeable", value="✅ Oui" if item.get("tradeable") else "❌ Non", inline=True)
+    embed.add_field(name="🛠️ Utilisable", value="✅ Oui" if item.get("usable") else "❌ Non", inline=True)
+
+    if item.get("use_effect"):
+        embed.add_field(name="🎯 Effet à l'utilisation", value=item["use_effect"], inline=False)
+
+    embed.set_footer(text="Project: Delta | Infos sur l'item")
+
+    await interaction.response.send_message(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
