@@ -2348,6 +2348,8 @@ async def leaderboard(
         )
         embed.set_author(name="Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
         
+        leaderboard_content = ""
+
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
             user = ctx.guild.get_member(user_data["user_id"])
             name = user.display_name if user else f"Utilisateur {user_data['user_id']}"
@@ -2355,7 +2357,7 @@ async def leaderboard(
             bank = user_data.get("bank", 0)
             total = cash + bank
 
-    # Choisir la valeur à afficher en fonction du tri
+            # Choisir la valeur à afficher en fonction du tri
             if sort == "cash":
                 amount = cash
             elif sort == "bank":
@@ -2367,12 +2369,13 @@ async def leaderboard(
             rank_str = f"{i}.".rjust(4)  # Numéro de classement avec padding
             line = f"{rank_str}  `{name}` • {emoji_currency} {amount:,}"
 
-            embed.add_field(
-                name=line,
-                value="\u200b",  # Espace vide pour ne pas créer d'autre champ
-                inline=False
-            )
+            leaderboard_content += line + "\n"  # Ajouter un retour à la ligne après chaque utilisateur
 
+        embed.add_field(
+            name="Leaderboard",
+            value=leaderboard_content,  # Ajouter toutes les lignes d'un coup
+            inline=False
+        )
 
         # Pagination info
         user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
