@@ -192,36 +192,60 @@ async def update_top_roles():
                     print(f"Retiré {role.name} de {member.display_name}")
 
 
+# Événement quand le bot est prêt
 @bot.event
 async def on_ready():
-    print(f"{bot.user.name} est connecté.")
- 
-    # Démarrage de la tâche de mise à jour des rôles
-    if not update_top_roles.is_running():
-        update_top_roles.start()
- 
+    bot.add_view(TicketView(author_id=ISEY_ID))  # pour bouton "Passé Commande"
+    bot.add_view(ClaimCloseView())               # pour "Claim" et "Fermer"
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
-    # Mise à jour du statut avec l'activité de stream "Etherya"
-    activity = discord.Activity(type=discord.ActivityType.streaming, name="Etherya", url="https://www.twitch.tv/tonstream")
-    await bot.change_presence(activity=activity, status=discord.Status.online)
+    bot.uptime = time.time()
 
-    print(f"🎉 **{bot.user}** est maintenant connecté et affiche son activité de stream avec succès !")
+    # Démarrer les tâches de fond
+    update_stats.start()
+    reward_voice.start()
+    update_voice_xp.start()
 
-    # Affichage des commandes disponibles
+    guild_count = len(bot.guilds)
+    member_count = sum(guild.member_count for guild in bot.guilds)
+
+    print(f"\n📊 **Statistiques du bot :**")
+    print(f"➡️ **Serveurs** : {guild_count}")
+    print(f"➡️ **Utilisateurs** : {member_count}")
+
+    activity_types = [
+        discord.Activity(type=discord.ActivityType.watching, name=f"{member_count} Membres"),
+        discord.Activity(type=discord.ActivityType.streaming, name=f"{guild_count} Serveurs"),
+        discord.Activity(type=discord.ActivityType.streaming, name="Project : Delta"),
+    ]
+
+    status_types = [discord.Status.online, discord.Status.idle, discord.Status.dnd]
+
+    await bot.change_presence(
+        activity=random.choice(activity_types),
+        status=random.choice(status_types)
+    )
+
+    print(f"\n🎉 **{bot.user}** est maintenant connecté et affiche ses statistiques dynamiques avec succès !")
     print("📌 Commandes disponibles 😊")
     for command in bot.commands:
         print(f"- {command.name}")
 
-    # Synchronisation des commandes avec un délai
-    await asyncio.sleep(1)  # Ajouter un petit délai avant de synchroniser
     try:
-        synced = await bot.tree.sync()  # Synchronisation des commandes slash
+        synced = await bot.tree.sync()
         print(f"✅ Commandes slash synchronisées : {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
 
-# Gestion des erreurs globales pour toutes les commandes
+    while True:
+        for activity in activity_types:
+            for status in status_types:
+                await bot.change_presence(activity=activity, status=status)
+                await asyncio.sleep(10)
+
+        for guild in bot.guilds:
+            GUILD_SETTINGS[guild.id] = load_guild_settings(guild.id)
+
 @bot.event
 async def on_error(event, *args, **kwargs):
     print(f"Une erreur s'est produite : {event}")
@@ -230,7 +254,26 @@ async def on_error(event, *args, **kwargs):
         description="Une erreur s'est produite lors de l'exécution de la commande. Veuillez réessayer plus tard.",
         color=discord.Color.red()
     )
-    await args[0].response.send_message(embed=embed)
+    
+    # Vérifie si args[0] est une Interaction
+    if isinstance(args[0], discord.Interaction):
+        await args[0].response.send_message(embed=embed)
+    elif isinstance(args[0], discord.Message):
+        # Si c'est un message, envoie l'embed dans le canal du message
+        await args[0].channel.send(embed=embed)
+    elif isinstance(args[0], discord.abc.GuildChannel):
+        # Si c'est un canal de type GuildChannel, assure-toi que c'est un canal textuel
+        if isinstance(args[0], discord.TextChannel):
+            await args[0].send(embed=embed)
+        else:
+            # Si c'est un autre type de canal (comme un canal vocal), essaye de rediriger le message vers un canal textuel spécifique
+            text_channel = discord.utils.get(args[0].guild.text_channels, name='ton-salon-textuel')
+            if text_channel:
+                await text_channel.send(embed=embed)
+            else:
+                print("Erreur : Aucun salon textuel trouvé pour envoyer l'embed.")
+    else:
+        print("Erreur : Le type de l'objet n'est pas pris en charge pour l'envoi du message.")
 
 @bot.event
 async def on_message(message):
