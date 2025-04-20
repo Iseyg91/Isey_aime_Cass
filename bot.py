@@ -2341,7 +2341,7 @@ async def leaderboard(
         end_index = start_index + page_size
         users_on_page = sorted_users[start_index:end_index]
 
-        embed = discord.Embed(title=title, color=discord.Color.gold())
+        embed = discord.Embed(title=title, color=discord.Color.blue())  # Couleur modifiée en bleu
         embed.add_field(
             name=f"{emoji_banque} Leaderboard",
             value="View the leaderboard online here.",
@@ -2357,11 +2357,11 @@ async def leaderboard(
             total = cash + bank
 
             if sort == "cash":
-                value = f"💸 {cash:,} {emoji_currency}"
+                value = f"{cash:,} {emoji_currency}"
             elif sort == "bank":
-                value = f"🏦 {bank:,} {emoji_currency}"
+                value = f"{bank:,} {emoji_currency}"
             else:
-                value = f"📊 {total:,} {emoji_currency}"
+                value = f"{total:,} {emoji_currency}"
 
             embed.add_field(
                 name=f"{i}. {name}",
