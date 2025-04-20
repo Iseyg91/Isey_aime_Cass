@@ -2408,7 +2408,7 @@ ITEMS = [
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
         "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
-        "quantity": 0,
+        "quantity": 5,
         "tradeable": False,
         "usable": True,
         "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker."
