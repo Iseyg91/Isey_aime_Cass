@@ -2405,24 +2405,24 @@ from pymongo import MongoClient
 # Exemple d'items dans la boutique
 ITEMS = [
     {
-        "id": 91,
+        "id": 34,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
-        "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
+        "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
         "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 5,
         "tradeable": False,
         "usable": True,
-        "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker."
+        "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker.",
+        "requirements": "Niveau 10 minimum"
     },
-    # Ajoute plus d'items ici...
+    # Tu peux ajouter d'autres items ici...
 ]
 
 # Fonction pour insérer les items dans MongoDB
 def insert_items_into_db():
     for item in ITEMS:
-        # Vérifie si l'item existe déjà (basé sur l'id)
         if not collection16.find_one({"id": item["id"]}):
             collection16.insert_one(item)
 
@@ -2434,11 +2434,14 @@ def get_page_embed(page: int, items_per_page=10):
     embed = discord.Embed(title="🛒 Boutique", color=discord.Color.blue())
 
     for item in items:
-        embed.add_field(
-            name=f"ID: {item['id']} | {item['price']} {item['emoji_price']} - {item['title']} {item['emoji']}",
-            value=f"{item['description']}",
-            inline=False
-        )
+        formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable pour un affichage plus propre
+        name_line = f"ID: {item['id']} | {formatted_price} {item['emoji_price']} - {item['title']} {item['emoji']}"
+        
+        value = item["description"]
+        if "requirements" in item:
+            value += f"\n**Requirements :** {item['requirements']}"
+
+        embed.add_field(name=name_line, value=value, inline=False)
 
     total_pages = (len(ITEMS) - 1) // items_per_page + 1
     embed.set_footer(text=f"Page {page + 1}/{total_pages}")
@@ -2583,7 +2586,6 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
 
     await interaction.response.send_message(embed=embed)
 
-# Commande slash /item_info
 @bot.tree.command(name="item_info", description="Affiche toutes les informations d'un item de la boutique")
 @app_commands.describe(id="ID de l'item à consulter")
 async def item_info(interaction: discord.Interaction, id: int):
@@ -2592,30 +2594,37 @@ async def item_info(interaction: discord.Interaction, id: int):
     if not item:
         return await interaction.response.send_message("❌ Aucun item trouvé avec cet ID.", ephemeral=True)
 
+    user = interaction.user
+    user_avatar_url = user.avatar.url if user.avatar else None
+
+    formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable
     embed = discord.Embed(
-        title=f"{item['title']}",
+        title=f"{item['emoji']} {item['title']}",
         description=item["description"],
-        color=discord.Color.gold()
+        color=discord.Color.orange()
     )
 
-    embed.add_field(name=" ID", value=str(item["id"]), inline=True)
-    embed.add_field(name=" Prix", value=f"{item['price']} {item['emoji_price']}", inline=True)
-    embed.add_field(name=" Quantité disponible", value=str(item["quantity"]), inline=True)
+    embed.add_field(name="ID", value=str(item["id"]), inline=True)
+    embed.add_field(name="Prix", value=f"{formatted_price} {item['emoji_price']}", inline=True)
+    embed.add_field(name="Quantité", value=str(item.get("quantity", "Indisponible")), inline=True)
 
-    embed.add_field(name=" Échangeable", value="✅ Oui" if item.get("tradeable") else "❌ Non", inline=True)
-    embed.add_field(name=" Utilisable", value="✅ Oui" if item.get("usable") else "❌ Non", inline=True)
+    tradeable = "✅ Oui" if item.get("tradeable", False) else "❌ Non"
+    usable = "✅ Oui" if item.get("usable", False) else "❌ Non"
+
+    embed.add_field(name="Échangeable", value=tradeable, inline=True)
+    embed.add_field(name="Utilisable", value=usable, inline=True)
 
     if item.get("use_effect"):
-        embed.add_field(name=" Effet à l'utilisation", value=item["use_effect"], inline=False)
+        embed.add_field(name="Effet à l'utilisation", value=item["use_effect"], inline=False)
 
-    embed.set_footer(text="Etherya | Infos sur l'item")
+    if item.get("requirements"):
+        embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
 
-    # Ajout de l'emoji en image (en utilisant l'emoji comme image de l'embed)
-    emoji = item["emoji"]
-    if emoji:
-        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{emoji.split(':')[2].split('>')[0]}.png")
+    if user_avatar_url:
+        embed.set_thumbnail(url=user_avatar_url)
 
-    # Envoie du message avec l'embed
+    embed.set_footer(text="🛒 Etherya • Détails de l'item")
+
     await interaction.response.send_message(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
