@@ -60,6 +60,7 @@ collection13 = db['info_sm'] #Stock les Info de SM
 collection14 = db['ether_rob'] #Stock les cd de Rob
 collection15 = db['anti_rob'] #Stock les rôle anti-rob
 collection16 = db['ether_boutique'] #Stock les Items dans la boutique
+collection17 = db['joueur_ether_inventaire'] #Stock les items de joueurs
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -118,6 +119,7 @@ def load_guild_settings(guild_id):
     ether_rob_data = collection14.find_one({"guild_id": guild_id}) or {}
     anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {}
     ether_boutique_data = collection16.find_one({"guild_id": guild_id}) or {}
+    joueur_ether_inventaire_data = collection17.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -138,7 +140,8 @@ def load_guild_settings(guild_id):
         "info_sm": info_sm_data,
         "ether_rob": ether_rob_data,
         "anti_rob": anti_rob_data,
-        "ether_boutique": ether_boutique_data
+        "ether_boutique": ether_boutique_data,
+        "joueur_ether_inventaire": joueur_ether_inventaire_data
 
     }
 
@@ -2402,7 +2405,7 @@ from pymongo import MongoClient
 # Exemple d'items dans la boutique
 ITEMS = [
     {
-        "id": 5,
+        "id": 91,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
@@ -2478,41 +2481,33 @@ async def item_store(interaction: discord.Interaction):
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
 
-# Commande slash pour acheter un item
 @bot.tree.command(name="item_buy", description="Achète un item de la boutique via son ID.")
 @app_commands.describe(item_id="ID de l'item à acheter", quantity="Quantité à acheter (défaut: 1)")
 async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int = 1):
     user_id = interaction.user.id
     guild_id = interaction.guild.id
 
-    # Recherche de l'item dans la collection MongoDB (sans guild_id dans la recherche pour tester)
     item = collection16.find_one({"id": item_id})
-
     if not item:
         return await interaction.response.send_message("❌ Item introuvable.", ephemeral=True)
-
-    # Vérifie stock
     if quantity <= 0:
         return await interaction.response.send_message("❌ Quantité invalide.", ephemeral=True)
-
     if item["quantity"] < quantity:
         return await interaction.response.send_message("❌ Stock insuffisant pour cet achat.", ephemeral=True)
 
-    # Vérifie solde utilisateur
     user_data = collection.find_one({"user_id": user_id, "guild_id": guild_id}) or {"cash": 0}
     total_price = item["price"] * quantity
-
     if user_data["cash"] < total_price:
         return await interaction.response.send_message("❌ Tu n'as pas assez de <:ecoEther:1341862366249357374>.", ephemeral=True)
 
-    # Mise à jour du solde utilisateur (retirer l'argent)
+    # Retirer l'argent
     collection.update_one(
         {"user_id": user_id, "guild_id": guild_id},
-        {"$inc": {"cash": -total_price}},  # Réduit le solde en cash de l'utilisateur
+        {"$inc": {"cash": -total_price}},
         upsert=True
     )
 
-    # Stocker les items dans le MongoDB (collection7 = inventory)
+    # Mise à jour de l'inventaire simple (collection7)
     existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
     if existing:
         inventory = existing.get("items", {})
@@ -2528,17 +2523,57 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
             "items": {str(item_id): quantity}
         })
 
-    # Mise à jour du stock dans la collection MongoDB (collection16)
+    # Mise à jour de l'inventaire structuré (collection17)
+    for _ in range(quantity):
+        collection17.insert_one({
+            "guild_id": guild_id,
+            "user_id": user_id,
+            "item_id": item_id,
+            "item_name": item["title"],
+            "emoji": item.get("emoji"),
+            "price": item["price"],
+            "acquired_at": datetime.utcnow()
+        })
+
+    # Mise à jour du stock boutique
     collection16.update_one(
-        {"id": item_id},  # Recherche par "id" au lieu de "guild_id"
+        {"id": item_id},
         {"$inc": {"quantity": -quantity}}
     )
 
-    # Message de confirmation
     await interaction.response.send_message(
         f"✅ Tu as acheté {quantity}x **{item['title']}** {item['emoji']} pour {total_price:,} {item['emoji_price']} !",
         ephemeral=True
     )
+
+@bot.tree.command(name="item_inventory", description="Affiche l'inventaire d'un utilisateur")
+async def item_inventory(interaction: discord.Interaction, user: discord.User = None):
+    user = user or interaction.user
+
+    # Cherche l'inventaire dans la collection17
+    data = collection17.find_one({"guild_id": interaction.guild.id, "user_id": user.id})
+
+    embed = discord.Embed(
+        title=f"🎒 Inventaire de {user.display_name}",
+        color=discord.Color.blurple()
+    )
+
+    if not data or "items" not in data or not data["items"]:
+        embed.description = "Aucun item trouvé dans l'inventaire."
+    else:
+        description = ""
+        for item_id, quantity in data["items"].items():
+            item_info = collection16.find_one({"id": item_id})
+            if not item_info:
+                continue  # Si l'item n'existe pas dans la boutique
+
+            name = item_info.get("name", "Nom inconnu")
+            desc = item_info.get("description", "Pas de description.")
+            description += f"{quantity} - {name} - [ID: {item_id}]\n{desc}\n\n"
+
+        embed.description = description.strip()
+
+    await interaction.response.send_message(embed=embed)
 
 
 # Token pour démarrer le bot (à partir des secrets)
