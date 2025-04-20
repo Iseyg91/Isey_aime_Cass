@@ -2287,7 +2287,7 @@ async def daily(ctx: commands.Context):
         note="Commande /daily"
     )
 from discord import app_commands
-from typing import Literal
+from typing import Optional
 import discord
 from discord.ui import Button, View
 
@@ -2296,10 +2296,9 @@ from discord.ui import Button, View
     aliases=["lb"],
     description="Affiche le classement des plus riches"
 )
-@app_commands.describe(sort="Choisir le type de classement")
 async def leaderboard(
     ctx: commands.Context,
-    sort: Literal["total", "cash", "bank"] = "total"
+    sort: Optional[str] = "total"  # On accepte une chaîne de texte pour sort, default to "total"
 ):
     if ctx.guild is None:
         return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
@@ -2308,7 +2307,7 @@ async def leaderboard(
     emoji_currency = "<:ecoEther:1341862366249357374>"
     emoji_banque = "<:Banque:1363532913563402411>"
 
-    # Gestion du préfixé (message.content)
+    # Vérification si l'argument contient -cash, -bank ou -total (message préfixé)
     if isinstance(ctx, commands.Context) and ctx.message.content:
         content = ctx.message.content.lower()
         if "-cash" in content:
@@ -2341,7 +2340,7 @@ async def leaderboard(
         end_index = start_index + page_size
         users_on_page = sorted_users[start_index:end_index]
 
-        embed = discord.Embed(title=title, color=discord.Color.blue())  # Couleur modifiée en bleu
+        embed = discord.Embed(title=title, color=discord.Color.gold())
         embed.add_field(
             name=f"{emoji_banque} Leaderboard",
             value="View the leaderboard online here.",
@@ -2357,11 +2356,11 @@ async def leaderboard(
             total = cash + bank
 
             if sort == "cash":
-                value = f"{cash:,} {emoji_currency}"
+                value = f"💸 {cash:,} {emoji_currency}"
             elif sort == "bank":
-                value = f"{bank:,} {emoji_currency}"
+                value = f"🏦 {bank:,} {emoji_currency}"
             else:
-                value = f"{total:,} {emoji_currency}"
+                value = f"📊 {total:,} {emoji_currency}"
 
             embed.add_field(
                 name=f"{i}. {name}",
