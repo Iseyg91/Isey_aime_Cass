@@ -2137,26 +2137,27 @@ async def russianroulette(ctx, arg: str):
             color=discord.Color.from_rgb(255, 92, 92)
         ))
 
-import random
-import discord
-from discord.ext import commands
-import asyncio
+# Set pour suivre les joueurs ayant une roulette en cours
+active_roulette_players = set()
 
-# Liste des numéros par catégorie
+# Numéros corrigés
 RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]
 BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35]
 EVEN_NUMBERS = [i for i in range(2, 37, 2)]
 ODD_NUMBERS = [i for i in range(1, 37, 2)]
+COLUMN_1 = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]
+COLUMN_2 = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35]
+COLUMN_3 = [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36]
 
-# Commande pour la roulette
-@bot.command(
-    name="roulette",
-    description="Parie sur la roulette avec un montant spécifique"
-)
+@bot.command(name="roulette", description="Parie sur la roulette avec un montant spécifique")
 async def roulette(ctx: commands.Context, bet: int, space: str):
-    # Vérifie si le joueur a assez d'argent
     guild_id = ctx.guild.id
     user_id = ctx.author.id
+
+    if user_id in active_roulette_players:
+        return await ctx.send("⏳ Tu as déjà une roulette en cours ! Attends qu'elle se termine.")
+
+    active_roulette_players.add(user_id)
 
     def get_or_create_user_data(guild_id: int, user_id: int):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -2169,89 +2170,93 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     cash = data.get("cash", 0)
 
     if bet > cash:
+        active_roulette_players.remove(user_id)
         return await ctx.send(f"Tu n'as pas assez d'argent ! Tu as {cash} en cash.")
-    
-    # Déduction du montant parié
-    collection.update_one(
-        {"guild_id": guild_id, "user_id": user_id},
-        {"$inc": {"cash": -bet}},
-    )
 
-    # Création de l'embed de démarrage de la roulette
-    embed_start = discord.Embed(
+    # Déduction du montant parié
+    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -bet}})
+
+    # Embed de démarrage
+    embed = discord.Embed(
         title="New roulette game started!",
-        description=f" <:Check:1362710665663615147> Tu as placé un pari de <:ecoEther:1341862366249357374>{bet} sur {space}\n"
-                    f"Time remaining: 10 seconds",
+        description=f"🎰 Tu as parié <:ecoEther:1341862366249357374>{bet} sur **{space}**\n"
+                    f"⏳ Temps restant: 10 secondes",
         color=discord.Color.green()
     )
-    await ctx.send(embed=embed_start)
 
-    # Attente de 10 secondes avant le tirage
+    # Bouton Help
+    view = View()
+    help_button = Button(label="Help", style=discord.ButtonStyle.primary)
+
+    async def help_callback(interaction: discord.Interaction):
+        help_embed = discord.Embed(
+            title="📘 Comment jouer à la Roulette",
+            description=(
+                "**🎯 Parier**\n"
+                "Choisis l'espace sur lequel tu penses que la balle va atterrir.\n"
+                "Tu peux parier sur plusieurs espaces en exécutant la commande à nouveau.\n"
+                "Les espaces avec une chance plus faible de gagner ont un multiplicateur de gains plus élevé.\n\n"
+                "**⏱️ Temps restant**\n"
+                "Chaque fois qu'un pari est placé, le temps restant est réinitialisé à 10 secondes, jusqu'à un maximum de 1 minute.\n\n"
+                "**💸 Multiplicateurs de gains**\n"
+                "[x36] Numéro seul\n"
+                "[x3] Douzaines (1-12, 13-24, 25-36)\n"
+                "[x3] Colonnes (1st, 2nd, 3rd)\n"
+                "[x2] Moitiés (1-18, 19-36)\n"
+                "[x2] Pair/Impair\n"
+                "[x2] Couleurs (red, black)"
+            ),
+            color=discord.Color.gold()
+        )
+        help_embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unknown.png?raw=true")
+        await interaction.response.send_message(embed=help_embed, ephemeral=True)
+
+    help_button.callback = help_callback
+    view.add_item(help_button)
+
+    await ctx.send(embed=embed, view=view)
     await asyncio.sleep(10)
 
-    # Déroulement de la roulette
-    spin_result = random.randint(0, 36)  # Le résultat du tirage (0-36)
+    spin_result = random.randint(0, 36)
     win = False
-    result_str = f"Le résultat est le {spin_result}."
+    multiplier = 0
 
     # Vérification du pari
     if space == "red" and spin_result in RED_NUMBERS:
-        win = True
-        multiplier = 2  # Le double pour un pari sur rouge/noir
+        win, multiplier = True, 2
     elif space == "black" and spin_result in BLACK_NUMBERS:
-        win = True
-        multiplier = 2
+        win, multiplier = True, 2
     elif space == "even" and spin_result in EVEN_NUMBERS:
-        win = True
-        multiplier = 2
+        win, multiplier = True, 2
     elif space == "odd" and spin_result in ODD_NUMBERS:
-        win = True
-        multiplier = 2
+        win, multiplier = True, 2
     elif space == "1-18" and 1 <= spin_result <= 18:
-        win = True
-        multiplier = 2
+        win, multiplier = True, 2
     elif space == "19-36" and 19 <= spin_result <= 36:
-        win = True
-        multiplier = 2
-    elif space == "1st" and spin_result in [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34]:
-        win = True
-        multiplier = 3  # x3 pour 1st, 2nd, 3rd
-    elif space == "2nd" and spin_result in [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35]:
-        win = True
-        multiplier = 3
-    elif space == "3rd" and spin_result in [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36]:
-        win = True
-        multiplier = 3
+        win, multiplier = True, 2
+    elif space == "1st" and spin_result in COLUMN_1:
+        win, multiplier = True, 3
+    elif space == "2nd" and spin_result in COLUMN_2:
+        win, multiplier = True, 3
+    elif space == "3rd" and spin_result in COLUMN_3:
+        win, multiplier = True, 3
     elif space == str(spin_result):
-        win = True
-        multiplier = 36  # x36 pour un pari sur un seul numéro
+        win, multiplier = True, 36
 
     # Message de gain ou de perte
     if win:
-        # Le joueur gagne
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"cash": bet * multiplier}},
         )
-        result_str += f" Félicitations ! Tu as gagné <:ecoEther:1341862366249357374>{bet * multiplier}."
-        embed_end = discord.Embed(
-            title="Roulette Result",
-            description=f"La bille est tombée sur {space} {spin_result}.\n"
-                        f"**Gagnant:** {ctx.author.mention} a gagné <:ecoEther:1341862366249357374>{bet * multiplier}",
-            color=discord.Color.blue()
-        )
+        result_str = f"The ball landed on: **{spin_result}**!\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {bet * multiplier}"
     else:
-        # Le joueur perd
-        result_str += " Désolé, tu as perdu."
-        embed_end = discord.Embed(
-            title="Roulette Result",
-            description=f"La bille est tombée sur {spin_result}.\n"
-                        f"**Pas de gagnant**",
-            color=discord.Color.red()
-        )
+        result_str = f"The ball landed on: {spin_result}!\n\nNo Winners  :("
 
-    # Envoi du message de résultat
-    await ctx.send(embed=embed_end)
+    await ctx.send(result_str)
+
+    # Libération du joueur
+    active_roulette_players.remove(user_id)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
