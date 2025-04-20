@@ -2593,23 +2593,29 @@ async def item_info(interaction: discord.Interaction, id: int):
         return await interaction.response.send_message("❌ Aucun item trouvé avec cet ID.", ephemeral=True)
 
     embed = discord.Embed(
-        title=f"{item['emoji']} {item['title']}",
+        title=f"{item['title']}",
         description=item["description"],
         color=discord.Color.gold()
     )
 
-    embed.add_field(name="🆔 ID", value=str(item["id"]), inline=True)
-    embed.add_field(name="💰 Prix", value=f"{item['price']} {item['emoji_price']}", inline=True)
-    embed.add_field(name="📦 Quantité disponible", value=str(item["quantity"]), inline=True)
+    embed.add_field(name=" ID", value=str(item["id"]), inline=True)
+    embed.add_field(name=" Prix", value=f"{item['price']} {item['emoji_price']}", inline=True)
+    embed.add_field(name=" Quantité disponible", value=str(item["quantity"]), inline=True)
 
-    embed.add_field(name="🔁 Échangeable", value="✅ Oui" if item.get("tradeable") else "❌ Non", inline=True)
-    embed.add_field(name="🛠️ Utilisable", value="✅ Oui" if item.get("usable") else "❌ Non", inline=True)
+    embed.add_field(name=" Échangeable", value="✅ Oui" if item.get("tradeable") else "❌ Non", inline=True)
+    embed.add_field(name=" Utilisable", value="✅ Oui" if item.get("usable") else "❌ Non", inline=True)
 
     if item.get("use_effect"):
-        embed.add_field(name="🎯 Effet à l'utilisation", value=item["use_effect"], inline=False)
+        embed.add_field(name=" Effet à l'utilisation", value=item["use_effect"], inline=False)
 
-    embed.set_footer(text="Project: Delta | Infos sur l'item")
+    embed.set_footer(text="Etherya | Infos sur l'item")
 
+    # Ajout de l'emoji en image (en utilisant l'emoji comme image de l'embed)
+    emoji = item["emoji"]
+    if emoji:
+        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{emoji.split(':')[2].split('>')[0]}.png")
+
+    # Envoie du message avec l'embed
     await interaction.response.send_message(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
