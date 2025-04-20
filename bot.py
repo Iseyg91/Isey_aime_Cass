@@ -154,7 +154,7 @@ TOP_ROLES = {
     3: 1362832919789572178,  # ID du rôle Top 3
 }
 
-@tasks.loop(seconds=5)  # vérifie toutes les 60 secondes
+@tasks.loop(seconds=5)  # Vérifie toutes les 5 secondes
 async def update_top_roles():
     for guild in bot.guilds:
         all_users_data = list(collection.find({"guild_id": guild.id}))
@@ -230,12 +230,16 @@ async def on_ready():
     for command in bot.commands:
         print(f"- {command.name}")
 
+    # Synchronisation des commandes slash
     try:
         synced = await bot.tree.sync()
         print(f"✅ Commandes slash synchronisées : {[cmd.name for cmd in synced]}")
+    except discord.HTTPException as e:
+        print(f"❌ Erreur HTTP lors de la synchronisation des commandes : {e}")
     except Exception as e:
-        print(f"❌ Erreur de synchronisation des commandes slash : {e}")
+        print(f"❌ Erreur inconnue lors de la synchronisation des commandes : {e}")
 
+    # Activité du bot avec alternance
     while True:
         for activity in activity_types:
             for status in status_types:
@@ -245,6 +249,8 @@ async def on_ready():
         for guild in bot.guilds:
             GUILD_SETTINGS[guild.id] = load_guild_settings(guild.id)
 
+
+# Gestion des erreurs inattendues
 @bot.event
 async def on_error(event, *args, **kwargs):
     print(f"Une erreur s'est produite : {event}")
