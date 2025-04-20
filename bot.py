@@ -195,8 +195,6 @@ async def update_top_roles():
 # Événement quand le bot est prêt
 @bot.event
 async def on_ready():
-    bot.add_view(TicketView(author_id=ISEY_ID))  # pour bouton "Passé Commande"
-    bot.add_view(ClaimCloseView())               # pour "Claim" et "Fermer"
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
     bot.uptime = time.time()
