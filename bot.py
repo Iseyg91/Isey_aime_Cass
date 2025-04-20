@@ -882,68 +882,26 @@ async def slut(ctx: commands.Context):
     user_id = user.id
     now = datetime.utcnow()
 
-    # Vérification du cooldown de 30 minutes
+    print("Vérification du cooldown...")
     cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     last_time = cooldown_data.get("last_slut_time")
+    print(f"Cooldown trouvé: {last_time}")
 
     if last_time and (now - last_time) < timedelta(minutes=30):
         remaining = timedelta(minutes=30) - (now - last_time)
         minutes_left = int(remaining.total_seconds() // 60)
+        print(f"Cooldown actif. Temps restant: {minutes_left} minutes.")
         return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{minutes_left} minutes** avant de retenter ta chance.")
 
     # Déterminer gain ou perte
     result = random.choice(["gain", "loss"])
     amount = random.randint(250, 2000)
+    print(f"Résultat choisi: {result}, Montant: {amount}")
 
     # Messages aléatoires
-    gain_messages = [
-            f"<:Check:1362710665663615147> Tu as eu de la chance et gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Félicitations ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Bravo, tu as gagné **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"<:Check:1362710665663615147> Tu as réussi à gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Bien joué ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Une grande chance t'a souri, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Continue comme ça !",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
-            f"<:Check:1362710665663615147> Chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Une belle récompense ! **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"<:Check:1362710665663615147> Tu as récolté **{amount} <:ecoEther:1341862366249357374>** grâce à ta chance.",
-            f"<:Check:1362710665663615147> Tu es vraiment chanceux, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as fait un gros coup, **{amount} <:ecoEther:1341862366249357374>** pour toi.",
-            f"<:Check:1362710665663615147> Tu as de la chance, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as fait le bon choix, tu as gagné **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Ta chance t'a permis de gagner **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Voici ta récompense de **{amount} <:ecoEther:1341862366249357374>** pour ta chance.",
-            f"<:Check:1362710665663615147> Bravo, tu es maintenant plus riche de **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:Check:1362710665663615147> Tu as gagné **{amount} <:ecoEther:1341862366249357374>**. Félicitations !",
-            f"<:Check:1362710665663615147> Ta chance t'a permis de remporter **{amount} <:ecoEther:1341862366249357374>**."
-    ]
-
-    loss_messages = [
-            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Désolé, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> La chance ne t'a pas souri cette fois, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. Mieux vaut retenter une autre fois.",
-            f"<:classic_x_mark:1362711858829725729> Ah non, tu as perdu **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Oups, tu perds **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu viens de perdre **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>**. C'est dommage.",
-            f"<:classic_x_mark:1362711858829725729> Tu as fait une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Ce coup-ci, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Malheureusement, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> T'es tombé sur une mauvaise chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Retente ta chance !",
-            f"<:classic_x_mark:1362711858829725729> T'as perdu **{amount} <:ecoEther:1341862366249357374>**. La prochaine sera la bonne.",
-            f"<:classic_x_mark:1362711858829725729> Pas de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu as perdu **{amount} <:ecoEther:1341862366249357374>** cette fois.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. Essaye encore !",
-            f"<:classic_x_mark:1362711858829725729> Tu n'as pas eu de chance, tu perds **{amount} <:ecoEther:1341862366249357374>**.",
-            f"<:classic_x_mark:1362711858829725729> Tu perds **{amount} <:ecoEther:1341862366249357374>**. La chance reviendra !"
-    ]
-
     if result == "gain":
         message = random.choice(gain_messages)
+        print(f"Message de gain choisi: {message}")
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": amount}},
@@ -952,6 +910,7 @@ async def slut(ctx: commands.Context):
         final_amount = amount
     else:
         message = random.choice(loss_messages)
+        print(f"Message de perte choisi: {message}")
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"wallet": -amount}},
@@ -965,6 +924,7 @@ async def slut(ctx: commands.Context):
         {"$set": {"last_slut_time": now}},
         upsert=True
     )
+    print(f"Cooldown mis à jour pour {user_id}")
 
     # Log économique
     await log_eco_channel(
@@ -987,6 +947,7 @@ async def slut(ctx: commands.Context):
     embed.set_footer(text=f"Action effectuée par {ctx.author}", icon_url=ctx.author.display_avatar.url)
 
     await ctx.send(embed=embed)
+    print("Commande exécutée avec succès.")
 
 # Gestion des erreurs
 @slut.error
