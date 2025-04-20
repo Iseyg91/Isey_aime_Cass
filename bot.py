@@ -879,7 +879,7 @@ class SlutCommand(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.hybrid_command(name="slut", description="Tente ta chance avec un slut !")
+    @bot.hybrid_command(name="slut", description="Tente ta chance avec un slut !")
     async def slut(self, ctx: commands.Context):
         user_id = ctx.author.id
         guild_id = ctx.guild.id
