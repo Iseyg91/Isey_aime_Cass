@@ -2394,10 +2394,22 @@ async def leaderboard(
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
 
+import discord
+from discord.ext import commands
+from discord import app_commands
+from pymongo import MongoClient
+
+# Initialisation de MongoDB
+client = MongoClient("mongodb://localhost:27017/")  # Remplace par l'URL de ta base MongoDB
+db = client["shop_database"]
+collection16 = db["items"]  # Collection pour les items
+collection7 = db["inventory"]  # Collection pour les inventaires des utilisateurs
+collection = db["users"]  # Collection pour les utilisateurs
+
 # Exemple d'items dans la boutique
 ITEMS = [
     {
-        "id": 2,
+        "id": 1,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
@@ -2408,7 +2420,7 @@ ITEMS = [
         "usable": True,
         "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker."
     },
-    # Tu peux ajouter plus d'items ici...
+    # Ajoute plus d'items ici...
 ]
 
 # Fonction pour insérer les items dans MongoDB
@@ -2416,19 +2428,7 @@ def insert_items_into_db():
     for item in ITEMS:
         # Vérifie si l'item existe déjà (basé sur l'id)
         if not collection16.find_one({"id": item["id"]}):
-            collection16.insert_one({
-                "id": item["id"],  # Utilisation explicite de 'id'
-                "emoji": item["emoji"],
-                "title": item["title"],
-                "description": item["description"],
-                "price": item["price"],
-                "emoji_price": item["emoji_price"],
-                "quantity": item["quantity"],
-                "tradeable": item["tradeable"],
-                "usable": item["usable"],
-                "use_effect": item["use_effect"],
-                "guild_id": item.get("guild_id", None)  # Si tu veux ajouter guild_id pour filtrer
-            })
+            collection16.insert_one(item)
 
 # Fonction pour générer un embed d'une page boutique
 def get_page_embed(page: int, items_per_page=10):
@@ -2493,8 +2493,8 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
     user_id = interaction.user.id
     guild_id = interaction.guild.id
 
-    # Récupère l'item depuis la collection MongoDB en utilisant l'ID
-    item = collection16.find_one({"guild_id": guild_id, "id": item_id})
+    # Recherche de l'item dans la collection MongoDB (sans guild_id dans la recherche pour tester)
+    item = collection16.find_one({"id": item_id})
 
     if not item:
         return await interaction.response.send_message("❌ Item introuvable.", ephemeral=True)
@@ -2538,7 +2538,7 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
 
     # Mise à jour du stock dans la collection MongoDB (collection16)
     collection16.update_one(
-        {"guild_id": guild_id, "id": item_id},
+        {"id": item_id},  # Recherche par "id" au lieu de "guild_id"
         {"$inc": {"quantity": -quantity}}
     )
 
