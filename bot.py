@@ -2340,13 +2340,13 @@ async def leaderboard(
         end_index = start_index + page_size
         users_on_page = sorted_users[start_index:end_index]
 
-        embed = discord.Embed(title=title, color=discord.Color.blue())  # Couleur bleue
+        embed = discord.Embed(color=discord.Color.blue())  # Couleur bleue
         embed.add_field(
-            name="Leaderboard",
-            value="View the leaderboard online here.",
+            name="View the leaderboard online here.",
+            value="\u200b",  # Espace vide
             inline=False
         )
-        embed.set_author(name="🏦 Banque Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
+        embed.set_author(name="Leaderboard", icon_url=bank_logo)  # Logo de la banque en haut
         
         # Liste des 10 premiers utilisateurs
         for i, user_data in enumerate(users_on_page, start=start_index + 1):
@@ -2356,12 +2356,13 @@ async def leaderboard(
             bank = user_data.get("bank", 0)
             total = cash + bank
 
+            # Formattage sur la même ligne : pseudo • emoji montant
             if sort == "cash":
-                value = f"{cash:,} {emoji_currency}"
+                value = f"{name} • {emoji_currency} {cash:,}"
             elif sort == "bank":
-                value = f"{bank:,} {emoji_currency}"
+                value = f"{name} • {emoji_currency} {bank:,}"
             else:
-                value = f"{total:,} {emoji_currency}"
+                value = f"{name} • {emoji_currency} {total:,}"
 
             embed.add_field(
                 name=f"{i}. {name}",
@@ -2387,19 +2388,20 @@ async def leaderboard(
             if self.page_num > 0:
                 self.page_num -= 1
                 embed = get_page(self.page_num)
-                await interaction.message.edit(embed=embed, view=self)
+                await interaction.response.edit_message(embed=embed, view=self)
 
         @discord.ui.button(label="Next", style=discord.ButtonStyle.primary)
         async def next_page(self, button: Button, interaction: discord.Interaction):
             if self.page_num < total_pages - 1:
                 self.page_num += 1
                 embed = get_page(self.page_num)
-                await interaction.message.edit(embed=embed, view=self)
+                await interaction.response.edit_message(embed=embed, view=self)
 
     # Send first page
     view = LeaderboardView(0)
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
