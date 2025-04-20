@@ -2399,13 +2399,6 @@ from discord.ext import commands
 from discord import app_commands
 from pymongo import MongoClient
 
-# Initialisation de MongoDB
-client = MongoClient("mongodb://localhost:27017/")  # Remplace par l'URL de ta base MongoDB
-db = client["shop_database"]
-collection16 = db["items"]  # Collection pour les items
-collection7 = db["inventory"]  # Collection pour les inventaires des utilisateurs
-collection = db["users"]  # Collection pour les utilisateurs
-
 # Exemple d'items dans la boutique
 ITEMS = [
     {
