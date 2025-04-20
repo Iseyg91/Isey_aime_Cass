@@ -281,6 +281,16 @@ async def uptime(ctx):
     embed.set_footer(text=f"♥️by Iseyg", icon_url=ctx.author.avatar.url)
     await ctx.send(embed=embed)
 
+@bot.hybrid_command(
+    name="ping",
+    description="Affiche le Ping du bot."
+)
+async def ping(ctx):
+    latency = round(bot.latency * 1000)  # Latence en ms
+    embed = discord.Embed(title="Pong!", description=f"Latence: {latency}ms", color=discord.Color.green())
+
+    await ctx.send(embed=embed)
+
 @bot.hybrid_command( 
     name="balance",
     aliases=["bal", "money"],
