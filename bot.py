@@ -2194,44 +2194,81 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
         {"$inc": {"cash": -bet}},
     )
 
+    # Création de l'embed de démarrage de la roulette
+    embed_start = discord.Embed(
+        title="New roulette game started!",
+        description=f" <:Check:1362710665663615147> Tu as placé un pari de <:ecoEther:1341862366249357374>{bet} sur {space}\n"
+                    f"Time remaining: 10 seconds",
+        color=discord.Color.green()
+    )
+    await ctx.send(embed=embed_start)
+
+    # Attente de 10 secondes avant le tirage
+    await asyncio.sleep(10)
+
     # Déroulement de la roulette
     spin_result = random.randint(0, 36)  # Le résultat du tirage (0-36)
     win = False
     result_str = f"Le résultat est le {spin_result}."
-    
+
+    # Vérification du pari
     if space == "red" and spin_result in RED_NUMBERS:
         win = True
+        multiplier = 2  # Le double pour un pari sur rouge/noir
     elif space == "black" and spin_result in BLACK_NUMBERS:
         win = True
+        multiplier = 2
     elif space == "evend" and spin_result in EVEN_NUMBERS:
         win = True
+        multiplier = 2
     elif space == "odd" and spin_result in ODD_NUMBERS:
         win = True
+        multiplier = 2
     elif space == "1-18" and 1 <= spin_result <= 18:
         win = True
+        multiplier = 2
     elif space == "19-36" and 19 <= spin_result <= 36:
         win = True
+        multiplier = 2
     elif space == "1st" and spin_result in range(1, 37, 3):
         win = True
+        multiplier = 3  # x3 pour 1st, 2nd, 3rd
     elif space == "2nd" and spin_result in range(2, 37, 3):
         win = True
+        multiplier = 3
     elif space == "3rd" and spin_result in range(3, 37, 3):
         win = True
+        multiplier = 3
     elif space == str(spin_result):
         win = True
-    
-    # Si le joueur gagne, il reçoit le double de sa mise
+        multiplier = 36  # x36 pour un pari sur un seul numéro
+
+    # Message de gain ou de perte
     if win:
+        # Le joueur gagne
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"cash": bet * 2}},
+            {"$inc": {"cash": bet * multiplier}},
         )
-        result_str += f" Félicitations ! Tu as gagné {bet * 2}."
+        result_str += f" Félicitations ! Tu as gagné <:ecoEther:1341862366249357374>{bet * multiplier}."
+        embed_end = discord.Embed(
+            title="Roulette Result",
+            description=f"The ball landed on {space} {spin_result}.\n"
+                        f"**Winners:** {ctx.author.mention} won <:ecoEther:1341862366249357374>{bet * multiplier}",
+            color=discord.Color.blue()
+        )
     else:
+        # Le joueur perd
         result_str += " Désolé, tu as perdu."
+        embed_end = discord.Embed(
+            title="Roulette Result",
+            description=f"The ball landed on {spin_result}.\n"
+                        f"**No winners**",
+            color=discord.Color.red()
+        )
 
-    # Envoi du message avec le résultat
-    await ctx.send(result_str)
+    # Envoi du message de résultat
+    await ctx.send(embed=embed_end)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
