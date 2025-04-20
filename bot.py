@@ -2120,7 +2120,6 @@ CHOICES = [
     "22", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "36"
 ]
 
-# Commande roulette
 @bot.hybrid_command(name="roulette", description="Lance une roulette et place un pari.")
 @app_commands.describe(
     amount="Le montant que vous souhaitez miser",
@@ -2182,10 +2181,31 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     # Signale à Discord qu'une réponse viendra plus tard
     await ctx.defer()
 
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Fonction pour récupérer ou créer les données de l'utilisateur
+    def get_or_create_user_data(guild_id: int, user_id: int):
+        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+        if not data:
+            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+            collection.insert_one(data)
+        return data
+
+    # Récupère les données de l'utilisateur
+    user_data = get_or_create_user_data(guild_id, user_id)
+    cash = user_data.get("cash", 0)
+
+    if cash < amount:
+        return await ctx.send("❌ Tu n'as pas assez de cash pour parier ce montant.")
+
+    # Déduire le montant du cash de l'utilisateur
+    collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -amount}})
+
     # Embed principal (confirmation du pari)
     embed = discord.Embed(
         title="New roulette game started!",
-        description=f"<:Check:1362710665663615147> You have placed a bet of <:ecoEther:1341862366249357374> {amount} on **{space.name}**",
+        description=f"<:Check:1362710665663615147> Tu as placé un pari de <:ecoEther:1341862366249357374> {amount} sur **{space.name}**",
         color=discord.Color.green()
     )
     embed.set_footer(text="Time remaining: 10 seconds after each bet (maximum 1 minute)")
@@ -2231,14 +2251,16 @@ async def roulette(ctx: commands.Context, amount: int, space: app_commands.Choic
     # Calcul des gains
     if result == space.value:
         win_amount = amount * 2  # Modifier si tu veux des multiplicateurs différents
+        # Ajout du gain en cash
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": win_amount}})
         await ctx.send(
-            f"The ball landed on **{result}**\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {win_amount}"
+            f"La balle est tombée sur **{result}**\n\n**Gagnants:**\n{ctx.author.mention} a gagné <:ecoEther:1341862366249357374> {win_amount}"
         )
-        # Ajoute ici le gain en DB si nécessaire
     else:
         await ctx.send(
-            f"The ball landed on **{result}**\n\nNo winners"
+            f"La balle est tombée sur **{result}**\n\nPas de gagnants"
         )
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
