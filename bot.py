@@ -2549,32 +2549,37 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
 @bot.tree.command(name="item_inventory", description="Affiche l'inventaire d'un utilisateur")
 async def item_inventory(interaction: discord.Interaction, user: discord.User = None):
     user = user or interaction.user
+    guild_id = interaction.guild.id
 
-    # Cherche l'inventaire dans la collection17
-    data = collection17.find_one({"guild_id": interaction.guild.id, "user_id": user.id})
+    items_cursor = collection17.find({"guild_id": guild_id, "user_id": user.id})
+
+    item_counts = {}
+    item_details = {}
+
+    async for item in items_cursor:
+        item_id = item["item_id"]
+        item_counts[item_id] = item_counts.get(item_id, 0) + 1
+        if item_id not in item_details:
+            item_details[item_id] = {
+                "title": item.get("item_name", "Nom inconnu"),
+                "emoji": item.get("emoji", ""),
+            }
 
     embed = discord.Embed(
         title=f"🎒 Inventaire de {user.display_name}",
         color=discord.Color.blurple()
     )
 
-    if not data or "items" not in data or not data["items"]:
+    if not item_counts:
         embed.description = "Aucun item trouvé dans l'inventaire."
     else:
         description = ""
-        for item_id, quantity in data["items"].items():
-            item_info = collection16.find_one({"id": item_id})
-            if not item_info:
-                continue  # Si l'item n'existe pas dans la boutique
-
-            name = item_info.get("name", "Nom inconnu")
-            desc = item_info.get("description", "Pas de description.")
-            description += f"{quantity} - {name} - [ID: {item_id}]\n{desc}\n\n"
-
+        for item_id, quantity in item_counts.items():
+            details = item_details[item_id]
+            description += f"**{quantity}x** {details['title']} {details['emoji']} (ID: `{item_id}`)\n"
         embed.description = description.strip()
 
     await interaction.response.send_message(embed=embed)
-
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
