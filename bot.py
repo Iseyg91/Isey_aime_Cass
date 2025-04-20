@@ -2397,7 +2397,7 @@ async def leaderboard(
 # Exemple d'items dans la boutique
 ITEMS = [
     {
-        "id": 1,
+        "id": 2,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est porté)",
