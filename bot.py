@@ -2707,7 +2707,7 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
                 "emoji": item.get("emoji", ""),
             }
 
-    # Bleu doux (exemple : #89CFF0)
+    # Bleu doux (ex : #89CFF0)
     soft_blue = discord.Color.from_rgb(137, 207, 240)
 
     embed = discord.Embed(
@@ -2719,7 +2719,7 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
 
     if not item_counts:
         embed.title = "<:classic_x_mark:1362711858829725729> Inventaire vide"
-        embed.description = f"{user.mention} ne possède actuellement aucun item."
+        embed.description = "Use an item with the `/item-use` command."
         embed.color = discord.Color.red()
     else:
         lines = []
