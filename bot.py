@@ -2612,6 +2612,13 @@ async def buy_item(user: discord.Member, item_id: int):
 
     return f"L'achat de {item['title']} a été effectué avec succès."
 
+# Slash command /item-store
+@bot.tree.command(name="item-store", description="Affiche la boutique d'items")
+async def item_store(interaction: discord.Interaction):
+    embed = get_page_embed(0)
+    view = Paginator(user=interaction.user)
+    await interaction.response.send_message(embed=embed, view=view)
+
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
 
