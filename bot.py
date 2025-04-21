@@ -2408,7 +2408,7 @@ from pymongo import MongoClient
 # Exemple d'items dans la boutique
 ITEMS = [
     {
-        "id": 34,
+        "id": 7,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
@@ -2418,9 +2418,9 @@ ITEMS = [
         "tradeable": False,
         "usable": True,
         "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker.",
-        "requirements": "Niveau 10 minimum"
+        "requirements": "Niveau 10 minimum",
+        "role_id": 1363793059237593099  # ID du rôle à donner lors de l'utilisation
     },
-    # Tu peux ajouter d'autres items ici...
 ]
 
 # Fonction pour insérer les items dans MongoDB
@@ -2437,12 +2437,16 @@ def get_page_embed(page: int, items_per_page=10):
     embed = discord.Embed(title="🛒 Boutique", color=discord.Color.blue())
 
     for item in items:
-        formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable pour un affichage plus propre
+        formatted_price = f"{item['price']:,}".replace(",", " ")
         name_line = f"ID: {item['id']} | {formatted_price} {item['emoji_price']} - {item['title']} {item['emoji']}"
-        
+
         value = item["description"]
         if "requirements" in item:
             value += f"\n**Requirements :** {item['requirements']}"
+        if item.get("role_id"):
+            role = discord.utils.get(bot.get_guild(GUILD_ID).roles, id=item["role_id"])
+            if role:
+                value += f"\n🎭 **Bonus :** Donne le rôle `{role.name}`"
 
         embed.add_field(name=name_line, value=value, inline=False)
 
@@ -2459,7 +2463,6 @@ class Paginator(discord.ui.View):
 
     async def update(self, interaction: discord.Interaction):
         embed = get_page_embed(self.page)
-        # Les réponses ne sont pas éphemeres, tout est en public
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
@@ -2488,7 +2491,7 @@ class Paginator(discord.ui.View):
             self.page += 1
             await self.update(interaction)
 
-# Slash command /item_store
+# Slash command /item-store
 @bot.tree.command(name="item-store", description="Affiche la boutique d'items")
 async def item_store(interaction: discord.Interaction):
     embed = get_page_embed(0)
@@ -2676,6 +2679,7 @@ async def item_info(interaction: discord.Interaction, id: int):
 
     await interaction.response.send_message(embed=embed)
 
+# Slash command /item-use
 @bot.tree.command(name="item-use", description="Utilise un item de ton inventaire.")
 @app_commands.describe(item_id="ID de l'item à utiliser")
 async def item_use(interaction: discord.Interaction, item_id: int):
@@ -2720,7 +2724,7 @@ async def item_use(interaction: discord.Interaction, item_id: int):
         color=discord.Color.green()
     )
 
-    # Vérifie s'il donne un rôle
+    # Ajout du rôle si défini
     role_id = item_data.get("role_id")
     if role_id:
         role = guild.get_role(int(role_id))
@@ -2728,7 +2732,7 @@ async def item_use(interaction: discord.Interaction, item_id: int):
             await user.add_roles(role)
             embed.add_field(name="🎭 Rôle attribué", value=f"Tu as reçu le rôle **{role.name}**.", inline=False)
 
-    # Vérifie s'il donne un autre item
+    # Ajout d'un item bonus s'il y en a
     reward_item_id = item_data.get("gives_item_id")
     if reward_item_id:
         collection17.insert_one({
