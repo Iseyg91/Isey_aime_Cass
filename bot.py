@@ -171,7 +171,58 @@ TOP_ROLES = {
     3: 1362832919789572178,  # ID du rôle Top 3
 }
 
-@tasks.loop(seconds=5)  # vérifie toutes les 60 secondes
+# Config des rôles
+COLLECT_ROLES_CONFIG = [
+    {
+        "role_id": 1362836142902218812,  # à remplacer
+        "amount": 250,
+        "cooldown": 3600,
+        "auto": False
+    }
+]
+
+# --- Boucle Auto Collect ---
+@tasks.loop(seconds=60)
+async def auto_collect_loop():
+    for guild in bot.guilds:
+        for member in guild.members:
+            for config in COLLECT_ROLES_CONFIG:
+                role = discord.utils.get(guild.roles, id=config["role_id"])
+                if role in member.roles and config["auto"]:
+                    now = datetime.utcnow()
+                    cd_data = collection5.find_one({
+                        "guild_id": guild.id,
+                        "user_id": member.id,
+                        "role_id": role.id
+                    })
+                    last_collect = cd_data.get("last_collect") if cd_data else None
+
+                    if not last_collect or (now - last_collect).total_seconds() >= config["cooldown"]:
+                        eco_data = collection.find_one({
+                            "guild_id": guild.id,
+                            "user_id": member.id
+                        }) or {"guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0}
+
+                        before = eco_data["cash"]
+                        eco_data["cash"] += config["amount"]
+
+                        collection.update_one(
+                            {"guild_id": guild.id, "user_id": member.id},
+                            {"$set": {"cash": eco_data["cash"]}},
+                            upsert=True
+                        )
+
+                        collection5.update_one(
+                            {"guild_id": guild.id, "user_id": member.id, "role_id": role.id},
+                            {"$set": {"last_collect": now}},
+                            upsert=True
+                        )
+
+                        after = eco_data["cash"]
+                        await log_eco_channel(bot, guild.id, member, f"Auto Collect ({role.name})", config["amount"], before, after, note="Collect automatique")
+
+# --- Boucle Top Roles ---
+@tasks.loop(seconds=5)
 async def update_top_roles():
     for guild in bot.guilds:
         all_users_data = list(collection.find({"guild_id": guild.id}))
@@ -180,28 +231,26 @@ async def update_top_roles():
             key=lambda u: u.get("cash", 0) + u.get("bank", 0),
             reverse=True
         )
-        top_users = sorted_users[:3]  # Top 3
+        top_users = sorted_users[:3]
 
         for rank, user_data in enumerate(top_users, start=1):
             user_id = user_data["user_id"]
-            role_id = TOP_ROLES[rank]  # Utilisation de l'ID du rôle
+            role_id = TOP_ROLES[rank]
             role = discord.utils.get(guild.roles, id=role_id)
             if not role:
                 print(f"Rôle manquant : {role_id} dans {guild.name}")
                 continue
 
             try:
-                member = await guild.fetch_member(user_id)  # Utilisation de fetch_member
+                member = await guild.fetch_member(user_id)
             except discord.NotFound:
                 print(f"Membre {user_id} non trouvé dans {guild.name}")
                 continue
 
-            # Donner le rôle s'il ne l'a pas
             if role not in member.roles:
                 await member.add_roles(role)
                 print(f"Ajouté {role.name} à {member.display_name}")
 
-        # Retirer les rôles aux autres joueurs qui ne sont plus dans le top
         for rank, role_id in TOP_ROLES.items():
             role = discord.utils.get(guild.roles, id=role_id)
             if not role:
@@ -211,33 +260,38 @@ async def update_top_roles():
                     await member.remove_roles(role)
                     print(f"Retiré {role.name} de {member.display_name}")
 
-
+# --- Événement on_ready ---
 @bot.event
 async def on_ready():
     print(f"{bot.user.name} est connecté.")
+
     if not update_top_roles.is_running():
         update_top_roles.start()
+    if not auto_collect_loop.is_running():
+        auto_collect_loop.start()
+
     print(f"✅ Le bot {bot.user} est maintenant connecté ! (ID: {bot.user.id})")
 
-    # Mise à jour du statut avec l'activité de stream "Etherya"
-    activity = discord.Activity(type=discord.ActivityType.streaming, name="Etherya", url="https://www.twitch.tv/tonstream")
+    activity = discord.Activity(
+        type=discord.ActivityType.streaming,
+        name="Etherya",
+        url="https://www.twitch.tv/tonstream"
+    )
     await bot.change_presence(activity=activity, status=discord.Status.online)
 
     print(f"🎉 **{bot.user}** est maintenant connecté et affiche son activité de stream avec succès !")
 
-    # Afficher les commandes chargées
     print("📌 Commandes disponibles 😊")
     for command in bot.commands:
         print(f"- {command.name}")
 
     try:
-        # Synchroniser les commandes avec Discord
-        synced = await bot.tree.sync()  # Synchronisation des commandes slash
+        synced = await bot.tree.sync()
         print(f"✅ Commandes slash synchronisées : {[cmd.name for cmd in synced]}")
     except Exception as e:
         print(f"❌ Erreur de synchronisation des commandes slash : {e}")
 
-# Gestion des erreurs globales pour toutes les commandes
+# --- Gestion globale des erreurs ---
 @bot.event
 async def on_error(event, *args, **kwargs):
     print(f"Une erreur s'est produite : {event}")
@@ -246,7 +300,10 @@ async def on_error(event, *args, **kwargs):
         description="Une erreur s'est produite lors de l'exécution de la commande. Veuillez réessayer plus tard.",
         color=discord.Color.red()
     )
-    await args[0].response.send_message(embed=embed)
+    try:
+        await args[0].response.send_message(embed=embed)
+    except Exception:
+        pass
 
 @bot.event
 async def on_message(message):
@@ -823,7 +880,7 @@ async def work(ctx: commands.Context):
             return await ctx.send(embed=embed)
 
     # Random amount (200 - 2000)
-    amount = random.randint(200, 2000)
+    amount = random.randint(100, 1000)
 
     # Récupération ou création des données d'utilisateur (collection économie)
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -912,7 +969,7 @@ async def slut(ctx: commands.Context):
 
     # Déterminer le gain ou perte
     outcome = random.choice(["gain", "loss"])
-    amount = random.randint(100, 1500)
+    amount = random.randint(100, 1000)
 
     # Récupérer solde
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
@@ -1004,7 +1061,7 @@ async def crime(ctx: commands.Context):
 
     # Choisir entre gain ou perte
     outcome = random.choice(["gain", "loss"])
-    amount = random.randint(250, 2000)
+    amount = random.randint(100, 1000)
 
     # Récupérer le solde avant pour le log
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
@@ -2258,7 +2315,7 @@ async def daily(ctx: commands.Context):
             return await ctx.send(embed=cooldown_embed)
 
     # Génération du montant
-    amount = random.randint(500, 4000)
+    amount = random.randint(600, 4500)
 
     # Récupération ou création du document utilisateur
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
@@ -3205,6 +3262,56 @@ async def item_leaderboard(interaction: discord.Interaction, item_id: int):
         )
 
     await interaction.response.send_message(embed=embed)
+
+
+# Commande collect
+@bot.hybrid_command(name="collecti-income", aliases=["collect"])
+async def collect_income(ctx: commands.Context):
+    member = ctx.author
+    guild = ctx.guild
+    now = datetime.utcnow()
+    total_gain = 0
+    notes = []
+
+    for config in COLLECT_ROLES_CONFIG:
+        role = discord.utils.get(guild.roles, id=config["role_id"])
+        if role not in member.roles or config["auto"]:
+            continue
+
+        cd_data = collection5.find_one({"guild_id": guild.id, "user_id": member.id, "role_id": role.id})
+        last_collect = cd_data.get("last_collect") if cd_data else None
+
+        if last_collect and (now - last_collect).total_seconds() < config["cooldown"]:
+            remaining = config["cooldown"] - (now - last_collect).total_seconds()
+            notes.append(f"⏳ **{role.name}**: Attends encore `{int(remaining // 60)}min`")
+            continue
+
+        eco_data = collection.find_one({"guild_id": guild.id, "user_id": member.id}) or {
+            "guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0
+        }
+        before = eco_data["cash"]
+        eco_data["cash"] += config["amount"]
+        collection.update_one(
+            {"guild_id": guild.id, "user_id": member.id},
+            {"$set": {"cash": eco_data["cash"]}},
+            upsert=True
+        )
+        total_gain += config["amount"]
+
+        collection5.update_one(
+            {"guild_id": guild.id, "user_id": member.id, "role_id": role.id},
+            {"$set": {"last_collect": now}},
+            upsert=True
+        )
+
+        after = eco_data["cash"]
+        notes.append(f"✅ **{role.name}**: {config['amount']} coins")
+        await log_eco_channel(bot, guild.id, member, f"Collect ({role.name})", config["amount"], before, after, note="Collect manuel")
+
+    if not notes:
+        await ctx.send("❌ Tu n'as aucun rôle avec `collect` disponible ou encore en cooldown.")
+    else:
+        await ctx.send("**Collect effectué :**\n" + "\n".join(notes))
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
