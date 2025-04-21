@@ -3264,39 +3264,44 @@ async def item_leaderboard(interaction: discord.Interaction, item_id: int):
     await interaction.response.send_message(embed=embed)
 
 
-# Commande collect
+from datetime import datetime
+import discord
+from discord.ext import commands
+
 @bot.hybrid_command(name="collect-income", aliases=["collect"])
 async def collect_income(ctx: commands.Context):
     member = ctx.author
     guild = ctx.guild
     now = datetime.utcnow()
-    total_gain = 0
-    notes = []
+    collected = []
+    cooldowns = []
 
     for config in COLLECT_ROLES_CONFIG:
         role = discord.utils.get(guild.roles, id=config["role_id"])
-        if role not in member.roles or config["auto"]:
+        if role not in member.roles or config.get("auto", False):
             continue
 
         cd_data = collection5.find_one({"guild_id": guild.id, "user_id": member.id, "role_id": role.id})
         last_collect = cd_data.get("last_collect") if cd_data else None
 
-        if last_collect and (now - last_collect).total_seconds() < config["cooldown"]:
-            remaining = config["cooldown"] - (now - last_collect).total_seconds()
-            notes.append(f"⏳ **{role.name}**: Attends encore `{int(remaining // 60)}min`")
-            continue
+        if last_collect:
+            elapsed = (now - last_collect).total_seconds()
+            if elapsed < config["cooldown"]:
+                remaining = config["cooldown"] - elapsed
+                cooldowns.append((remaining, role))
+                continue
 
         eco_data = collection.find_one({"guild_id": guild.id, "user_id": member.id}) or {
             "guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0
         }
         before = eco_data["cash"]
         eco_data["cash"] += config["amount"]
+
         collection.update_one(
             {"guild_id": guild.id, "user_id": member.id},
             {"$set": {"cash": eco_data["cash"]}},
             upsert=True
         )
-        total_gain += config["amount"]
 
         collection5.update_one(
             {"guild_id": guild.id, "user_id": member.id, "role_id": role.id},
@@ -3304,14 +3309,32 @@ async def collect_income(ctx: commands.Context):
             upsert=True
         )
 
-        after = eco_data["cash"]
-        notes.append(f"✅ **{role.name}**: {config['amount']} coins")
-        await log_eco_channel(bot, guild.id, member, f"Collect ({role.name})", config["amount"], before, after, note="Collect manuel")
+        collected.append(f"1 - {role.mention} | <:ecoEther:1341862366249357374>**{config['amount']}** (bank)")
+        await log_eco_channel(bot, guild.id, member, f"Collect ({role.name})", config["amount"], before, eco_data["cash"], note="Collect manuel")
 
-    if not notes:
-        await ctx.send("❌ Tu n'as aucun rôle avec `collect` disponible ou encore en cooldown.")
+    if collected:
+        embed = discord.Embed(
+            title=f"{member.display_name}",
+            description="<:Check:1362710665663615147> Role income successfully collected!\n\n" + "\n".join(collected),
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=member.display_avatar.url)
+        await ctx.send(embed=embed)
+
+    elif cooldowns:
+        shortest = min(cooldowns, key=lambda x: x[0])  # (remaining, role)
+        remaining_minutes = int(shortest[0] // 60) or 1
+        embed = discord.Embed(
+            description=f"<:classic_x_mark:1362711858829725729> You can next collect income dans **{remaining_minutes}min** (`{shortest[1].name}`)",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed)
     else:
-        await ctx.send("**Collect effectué :**\n" + "\n".join(notes))
+        embed = discord.Embed(
+            description="❌ Tu n'as aucun rôle avec `collect` disponible.",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
