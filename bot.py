@@ -3487,6 +3487,9 @@ async def badge_store(interaction: discord.Interaction):
     view = BadgePaginator(interaction.user)
     await interaction.response.send_message(embed=get_badge_embed(), view=view, ephemeral=True)
 
+# Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
+insert_badge_into_db()
+
 @bot.tree.command(name="badge-inventory", description="Affiche ton inventaire de badges")
 async def badge_inventory(interaction: discord.Interaction):
     data = collection20.find_one({"user_id": interaction.user.id})
