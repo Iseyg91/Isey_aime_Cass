@@ -2901,7 +2901,7 @@ async def item_leaderboard(interaction: discord.Interaction, item_id: int):
     # Trouver tous les utilisateurs qui possèdent cet item dans le serveur
     leaderboard = collection17.find({"guild_id": guild_id, "item_id": item_id}).sort("quantity", -1)
     
-    if leaderboard.count() == 0:
+    if await leaderboard.count_documents({}) == 0:
         return await interaction.response.send_message(f"❌ Aucun utilisateur ne possède l'item **{item_name}**.", ephemeral=True)
 
     # Créer un embed pour afficher le leaderboard
