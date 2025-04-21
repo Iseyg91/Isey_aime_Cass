@@ -196,7 +196,7 @@ def get_start_date(guild_id):
     return None
 
 # === CONFIGURATION DES RÉCOMPENSES PAR JOUR ===
-rewards = {
+daily_rewards = {
     1: {"coins": 1000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.1.png?raw=true"},
     2: {"coins": 2000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.2.png?raw=true"},
     3: {"coins": 3000, "badge": 2, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.3.png?raw=true"},
@@ -3674,7 +3674,7 @@ async def start_rewards(interaction: discord.Interaction):
 # === FONCTION POUR DONNER LA RÉCOMPENSE ===
 async def give_reward(interaction: discord.Interaction, day: int):
     # Récupérer la récompense pour le jour spécifique
-    reward = rewards.get(day)
+    reward = daily_rewards.get(day)  # ✅ ici on utilise daily_rewards
     if not reward:
         await interaction.response.send_message("Aucune récompense disponible pour ce jour.", ephemeral=True)
         return
@@ -3697,9 +3697,9 @@ async def give_reward(interaction: discord.Interaction, day: int):
         upsert=True
     )
 
-    # Création de l'embed avec le progress bar
+    # Création de l'embed avec la progress bar
     days_elapsed = (datetime.utcnow() - get_start_date(interaction.guild.id)).days + 1
-    total_days = 7  # La période de récompenses dure 7 jours
+    total_days = 7
     days_received = len(user_data["rewards_received"])
 
     embed = discord.Embed(
@@ -3714,11 +3714,9 @@ async def give_reward(interaction: discord.Interaction, day: int):
         embed.add_field(name="Item", value=f"Item ID {item}", inline=False)
     embed.set_image(url=reward["image_url"])
 
-    # Progress bar avec les jours reçus
     progress = "█" * days_received + "░" * (total_days - days_received)
     embed.add_field(name="Progress", value=f"{progress} ({days_received}/{total_days})", inline=False)
 
-    # Envoi de l'embed en réponse
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # === COMMANDE SLASH /rewards ===
