@@ -3631,10 +3631,6 @@ async def item_leaderboard(interaction: discord.Interaction, item_id: int):
     await interaction.response.send_message(embed=embed)
 
 
-from datetime import datetime
-import discord
-from discord.ext import commands
-
 @bot.hybrid_command(name="collect-income", aliases=["collect"])
 async def collect_income(ctx: commands.Context):
     member = ctx.author
@@ -3665,8 +3661,8 @@ async def collect_income(ctx: commands.Context):
         amount = config.get("amount", 0)
         target = config.get("target", "cash")
 
-        before = eco_data.get(target, 0)
-        eco_data[target] += amount
+        # Assurez-vous que la clé 'target' existe
+        eco_data[target] = eco_data.get(target, 0) + amount
 
         collection.update_one(
             {"guild_id": guild.id, "user_id": member.id},
@@ -3683,7 +3679,7 @@ async def collect_income(ctx: commands.Context):
         collected.append(f"1 - {role.mention} | <:ecoEther:1341862366249357374>**{amount}** ({target})")
         await log_eco_channel(
             bot, guild.id, member,
-            f"Collect ({role.name})", amount, before, eco_data[target],
+            f"Collect ({role.name})", amount, eco_data[target] - amount, eco_data[target],
             note=f"Collect manuel → {target}"
         )
 
@@ -3710,7 +3706,6 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
-
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
 @app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
