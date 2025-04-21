@@ -2527,29 +2527,29 @@ ITEMS = [
             "items": False  # Ne pas supprimer l'item après l'achat
         }
     },
-{
-            "id": 1,
-            "emoji": "<:exorciste:1363602480792994003>",
-            "title": "Appel à un exorciste | 𝕊𝕆𝕀ℕ",
-            "description": "Permet de retirer le nen que quelqu'un nous a posé grâce à un exorciste !",
-            "price": 50000,
-            "emoji_price": "<:ecoEther:1341862366249357374>",
-            "quantity": 5,
-            "tradeable": true,
-            "usable": true,
-            "use_effect": "Retire le rôle, faite !!heal",
-            "requirements": {},  # Aucun requirement
-            "role_id": 1363873859912335400,  # ID du rôle à donner lors de l'utilisation
-            "role_duration": 3600,  # Durée en secondes (1 heure ici)
-                "remove_after_purchase": {
-                "roles": false,  # Ne pas retirer immédiatement le rôle après l'achat
-                "items": false  # Ne pas supprimer l'item après l'achat
-            },
-            "used": false,  # Ajout d'un champ pour savoir si l'objet a été utilisé
-            "remove_role_after_use": true  # Retirer le rôle uniquement après utilisation
-        }
-    },
+    {
+        "id": 1,
+        "emoji": "<:exorciste:1363602480792994003>",
+        "title": "Appel à un exorciste | 𝕊𝕆𝕀ℕ",
+        "description": "Permet de retirer le nen que quelqu'un nous a posé grâce à un exorciste !",
+        "price": 50000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 5,
+        "tradeable": True,  # Correction de `true` en `True`
+        "usable": True,
+        "use_effect": "Retire le rôle, faite !!heal",
+        "requirements": {},  # Aucun requirement
+        "role_id": 1363873859912335400,  # ID du rôle à donner lors de l'utilisation
+        "role_duration": 3600,  # Durée en secondes (1 heure ici)
+        "remove_after_purchase": {
+            "roles": False,  # Ne pas retirer immédiatement le rôle après l'achat
+            "items": False  # Ne pas supprimer l'item après l'achat
+        },
+        "used": False,  # Ajout d'un champ pour savoir si l'objet a été utilisé
+        "remove_role_after_use": True  # Retirer le rôle uniquement après utilisation
+    }
 ]
+
 
 # Fonction pour insérer les items dans MongoDB
 def insert_items_into_db():
