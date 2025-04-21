@@ -3478,7 +3478,7 @@ def insert_items_into_db():
         if not collection16.find_one({"id": item["id"]}):
             collection16.insert_one(item)
 
-def get_page_embed(page: int, items_per_page=10, user: discord.User):
+def get_page_embed(user: discord.User, page: int, items_per_page=10):
     start = page * items_per_page
     end = start + items_per_page
     items = ITEMS[start:end]
