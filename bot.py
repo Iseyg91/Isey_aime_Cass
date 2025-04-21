@@ -61,6 +61,7 @@ collection14 = db['ether_rob'] #Stock les cd de Rob
 collection15 = db['anti_rob'] #Stock les rôle anti-rob
 collection16 = db['ether_boutique'] #Stock les Items dans la boutique
 collection17 = db['joueur_ether_inventaire'] #Stock les items de joueurs
+collection18 = db['ether_effects'] #Stock les effets
 
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
@@ -120,6 +121,7 @@ def load_guild_settings(guild_id):
     anti_rob_data = collection15.find_one({"guild_id": guild_id}) or {}
     ether_boutique_data = collection16.find_one({"guild_id": guild_id}) or {}
     joueur_ether_inventaire_data = collection17.find_one({"guild_id": guild_id}) or {}
+    ether_effects_data = collection18.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -141,7 +143,8 @@ def load_guild_settings(guild_id):
         "ether_rob": ether_rob_data,
         "anti_rob": anti_rob_data,
         "ether_boutique": ether_boutique_data,
-        "joueur_ether_inventaire": joueur_ether_inventaire_data
+        "joueur_ether_inventaire": joueur_ether_inventaire_data,
+        "ether_effects": ether_effects_data
 
     }
 
@@ -2629,6 +2632,65 @@ async def item_info(interaction: discord.Interaction, id: int):
     embed.set_footer(text="🛒 Etherya • Détails de l'item")
 
     await interaction.response.send_message(embed=embed)
+
+from datetime import datetime, timedelta
+
+@bot.tree.command(name="item_use", description="Utilise un item de ton inventaire.")
+@app_commands.describe(item_id="ID de l'item à utiliser")
+async def item_use(interaction: discord.Interaction, item_id: int):
+    user = interaction.user
+    user_id = user.id
+    guild = interaction.guild
+    guild_id = guild.id
+
+    # Vérifie si l'item est dans l'inventaire
+    owned_item = collection17.find_one({"user_id": user_id, "guild_id": guild_id, "item_id": item_id})
+    if not owned_item:
+        return await interaction.response.send_message("❌ Tu ne possèdes pas cet item.", ephemeral=True)
+
+    # Récupère les infos de l'item
+    item_data = collection16.find_one({"id": item_id})
+    if not item_data:
+        return await interaction.response.send_message("❌ Cet item n'existe pas ou plus dans la boutique.", ephemeral=True)
+
+    if not item_data.get("usable", False):
+        return await interaction.response.send_message("❌ Cet item ne peut pas être utilisé.", ephemeral=True)
+
+    title = item_data["title"]
+    emoji = item_data.get("emoji", "")
+    use_effect = item_data.get("use_effect", "").lower()
+
+    # Suppression d'un exemplaire dans collection17
+    collection17.delete_one({
+        "user_id": user_id,
+        "guild_id": guild_id,
+        "item_id": item_id
+    })
+
+    # Application de l'effet
+    result_message = f"✅ Tu as utilisé **{title}** {emoji}."
+
+    # Exemple d'effet : Anti-rob 1h
+    if "anti-rob" in use_effect:
+        expiration_time = datetime.utcnow() + timedelta(hours=1)
+        collection18.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "item_id": item_id,
+            "effect": "anti-rob",
+            "expires_at": expiration_time
+        })
+        result_message += "\n🛡️ Effet **anti-rob** activé pour 1h."
+
+    # Exemple : assigner un rôle spécifique (si défini dans item_data)
+    role_id = item_data.get("role_id")
+    if role_id:
+        role = guild.get_role(int(role_id))
+        if role:
+            await user.add_roles(role)
+            result_message += f"\n🎭 Rôle **{role.name}** ajouté."
+
+    await interaction.response.send_message(result_message, ephemeral=True)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
