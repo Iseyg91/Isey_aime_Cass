@@ -3448,7 +3448,7 @@ BADGES = [
 async def badge_store(interaction: discord.Interaction):
     badges = list(collection19.find({}))
     if not badges:
-        return await interaction.response.send_message("Aucun badge disponible pour l’instant.", ephemeral=True)
+        return await interaction.response.send_message("Aucun badge disponible pour l’instant.")
 
     def get_badge_embed(page: int = 0, items_per_page=10):
         start = page * items_per_page
@@ -3492,7 +3492,7 @@ async def badge_store(interaction: discord.Interaction):
                 await self.update(interaction)
 
     view = BadgePaginator(interaction.user)
-    await interaction.response.send_message(embed=get_badge_embed(), view=view, ephemeral=True)
+    await interaction.response.send_message(embed=get_badge_embed(), view=view)
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_badge_into_db()
