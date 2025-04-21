@@ -4368,25 +4368,24 @@ from datetime import datetime  # Assurez-vous d'importer datetime de cette mani�
 
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
-@bot.tree.command(name="materialisation", description="Matérialise un item aléatoire.")
-async def materialisation(interaction: discord.Interaction):
-    user_id = interaction.user.id
-    guild_id = interaction.guild.id
+@bot.command(name="materialisation")
+async def materialisation(ctx):
+    user_id = ctx.author.id
+    guild_id = ctx.guild.id
 
-    # Récupérer un item aléatoire de la collection de la boutique
-    items = list(collection16.find())
+    # Récupérer un item aléatoire depuis la boutique
+    items = list(collection16.find({"quantity": {"$gt": 0}}))  # uniquement ceux en stock
     if not items:
         embed = discord.Embed(
             title="<:classic_x_mark:1362711858829725729> Aucune item disponible",
-            description="Il n'y a pas d'items à matérialiser.",
+            description="Il n'y a pas d'items à matérialiser actuellement.",
             color=discord.Color.red()
         )
-        return await interaction.response.send_message(embed=embed)
+        return await ctx.send(embed=embed)
 
-    # Sélectionner un item aléatoire
     selected_item = random.choice(items)
 
-    # Mise à jour de l'inventaire simple (collection7)
+    # Ajout à l'inventaire simple (collection7)
     existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
     if existing:
         inventory = existing.get("items", {})
@@ -4402,7 +4401,7 @@ async def materialisation(interaction: discord.Interaction):
             "items": {str(selected_item["id"]): 1}
         })
 
-    # Mise à jour de l'inventaire structuré (collection17)
+    # Ajout à l'inventaire structuré (collection17)
     collection17.insert_one({
         "guild_id": guild_id,
         "user_id": user_id,
@@ -4413,21 +4412,19 @@ async def materialisation(interaction: discord.Interaction):
         "acquired_at": datetime.utcnow()
     })
 
-    # Mise à jour du stock boutique
+    # Réduction du stock boutique
     collection16.update_one(
         {"id": selected_item["id"]},
-        {"$inc": {"quantity": -1}}  # Diminuer le stock de l'item matérialisé
+        {"$inc": {"quantity": -1}}
     )
 
-    # Embed de confirmation
+    # Confirmation visuelle
     embed = discord.Embed(
         title="<:Check:1362710665663615147> Matérialisation réussie",
-        description=(
-            f"Tu as matérialisé **1x {selected_item['title']}** {selected_item['emoji']} !"
-        ),
+        description=f"Tu as matérialisé **1x {selected_item['title']}** {selected_item.get('emoji', '')} !",
         color=discord.Color.green()
     )
-    await interaction.response.send_message(embed=embed)
+    await ctx.send(embed=embed)
 
 @bot.command(
     name="transformation",
