@@ -3265,7 +3265,7 @@ async def item_leaderboard(interaction: discord.Interaction, item_id: int):
 
 
 # Commande collect
-@bot.hybrid_command(name="collecti-income", aliases=["collect"])
+@bot.hybrid_command(name="collect-income", aliases=["collect"])
 async def collect_income(ctx: commands.Context):
     member = ctx.author
     guild = ctx.guild
