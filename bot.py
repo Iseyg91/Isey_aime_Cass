@@ -2597,11 +2597,10 @@ async def item_info(interaction: discord.Interaction, id: int):
     formatted_price = f"{item['price']:,}".replace(",", " ")  # Espace fine insécable
 
     embed = discord.Embed(
-        title=interaction.user.name,
         color=discord.Color.blue()
     )
 
-    # Ajouter la photo de profil de l'utilisateur à gauche de l'embed
+    # Garder uniquement cette ligne pour afficher le nom + pp
     embed.set_author(name=interaction.user.name, icon_url=interaction.user.avatar.url)
 
     embed.add_field(name="**Nom de l'item**", value=item['title'], inline=False)
@@ -2623,7 +2622,6 @@ async def item_info(interaction: discord.Interaction, id: int):
     if item.get("requirements"):
         embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
 
-    # Met l'image de l'emoji de l'item en miniature
     emoji = item["emoji"]
     if emoji:
         embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{emoji.split(':')[2].split('>')[0]}.png")
