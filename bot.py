@@ -2711,7 +2711,7 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
     soft_blue = discord.Color.from_rgb(137, 207, 240)
 
     embed = discord.Embed(
-        title=user.name,
+        title="Use an item with the /item-use command.",
         color=soft_blue
     )
 
