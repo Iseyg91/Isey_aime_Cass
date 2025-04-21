@@ -2633,8 +2633,6 @@ async def item_info(interaction: discord.Interaction, id: int):
 
     await interaction.response.send_message(embed=embed)
 
-from datetime import datetime, timedelta
-
 @bot.tree.command(name="item_use", description="Utilise un item de ton inventaire.")
 @app_commands.describe(item_id="ID de l'item à utiliser")
 async def item_use(interaction: discord.Interaction, item_id: int):
@@ -2650,39 +2648,22 @@ async def item_use(interaction: discord.Interaction, item_id: int):
 
     # Récupère les infos de l'item
     item_data = collection16.find_one({"id": item_id})
-    if not item_data:
-        return await interaction.response.send_message("❌ Cet item n'existe pas ou plus dans la boutique.", ephemeral=True)
-
-    if not item_data.get("usable", False):
-        return await interaction.response.send_message("❌ Cet item ne peut pas être utilisé.", ephemeral=True)
+    if not item_data or not item_data.get("usable", False):
+        return await interaction.response.send_message("❌ Cet item n'existe pas ou ne peut pas être utilisé.", ephemeral=True)
 
     title = item_data["title"]
     emoji = item_data.get("emoji", "")
-    use_effect = item_data.get("use_effect", "").lower()
 
-    # Suppression d'un exemplaire dans collection17
+    # Supprime un exemplaire dans l'inventaire
     collection17.delete_one({
         "user_id": user_id,
         "guild_id": guild_id,
         "item_id": item_id
     })
 
-    # Application de l'effet
     result_message = f"✅ Tu as utilisé **{title}** {emoji}."
 
-    # Exemple d'effet : Anti-rob 1h
-    if "anti-rob" in use_effect:
-        expiration_time = datetime.utcnow() + timedelta(hours=1)
-        collection18.insert_one({
-            "user_id": user_id,
-            "guild_id": guild_id,
-            "item_id": item_id,
-            "effect": "anti-rob",
-            "expires_at": expiration_time
-        })
-        result_message += "\n🛡️ Effet **anti-rob** activé pour 1h."
-
-    # Exemple : assigner un rôle spécifique (si défini dans item_data)
+    # Vérifie s'il donne un rôle
     role_id = item_data.get("role_id")
     if role_id:
         role = guild.get_role(int(role_id))
@@ -2690,7 +2671,263 @@ async def item_use(interaction: discord.Interaction, item_id: int):
             await user.add_roles(role)
             result_message += f"\n🎭 Rôle **{role.name}** ajouté."
 
+    # Vérifie s'il donne un autre item
+    reward_item_id = item_data.get("gives_item_id")
+    if reward_item_id:
+        collection17.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "item_id": reward_item_id
+        })
+        reward_data = collection16.find_one({"id": reward_item_id})
+        if reward_data:
+            reward_title = reward_data["title"]
+            reward_emoji = reward_data.get("emoji", "")
+            result_message += f"\n🎁 Tu as reçu **{reward_title}** {reward_emoji}."
+
     await interaction.response.send_message(result_message, ephemeral=True)
+
+@bot.tree.command(name="item_give", description="(Admin) Donne un item à un utilisateur.")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    member="Utilisateur à qui donner l'item",
+    item_id="ID de l'item à donner",
+    quantity="Quantité d'items à donner"
+)
+async def item_give(interaction: discord.Interaction, member: discord.Member, item_id: int, quantity: int = 1):
+    guild_id = interaction.guild.id
+    user_id = member.id
+
+    # Vérifie si l'item existe dans la boutique
+    item_data = collection16.find_one({"id": item_id})
+    if not item_data:
+        return await interaction.response.send_message("❌ Cet item n'existe pas.", ephemeral=True)
+
+    if quantity < 1:
+        return await interaction.response.send_message("❌ La quantité doit être au moins 1.", ephemeral=True)
+
+    # Ajoute l'item dans la collection17 (inventaire)
+    for _ in range(quantity):
+        collection17.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "item_id": item_id
+        })
+
+    item_name = item_data["title"]
+    emoji = item_data.get("emoji", "")
+    await interaction.response.send_message(
+        f"✅ Tu as donné **{quantity}x {item_name}** {emoji} à {member.mention}.", ephemeral=True
+    )
+
+@bot.tree.command(name="item_take", description="(Admin) Retire un item d'un utilisateur.")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    member="Utilisateur à qui retirer l'item",
+    item_id="ID de l'item à retirer",
+    quantity="Quantité d'items à retirer"
+)
+async def item_take(interaction: discord.Interaction, member: discord.Member, item_id: int, quantity: int = 1):
+    guild_id = interaction.guild.id
+    user_id = member.id
+
+    # Vérifie si l'item existe
+    item_data = collection16.find_one({"id": item_id})
+    if not item_data:
+        return await interaction.response.send_message("❌ Cet item n'existe pas dans la boutique.", ephemeral=True)
+
+    item_name = item_data["title"]
+    emoji = item_data.get("emoji", "")
+
+    # Vérifie si l'utilisateur possède assez d'items
+    owned_count = collection17.count_documents({
+        "user_id": user_id,
+        "guild_id": guild_id,
+        "item_id": item_id
+    })
+
+    if owned_count < quantity:
+        return await interaction.response.send_message(
+            f"❌ {member.display_name} ne possède que {owned_count} exemplaire(s) de **{item_name}** {emoji}.", ephemeral=True
+        )
+
+    # Supprime le nombre d'exemplaires voulu
+    for _ in range(quantity):
+        collection17.delete_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "item_id": item_id
+        })
+
+    await interaction.response.send_message(
+        f"✅ Tu as retiré **{quantity}x {item_name}** {emoji} de l'inventaire de {member.mention}.", ephemeral=True
+    )
+
+from discord.ui import Button, View
+
+@bot.tree.command(name="item-sell", description="Vends un item à un autre utilisateur pour un prix donné.")
+@app_commands.describe(
+    member="L'utilisateur à qui vendre l'item",
+    item_id="ID de l'item à vendre",
+    price="Prix de vente de l'item",
+    quantity="Quantité d'items à vendre (par défaut 1)"
+)
+async def item_sell(interaction: discord.Interaction, member: discord.User, item_id: int, price: int, quantity: int = 1):
+    guild_id = interaction.guild.id
+    seller_id = interaction.user.id
+    buyer_id = member.id
+
+    # Vérifier si l'item existe dans la boutique
+    item_data = collection16.find_one({"id": item_id})
+    if not item_data:
+        return await interaction.response.send_message("❌ Cet item n'existe pas dans la boutique.", ephemeral=True)
+
+    item_name = item_data["title"]
+    emoji = item_data.get("emoji", "")
+
+    # Vérifier si le vendeur possède l'item en quantité suffisante
+    owned_count = collection17.count_documents({
+        "user_id": seller_id,
+        "guild_id": guild_id,
+        "item_id": item_id
+    })
+    
+    if owned_count < quantity:
+        return await interaction.response.send_message(
+            f"❌ Tu ne possèdes que {owned_count} exemplaire(s) de **{item_name}** {emoji}.", ephemeral=True
+        )
+
+    # Vérifier la balance du buyer (acheteur)
+    buyer_data = collection.find_one({"guild_id": guild_id, "user_id": buyer_id}) or {"cash": 1500, "bank": 0}
+    buyer_cash = buyer_data.get("cash", 0)
+
+    # Calcul du coût total pour la quantité de l'item
+    total_price = price * quantity
+
+    if buyer_cash < total_price:
+        return await interaction.response.send_message(f"❌ {member.display_name} n'a pas assez d'argent pour acheter **{quantity}x {item_name}** {emoji}.", ephemeral=True)
+
+    # Création des boutons
+    accept_button = Button(label="Accepter", style=discord.ButtonStyle.green, custom_id="accept_sell")
+    decline_button = Button(label="Refuser", style=discord.ButtonStyle.red, custom_id="decline_sell")
+    info_button = Button(label="Item Info", style=discord.ButtonStyle.blue, custom_id="item_info")
+
+    # Création de la vue pour gérer les boutons
+    view = View()
+    view.add_item(accept_button)
+    view.add_item(decline_button)
+    view.add_item(info_button)
+
+    # Embed de la vente
+    embed = discord.Embed(
+        title=f"Vente proposée par {interaction.user.display_name}",
+        description=f"<@{interaction.user.id}> veut te vendre **{quantity}x {item_name}** {emoji} pour <:ecoEther:1341862366249357374> **{total_price}**.",
+        color=discord.Color.gold()
+    )
+    embed.set_footer(text="Clique sur un bouton ci-dessous pour répondre à l'offre.")
+
+    # Envoi de l'embed avec les boutons
+    await interaction.response.send_message(embed=embed, content=f"<@{buyer_id}>", view=view)
+
+    # Gestion des interactions avec les boutons
+    async def button_callback(interaction: discord.Interaction):
+        if interaction.user.id != buyer_id:
+            return await interaction.response.send_message("❌ Ce n'est pas ton offre.", ephemeral=True)
+
+        if interaction.data["custom_id"] == "accept_sell":
+            # Si l'acheteur accepte la vente
+            for _ in range(quantity):
+                # Ajouter l'item au buyer
+                collection17.update_one(
+                    {"user_id": buyer_id, "guild_id": guild_id, "item_id": item_id},
+                    {"$inc": {"quantity": 1}},
+                    upsert=True
+                )
+                
+                # Retirer l'item du seller
+                collection17.update_one(
+                    {"user_id": seller_id, "guild_id": guild_id, "item_id": item_id},
+                    {"$inc": {"quantity": -1}}
+                )
+
+            # Mise à jour des soldes de l'acheteur et du vendeur
+            new_buyer_cash = buyer_cash - total_price
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": buyer_id},
+                {"$set": {"cash": new_buyer_cash}},
+                upsert=True
+            )
+
+            seller_data = collection.find_one({"guild_id": guild_id, "user_id": seller_id}) or {"cash": 1500, "bank": 0}
+            seller_cash = seller_data.get("cash", 0)
+            new_seller_cash = seller_cash + total_price
+            collection.update_one(
+                {"guild_id": guild_id, "user_id": seller_id},
+                {"$set": {"cash": new_seller_cash}},
+                upsert=True
+            )
+
+            await interaction.response.send_message(f"✅ {buyer_id} a accepté l'offre et a acheté **{quantity}x {item_name}** {emoji} pour **{total_price:,} <:ecoEther:1341862366249357374>**.", ephemeral=True)
+            await interaction.followup.send(f"✅ **{member.display_name}** a accepté l'offre de vente.")
+
+        elif interaction.data["custom_id"] == "decline_sell":
+            # Si l'acheteur refuse la vente
+            await interaction.response.send_message("❌ L'offre a été refusée.", ephemeral=True)
+
+        elif interaction.data["custom_id"] == "item_info":
+            # Afficher les informations de l'item
+            return await item_info(interaction, item_id)
+
+    # Ajout de l'événement pour chaque bouton
+    accept_button.callback = button_callback
+    decline_button.callback = button_callback
+    info_button.callback = button_callback
+
+@bot.tree.command(name="item-leaderboard", description="Affiche le leaderboard des utilisateurs possédant un item spécifique.")
+@app_commands.describe(
+    item_id="ID de l'item dont vous voulez voir le leaderboard"
+)
+async def item_leaderboard(interaction: discord.Interaction, item_id: int):
+    guild_id = interaction.guild.id
+
+    # Vérifier si l'item existe dans la collection des items
+    item_data = collection16.find_one({"id": item_id})
+    if not item_data:
+        return await interaction.response.send_message("❌ Aucun item trouvé avec cet ID.", ephemeral=True)
+
+    item_name = item_data["title"]
+    item_emoji = item_data.get("emoji", "")  # Emoji de l'item
+
+    # Trouver tous les utilisateurs qui possèdent cet item dans le serveur
+    leaderboard = collection17.find({"guild_id": guild_id, "item_id": item_id}).sort("quantity", -1)
+    
+    if leaderboard.count() == 0:
+        return await interaction.response.send_message(f"❌ Aucun utilisateur ne possède l'item **{item_name}**.", ephemeral=True)
+
+    # Créer un embed pour afficher le leaderboard
+    embed = discord.Embed(
+        title=f"Leaderboard: {item_name}",
+        description="Voici le classement des utilisateurs possédant cet item :",
+        color=discord.Color.blue()
+    )
+
+    # Ajouter l'emoji en haut à droite de l'embed
+    if item_emoji:
+        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item_emoji.split(':')[2].split('>')[0]}.png")
+
+    # Ajouter les utilisateurs au leaderboard
+    rank = 1
+    for user_data in leaderboard:
+        user = interaction.guild.get_member(user_data["user_id"])
+        if user:  # Vérifier que l'utilisateur existe dans le serveur
+            embed.add_field(
+                name=f"{rank}. {user.display_name}",
+                value=f"• {user_data['quantity']}x {item_name}",
+                inline=False
+            )
+            rank += 1
+
+    await interaction.response.send_message(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
