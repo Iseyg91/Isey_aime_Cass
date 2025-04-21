@@ -2459,12 +2459,18 @@ class Paginator(discord.ui.View):
 
     async def update(self, interaction: discord.Interaction):
         embed = get_page_embed(self.page)
+        # Les réponses ne sont pas éphemeres, tout est en public
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
     async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.user:
-            return await interaction.response.send_message("❌ Ce menu ne t'appartient pas !", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description="Tu n'as pas la permission de naviguer dans ce menu.",
+                color=discord.Color.red()
+            )
+            return await interaction.response.edit_message(embed=embed, view=self)
         if self.page > 0:
             self.page -= 1
             await self.update(interaction)
@@ -2472,7 +2478,12 @@ class Paginator(discord.ui.View):
     @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
     async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user != self.user:
-            return await interaction.response.send_message("❌ Ce menu ne t'appartient pas !", ephemeral=True)
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description="Tu n'as pas la permission de naviguer dans ce menu.",
+                color=discord.Color.red()
+            )
+            return await interaction.response.edit_message(embed=embed, view=self)
         if (self.page + 1) * 10 < len(ITEMS):
             self.page += 1
             await self.update(interaction)
@@ -2487,6 +2498,8 @@ async def item_store(interaction: discord.Interaction):
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
 
+from datetime import datetime
+
 @bot.tree.command(name="item-buy", description="Achète un item de la boutique via son ID.")
 @app_commands.describe(item_id="ID de l'item à acheter", quantity="Quantité à acheter (défaut: 1)")
 async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int = 1):
@@ -2495,16 +2508,39 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
 
     item = collection16.find_one({"id": item_id})
     if not item:
-        return await interaction.response.send_message("❌ Item introuvable.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item introuvable",
+            description="Aucun item avec cet ID n'a été trouvé dans la boutique.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
     if quantity <= 0:
-        return await interaction.response.send_message("❌ Quantité invalide.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Quantité invalide",
+            description="La quantité doit être supérieure à zéro.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
     if item["quantity"] < quantity:
-        return await interaction.response.send_message("❌ Stock insuffisant pour cet achat.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Stock insuffisant",
+            description=f"Il ne reste que **{item['quantity']}x** de cet item en stock.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     user_data = collection.find_one({"user_id": user_id, "guild_id": guild_id}) or {"cash": 0}
     total_price = item["price"] * quantity
+
     if user_data["cash"] < total_price:
-        return await interaction.response.send_message("❌ Tu n'as pas assez de <:ecoEther:1341862366249357374>.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Fonds insuffisants",
+            description=f"Tu n'as pas assez de <:ecoEther:1341862366249357374> pour cet achat.\nPrix total : **{total_price:,}**",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     # Retirer l'argent
     collection.update_one(
@@ -2547,10 +2583,15 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
         {"$inc": {"quantity": -quantity}}
     )
 
-    await interaction.response.send_message(
-        f"✅ Tu as acheté {quantity}x **{item['title']}** {item['emoji']} pour {total_price:,} {item['emoji_price']} !",
-        ephemeral=True
+    embed = discord.Embed(
+        title="<:Check:1362710665663615147> Achat effectué",
+        description=(
+            f"Tu as acheté **{quantity}x {item['title']}** {item['emoji']} "
+            f"pour **{total_price:,}** {item['emoji_price']} !"
+        ),
+        color=discord.Color.green()
     )
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="item-inventory", description="Affiche l'inventaire d'un utilisateur")
 async def item_inventory(interaction: discord.Interaction, user: discord.User = None):
@@ -2579,13 +2620,15 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
     )
 
     if not item_counts:
-        embed.description = "Aucun item trouvé dans l'inventaire."
+        embed.title = "<:classic_x_mark:1362711858829725729> Inventaire vide"
+        embed.description = f"{user.mention} ne possède actuellement aucun item."
+        embed.color = discord.Color.red()
     else:
-        description = ""
+        lines = []
         for item_id, quantity in item_counts.items():
             details = item_details[item_id]
-            description += f"**{quantity}x** {details['title']} {details['emoji']} (ID: `{item_id}`)\n"
-        embed.description = description.strip()
+            lines.append(f"**{quantity}x** {details['title']} {details['emoji']} (ID: `{item_id}`)")
+        embed.description = "\n".join(lines)
 
     await interaction.response.send_message(embed=embed)
 
@@ -2644,12 +2687,22 @@ async def item_use(interaction: discord.Interaction, item_id: int):
     # Vérifie si l'item est dans l'inventaire
     owned_item = collection17.find_one({"user_id": user_id, "guild_id": guild_id, "item_id": item_id})
     if not owned_item:
-        return await interaction.response.send_message("❌ Tu ne possèdes pas cet item.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item non possédé",
+            description="Tu ne possèdes pas cet item dans ton inventaire.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     # Récupère les infos de l'item
     item_data = collection16.find_one({"id": item_id})
     if not item_data or not item_data.get("usable", False):
-        return await interaction.response.send_message("❌ Cet item n'existe pas ou ne peut pas être utilisé.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Utilisation impossible",
+            description="Cet item n'existe pas ou ne peut pas être utilisé.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     title = item_data["title"]
     emoji = item_data.get("emoji", "")
@@ -2661,7 +2714,11 @@ async def item_use(interaction: discord.Interaction, item_id: int):
         "item_id": item_id
     })
 
-    result_message = f"✅ Tu as utilisé **{title}** {emoji}."
+    embed = discord.Embed(
+        title=f"<:Check:1362710665663615147> Utilisation de l'item",
+        description=f"Tu as utilisé **{title}** {emoji}.",
+        color=discord.Color.green()
+    )
 
     # Vérifie s'il donne un rôle
     role_id = item_data.get("role_id")
@@ -2669,7 +2726,7 @@ async def item_use(interaction: discord.Interaction, item_id: int):
         role = guild.get_role(int(role_id))
         if role:
             await user.add_roles(role)
-            result_message += f"\n🎭 Rôle **{role.name}** ajouté."
+            embed.add_field(name="🎭 Rôle attribué", value=f"Tu as reçu le rôle **{role.name}**.", inline=False)
 
     # Vérifie s'il donne un autre item
     reward_item_id = item_data.get("gives_item_id")
@@ -2683,9 +2740,9 @@ async def item_use(interaction: discord.Interaction, item_id: int):
         if reward_data:
             reward_title = reward_data["title"]
             reward_emoji = reward_data.get("emoji", "")
-            result_message += f"\n🎁 Tu as reçu **{reward_title}** {reward_emoji}."
+            embed.add_field(name="🎁 Récompense reçue", value=f"Tu as reçu **{reward_title}** {reward_emoji}.", inline=False)
 
-    await interaction.response.send_message(result_message, ephemeral=True)
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="item-give", description="(Admin) Donne un item à un utilisateur.")
 @app_commands.checks.has_permissions(administrator=True)
@@ -2701,24 +2758,43 @@ async def item_give(interaction: discord.Interaction, member: discord.Member, it
     # Vérifie si l'item existe dans la boutique
     item_data = collection16.find_one({"id": item_id})
     if not item_data:
-        return await interaction.response.send_message("❌ Cet item n'existe pas.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item introuvable",
+            description="Cet item n'existe pas dans la boutique.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     if quantity < 1:
-        return await interaction.response.send_message("❌ La quantité doit être au moins 1.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Quantité invalide",
+            description="La quantité doit être d'au moins **1**.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
-    # Ajoute l'item dans la collection17 (inventaire)
+    # Ajoute l'item dans la collection17 (inventaire structuré)
     for _ in range(quantity):
         collection17.insert_one({
             "user_id": user_id,
             "guild_id": guild_id,
-            "item_id": item_id
+            "item_id": item_id,
+            "item_name": item_data["title"],
+            "emoji": item_data.get("emoji", ""),
+            "price": item_data.get("price"),
+            "acquired_at": datetime.utcnow()
         })
 
     item_name = item_data["title"]
     emoji = item_data.get("emoji", "")
-    await interaction.response.send_message(
-        f"✅ Tu as donné **{quantity}x {item_name}** {emoji} à {member.mention}.", ephemeral=True
+
+    embed = discord.Embed(
+        title=f"<:Check:1362710665663615147> Item donné",
+        description=f"**{quantity}x {item_name}** {emoji} ont été donnés à {member.mention}.",
+        color=discord.Color.green()
     )
+
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="item-take", description="(Admin) Retire un item d'un utilisateur.")
 @app_commands.checks.has_permissions(administrator=True)
@@ -2734,12 +2810,17 @@ async def item_take(interaction: discord.Interaction, member: discord.Member, it
     # Vérifie si l'item existe
     item_data = collection16.find_one({"id": item_id})
     if not item_data:
-        return await interaction.response.send_message("❌ Cet item n'existe pas dans la boutique.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item introuvable",
+            description="Cet item n'existe pas dans la boutique.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     item_name = item_data["title"]
     emoji = item_data.get("emoji", "")
 
-    # Vérifie si l'utilisateur possède assez d'items
+    # Vérifie combien l'utilisateur en possède
     owned_count = collection17.count_documents({
         "user_id": user_id,
         "guild_id": guild_id,
@@ -2747,11 +2828,14 @@ async def item_take(interaction: discord.Interaction, member: discord.Member, it
     })
 
     if owned_count < quantity:
-        return await interaction.response.send_message(
-            f"❌ {member.display_name} ne possède que {owned_count} exemplaire(s) de **{item_name}** {emoji}.", ephemeral=True
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Quantité insuffisante",
+            description=f"{member.mention} ne possède que **{owned_count}x {item_name}** {emoji}. Impossible de retirer {quantity}.",
+            color=discord.Color.red()
         )
+        return await interaction.response.send_message(embed=embed)
 
-    # Supprime le nombre d'exemplaires voulu
+    # Supprime les exemplaires un par un
     for _ in range(quantity):
         collection17.delete_one({
             "user_id": user_id,
@@ -2759,11 +2843,13 @@ async def item_take(interaction: discord.Interaction, member: discord.Member, it
             "item_id": item_id
         })
 
-    await interaction.response.send_message(
-        f"✅ Tu as retiré **{quantity}x {item_name}** {emoji} de l'inventaire de {member.mention}.", ephemeral=True
+    embed = discord.Embed(
+        title="<:Check:1362710665663615147> Item retiré",
+        description=f"**{quantity}x {item_name}** {emoji} ont été retirés de l'inventaire de {member.mention}.",
+        color=discord.Color.green()
     )
 
-from discord.ui import Button, View
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="item-sell", description="Vends un item à un autre utilisateur pour un prix donné.")
 @app_commands.describe(
@@ -2777,155 +2863,163 @@ async def item_sell(interaction: discord.Interaction, member: discord.User, item
     seller_id = interaction.user.id
     buyer_id = member.id
 
-    # Vérifier si l'item existe dans la boutique
     item_data = collection16.find_one({"id": item_id})
     if not item_data:
-        return await interaction.response.send_message("❌ Cet item n'existe pas dans la boutique.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item introuvable",
+            description="Cet item n'existe pas dans la boutique.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     item_name = item_data["title"]
     emoji = item_data.get("emoji", "")
 
-    # Vérifier si le vendeur possède l'item en quantité suffisante
     owned_count = collection17.count_documents({
         "user_id": seller_id,
         "guild_id": guild_id,
         "item_id": item_id
     })
-    
+
     if owned_count < quantity:
-        return await interaction.response.send_message(
-            f"❌ Tu ne possèdes que {owned_count} exemplaire(s) de **{item_name}** {emoji}.", ephemeral=True
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Vente impossible",
+            description=f"Tu ne possèdes que **{owned_count}x {item_name}** {emoji}.",
+            color=discord.Color.red()
         )
+        return await interaction.response.send_message(embed=embed)
 
-    # Vérifier la balance du buyer (acheteur)
-    buyer_data = collection.find_one({"guild_id": guild_id, "user_id": buyer_id}) or {"cash": 1500, "bank": 0}
-    buyer_cash = buyer_data.get("cash", 0)
-
-    # Calcul du coût total pour la quantité de l'item
+    buyer_data = collection.find_one({"guild_id": guild_id, "user_id": buyer_id}) or {"cash": 1500}
     total_price = price * quantity
 
-    if buyer_cash < total_price:
-        return await interaction.response.send_message(f"❌ {member.display_name} n'a pas assez d'argent pour acheter **{quantity}x {item_name}** {emoji}.", ephemeral=True)
+    if buyer_data.get("cash", 0) < total_price:
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Fonds insuffisants",
+            description=f"{member.mention} n'a pas assez d'argent pour acheter **{quantity}x {item_name}** {emoji}.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
-    # Création des boutons
-    accept_button = Button(label="Accepter", style=discord.ButtonStyle.green, custom_id="accept_sell")
-    decline_button = Button(label="Refuser", style=discord.ButtonStyle.red, custom_id="decline_sell")
-    info_button = Button(label="Item Info", style=discord.ButtonStyle.blue, custom_id="item_info")
+    # Boutons
+    class SellView(View):
+        def __init__(self):
+            super().__init__(timeout=60)
 
-    # Création de la vue pour gérer les boutons
-    view = View()
-    view.add_item(accept_button)
-    view.add_item(decline_button)
-    view.add_item(info_button)
+        @discord.ui.button(label="✅ Accepter", style=discord.ButtonStyle.green)
+        async def accept_sell(self, interaction_btn: discord.Interaction, button: Button):
+            if interaction_btn.user.id != buyer_id:
+                return await interaction_btn.response.send_message("❌ Ce n'est pas ton offre.", ephemeral=True)
 
-    # Embed de la vente
-    embed = discord.Embed(
-        title=f"Vente proposée par {interaction.user.display_name}",
-        description=f"<@{interaction.user.id}> veut te vendre **{quantity}x {item_name}** {emoji} pour <:ecoEther:1341862366249357374> **{total_price}**.",
-        color=discord.Color.gold()
-    )
-    embed.set_footer(text="Clique sur un bouton ci-dessous pour répondre à l'offre.")
-
-    # Envoi de l'embed avec les boutons
-    await interaction.response.send_message(embed=embed, content=f"<@{buyer_id}>", view=view)
-
-    # Gestion des interactions avec les boutons
-    async def button_callback(interaction: discord.Interaction):
-        if interaction.user.id != buyer_id:
-            return await interaction.response.send_message("❌ Ce n'est pas ton offre.", ephemeral=True)
-
-        if interaction.data["custom_id"] == "accept_sell":
-            # Si l'acheteur accepte la vente
+            # Transfert de l'item
             for _ in range(quantity):
-                # Ajouter l'item au buyer
-                collection17.update_one(
-                    {"user_id": buyer_id, "guild_id": guild_id, "item_id": item_id},
-                    {"$inc": {"quantity": 1}},
-                    upsert=True
-                )
-                
-                # Retirer l'item du seller
-                collection17.update_one(
-                    {"user_id": seller_id, "guild_id": guild_id, "item_id": item_id},
-                    {"$inc": {"quantity": -1}}
-                )
+                collection17.insert_one({
+                    "user_id": buyer_id,
+                    "guild_id": guild_id,
+                    "item_id": item_id,
+                    "item_name": item_name,
+                    "emoji": emoji,
+                    "price": price,
+                    "acquired_at": datetime.utcnow()
+                })
+                collection17.delete_one({
+                    "user_id": seller_id,
+                    "guild_id": guild_id,
+                    "item_id": item_id
+                })
 
-            # Mise à jour des soldes de l'acheteur et du vendeur
-            new_buyer_cash = buyer_cash - total_price
+            # Paiement
             collection.update_one(
                 {"guild_id": guild_id, "user_id": buyer_id},
-                {"$set": {"cash": new_buyer_cash}},
+                {"$inc": {"cash": -total_price}},
                 upsert=True
             )
-
-            seller_data = collection.find_one({"guild_id": guild_id, "user_id": seller_id}) or {"cash": 1500, "bank": 0}
-            seller_cash = seller_data.get("cash", 0)
-            new_seller_cash = seller_cash + total_price
             collection.update_one(
                 {"guild_id": guild_id, "user_id": seller_id},
-                {"$set": {"cash": new_seller_cash}},
+                {"$inc": {"cash": total_price}},
                 upsert=True
             )
 
-            await interaction.response.send_message(f"✅ {buyer_id} a accepté l'offre et a acheté **{quantity}x {item_name}** {emoji} pour **{total_price:,} <:ecoEther:1341862366249357374>**.", ephemeral=True)
-            await interaction.followup.send(f"✅ **{member.display_name}** a accepté l'offre de vente.")
+            confirm_embed = discord.Embed(
+                title="<:Check:1362710665663615147> Vente conclue",
+                description=f"{member.mention} a acheté **{quantity}x {item_name}** {emoji} pour **{total_price:,}** <:ecoEther:1341862366249357374>.",
+                color=discord.Color.green()
+            )
+            await interaction_btn.response.edit_message(embed=confirm_embed, view=None)
 
-        elif interaction.data["custom_id"] == "decline_sell":
-            # Si l'acheteur refuse la vente
-            await interaction.response.send_message("❌ L'offre a été refusée.", ephemeral=True)
+        @discord.ui.button(label="❌ Refuser", style=discord.ButtonStyle.red)
+        async def decline_sell(self, interaction_btn: discord.Interaction, button: Button):
+            if interaction_btn.user.id != buyer_id:
+                return await interaction_btn.response.send_message("❌ Ce n'est pas ton offre.", ephemeral=True)
 
-        elif interaction.data["custom_id"] == "item_info":
-            # Afficher les informations de l'item
-            return await item_info(interaction, item_id)
+            cancel_embed = discord.Embed(
+                title="<:classic_x_mark:1362711858829725729> Offre refusée",
+                description=f"{member.mention} a refusé l'offre.",
+                color=discord.Color.red()
+            )
+            await interaction_btn.response.edit_message(embed=cancel_embed, view=None)
 
-    # Ajout de l'événement pour chaque bouton
-    accept_button.callback = button_callback
-    decline_button.callback = button_callback
-    info_button.callback = button_callback
+    view = SellView()
+
+    offer_embed = discord.Embed(
+        title=f"💸 Offre de {interaction.user.display_name}",
+        description=f"{interaction.user.mention} te propose **{quantity}x {item_name}** {emoji} pour **{total_price:,}** <:ecoEther:1341862366249357374>.",
+        color=discord.Color.gold()
+    )
+    offer_embed.set_footer(text="Tu as 60 secondes pour accepter ou refuser.")
+
+    await interaction.response.send_message(embed=offer_embed, content=member.mention, view=view)
 
 @bot.tree.command(name="item-leaderboard", description="Affiche le leaderboard des utilisateurs possédant un item spécifique.")
 @app_commands.describe(
     item_id="ID de l'item dont vous voulez voir le leaderboard"
 )
 async def item_leaderboard(interaction: discord.Interaction, item_id: int):
-    guild_id = interaction.guild.id
+    guild = interaction.guild
+    guild_id = guild.id
 
-    # Vérifier si l'item existe dans la collection des items
     item_data = collection16.find_one({"id": item_id})
     if not item_data:
-        return await interaction.response.send_message("❌ Aucun item trouvé avec cet ID.", ephemeral=True)
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Item introuvable",
+            description="Aucun item n'existe avec cet ID.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
 
     item_name = item_data["title"]
-    item_emoji = item_data.get("emoji", "")  # Emoji de l'item
+    item_emoji = item_data.get("emoji", "")
 
-    # Trouver tous les utilisateurs qui possèdent cet item dans le serveur
-    leaderboard = collection17.find({"guild_id": guild_id, "item_id": item_id}).sort("quantity", -1)
-    
-    if await leaderboard.count_documents({}) == 0:
-        return await interaction.response.send_message(f"❌ Aucun utilisateur ne possède l'item **{item_name}**.", ephemeral=True)
+    # Agrégation des quantités par utilisateur
+    pipeline = [
+        {"$match": {"guild_id": guild_id, "item_id": item_id}},
+        {"$group": {"_id": "$user_id", "quantity": {"$sum": 1}}},
+        {"$sort": {"quantity": -1}},
+        {"$limit": 10}
+    ]
+    leaderboard = list(collection17.aggregate(pipeline))
 
-    # Créer un embed pour afficher le leaderboard
+    if not leaderboard:
+        embed = discord.Embed(
+            title="📉 Aucun résultat",
+            description=f"Aucun utilisateur ne possède **{item_name}** {item_emoji} dans ce serveur.",
+            color=discord.Color.dark_grey()
+        )
+        return await interaction.response.send_message(embed=embed)
+
     embed = discord.Embed(
-        title=f"Leaderboard: {item_name}",
-        description="Voici le classement des utilisateurs possédant cet item :",
-        color=discord.Color.blue()
+        title=f"🏆 Leaderboard : {item_name} {item_emoji}",
+        description="Classement des membres qui possèdent le plus cet item :",
+        color=discord.Color.blurple()
     )
 
-    # Ajouter l'emoji en haut à droite de l'embed
-    if item_emoji:
-        embed.set_thumbnail(url=f"https://cdn.discordapp.com/emojis/{item_emoji.split(':')[2].split('>')[0]}.png")
-
-    # Ajouter les utilisateurs au leaderboard
-    rank = 1
-    for user_data in leaderboard:
-        user = interaction.guild.get_member(user_data["user_id"])
-        if user:  # Vérifier que l'utilisateur existe dans le serveur
-            embed.add_field(
-                name=f"{rank}. {user.display_name}",
-                value=f"• {user_data['quantity']}x {item_name}",
-                inline=False
-            )
-            rank += 1
+    for i, entry in enumerate(leaderboard, start=1):
+        user = guild.get_member(entry["_id"])
+        name = user.display_name if user else f"<Utilisateur inconnu `{entry['_id']}`>"
+        embed.add_field(
+            name=f"{i}. {name}",
+            value=f"{entry['quantity']}x {item_name} {item_emoji}",
+            inline=False
+        )
 
     await interaction.response.send_message(embed=embed)
 
