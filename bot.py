@@ -3671,25 +3671,21 @@ async def start_rewards(interaction: discord.Interaction):
         ephemeral=True
     )
 
-# === FONCTION POUR DONNER LA RÉCOMPENSE ===
 async def give_reward(interaction: discord.Interaction, day: int):
-    # Récupérer la récompense pour le jour spécifique
-    reward = daily_rewards.get(day)  # ✅ ici on utilise daily_rewards
+    reward = daily_rewards.get(day)
     if not reward:
         await interaction.response.send_message("Aucune récompense disponible pour ce jour.", ephemeral=True)
         return
 
-    # Récupérer les éléments de la récompense (coins, badge, item)
     coins = reward.get("coins", 0)
     badge = reward.get("badge")
     item = reward.get("item")
 
-    # Récupérer les données de l'utilisateur dans la base de données
+    # === Récompense enregistrée (collection23) ===
     user_data = collection23.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
     if not user_data:
         user_data = {"guild_id": interaction.guild.id, "user_id": interaction.user.id, "rewards_received": {}}
 
-    # Mettre à jour les récompenses reçues
     user_data["rewards_received"][str(day)] = reward
     collection23.update_one(
         {"guild_id": interaction.guild.id, "user_id": interaction.user.id},
@@ -3697,25 +3693,61 @@ async def give_reward(interaction: discord.Interaction, day: int):
         upsert=True
     )
 
-    # Création de l'embed avec la progress bar
-    days_elapsed = (datetime.utcnow() - get_start_date(interaction.guild.id)).days + 1
-    total_days = 7
-    days_received = len(user_data["rewards_received"])
+    # === Coins (collection économie) ===
+    eco_data = collection.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
+    if not eco_data:
+        collection.insert_one({
+            "guild_id": interaction.guild.id,
+            "user_id": interaction.user.id,
+            "cash": coins,
+            "bank": 0
+        })
+    else:
+        collection.update_one(
+            {"guild_id": interaction.guild.id, "user_id": interaction.user.id},
+            {"$inc": {"cash": coins}}
+        )
 
+    # === Badge (collection20) ===
+    if badge:
+        badge_data = collection20.find_one({"user_id": interaction.user.id})
+        if not badge_data:
+            collection20.insert_one({"user_id": interaction.user.id, "badges": [badge]})
+        elif badge not in badge_data.get("badges", []):
+            collection20.update_one(
+                {"user_id": interaction.user.id},
+                {"$push": {"badges": badge}}
+            )
+
+    # === Item (collection17) ===
+    if item:
+        item_config = collection18.find_one({"id": item})  # Tu peux adapter si l'item vient d'ailleurs
+        if item_config:
+            collection17.insert_one({
+                "guild_id": interaction.guild.id,
+                "user_id": interaction.user.id,
+                "item_id": item,
+                "item_name": item_config.get("title", "Nom inconnu"),
+                "emoji": item_config.get("emoji", "")
+            })
+
+    # === Embed de récompense ===
+    days_received = len(user_data["rewards_received"])
+    total_days = 7
     embed = discord.Embed(
-        title="🎁 Récompense de la journée", 
-        description=f"Voici ta récompense pour le jour {day} !", 
+        title="🎁 Récompense de la journée",
+        description=f"Voici ta récompense pour le jour {day} !",
         color=discord.Color.green()
     )
     embed.add_field(name="Coins", value=f"{coins} <:ecoEther:1341862366249357374>", inline=False)
     if badge:
         embed.add_field(name="Badge", value=f"Badge ID {badge}", inline=False)
     if item:
-        embed.add_field(name="Item", value=f"Item ID {item}", inline=False)
+        embed.add_field(name="Item", value=f"{item_config.get('title', 'Nom inconnu')} {item_config.get('emoji', '')} (ID: {item})", inline=False)
     embed.set_image(url=reward["image_url"])
 
     progress = "█" * days_received + "░" * (total_days - days_received)
-    embed.add_field(name="Progress", value=f"{progress} ({days_received}/{total_days})", inline=False)
+    embed.add_field(name="Progression", value=f"{progress} ({days_received}/{total_days})", inline=False)
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
