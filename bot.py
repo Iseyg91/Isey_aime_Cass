@@ -2577,7 +2577,7 @@ ITEMS = [
     "used": false
 },
     {
-        "id": 07,
+        "id": 7,
         "emoji": "<:licence:1363609202211422268>",
         "title": "Licence Hunter ",
         "description": "Donne accès a toutes les techniques De Hunter x Hunter, plus donne accès a un salon avec des quêtes",
@@ -2596,7 +2596,7 @@ ITEMS = [
         "used": False
     },
  {
-    "id": 28,
+    "id": 22,
     "emoji": "<:imperiale:1363601099990241601>",
     "title": " Arme démoniaque impériale",
     "description": "Cette objet vous permet d'utiliser le démon dans votre arme et vous permet de voler votre adversaire ",
@@ -2695,7 +2695,7 @@ ITEMS = [
     "used": false
  },
  {
-    "id": 08,
+    "id": 8,
     "emoji": "<:infini:1363615903404785734>",
     "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟙",
     "description": "L'infini protège des robs pendant 1h (utilisable 1 fois par items)",
@@ -2809,7 +2809,7 @@ ITEMS = [
     "used": False
  },
  {
-    "id": 04,
+    "id": 4,
     "emoji": "<:naturoermite:1363945371448905810>",
     "title": "Mode Ermite",
     "description": "Ce mode autrefois maîtrisé par Naruto lui même, il vous confère l’énergie de la nature. Grâce à cela, vous pourrez avoir plus d’ezryn !!!",
