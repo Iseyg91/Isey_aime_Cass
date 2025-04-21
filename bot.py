@@ -2478,7 +2478,7 @@ class Paginator(discord.ui.View):
             await self.update(interaction)
 
 # Slash command /item_store
-@bot.tree.command(name="item_store", description="Affiche la boutique d'items")
+@bot.tree.command(name="item-store", description="Affiche la boutique d'items")
 async def item_store(interaction: discord.Interaction):
     embed = get_page_embed(0)
     view = Paginator(user=interaction.user)
@@ -2487,7 +2487,7 @@ async def item_store(interaction: discord.Interaction):
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
 
-@bot.tree.command(name="item_buy", description="Achète un item de la boutique via son ID.")
+@bot.tree.command(name="item-buy", description="Achète un item de la boutique via son ID.")
 @app_commands.describe(item_id="ID de l'item à acheter", quantity="Quantité à acheter (défaut: 1)")
 async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int = 1):
     user_id = interaction.user.id
@@ -2552,7 +2552,7 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
         ephemeral=True
     )
 
-@bot.tree.command(name="item_inventory", description="Affiche l'inventaire d'un utilisateur")
+@bot.tree.command(name="item-inventory", description="Affiche l'inventaire d'un utilisateur")
 async def item_inventory(interaction: discord.Interaction, user: discord.User = None):
     user = user or interaction.user
     guild_id = interaction.guild.id
@@ -2589,7 +2589,7 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
 
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="item_info", description="Affiche toutes les informations d'un item de la boutique")
+@bot.tree.command(name="item-info", description="Affiche toutes les informations d'un item de la boutique")
 @app_commands.describe(id="ID de l'item à consulter")
 async def item_info(interaction: discord.Interaction, id: int):
     item = collection16.find_one({"id": id})
@@ -2633,7 +2633,7 @@ async def item_info(interaction: discord.Interaction, id: int):
 
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="item_use", description="Utilise un item de ton inventaire.")
+@bot.tree.command(name="item-use", description="Utilise un item de ton inventaire.")
 @app_commands.describe(item_id="ID de l'item à utiliser")
 async def item_use(interaction: discord.Interaction, item_id: int):
     user = interaction.user
@@ -2687,7 +2687,7 @@ async def item_use(interaction: discord.Interaction, item_id: int):
 
     await interaction.response.send_message(result_message, ephemeral=True)
 
-@bot.tree.command(name="item_give", description="(Admin) Donne un item à un utilisateur.")
+@bot.tree.command(name="item-give", description="(Admin) Donne un item à un utilisateur.")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
     member="Utilisateur à qui donner l'item",
@@ -2720,7 +2720,7 @@ async def item_give(interaction: discord.Interaction, member: discord.Member, it
         f"✅ Tu as donné **{quantity}x {item_name}** {emoji} à {member.mention}.", ephemeral=True
     )
 
-@bot.tree.command(name="item_take", description="(Admin) Retire un item d'un utilisateur.")
+@bot.tree.command(name="item-take", description="(Admin) Retire un item d'un utilisateur.")
 @app_commands.checks.has_permissions(administrator=True)
 @app_commands.describe(
     member="Utilisateur à qui retirer l'item",
