@@ -4253,6 +4253,9 @@ async def renforcement(ctx):
         except discord.HTTPException:
             pass
 
+EMISSION_IDS = [1363817593252876368, 1363817609916584057]
+TARGET_ROLE_ID = 1363969965572755537 
+COOLDOWN_DAYS = 1 
 @bot.command(name="emission")
 async def emission(ctx, member: discord.Member):
     # Vérification du rôle
