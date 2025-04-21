@@ -2418,7 +2418,7 @@ from datetime import datetime, timedelta
 # Exemple d'items dans la boutique avec vérification des rôles ou des items
 ITEMS = [
     {
-        "id": 7,
+        "id": 15,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
@@ -2427,11 +2427,8 @@ ITEMS = [
         "quantity": 5,
         "tradeable": False,
         "usable": True,
-        "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker.",
-        "requirements": {
-            "roles": [1363793059237593099],  # Liste des rôles nécessaires
-            "items": [5]  # Liste des IDs des items nécessaires
-        },
+        "use_effect": "Equipe l'armure du berserker et procure une protection au rob de 1h (le temps de l'armure) et permet d'activé la Rage du Berserker si l'utilisateur le souhaite.",
+        "requirements": {},  # Aucun requirement
         "role_id": 1363793059237593099,  # ID du rôle à donner lors de l'utilisation
         "role_duration": 3600,  # Durée en secondes (1 heure ici)
         "remove_after_purchase": {
