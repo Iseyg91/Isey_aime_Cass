@@ -2729,8 +2729,23 @@ async def item_use(interaction: discord.Interaction, item_id: int):
     if role_id:
         role = guild.get_role(int(role_id))
         if role:
-            await user.add_roles(role)
-            embed.add_field(name="🎭 Rôle attribué", value=f"Tu as reçu le rôle **{role.name}**.", inline=False)
+            # Vérification de la hiérarchie des rôles
+            if interaction.guild.me.top_role.position > role.position:
+                try:
+                    await user.add_roles(role)
+                    embed.add_field(name="🎭 Rôle attribué", value=f"Tu as reçu le rôle **{role.name}**.", inline=False)
+                except discord.Forbidden:
+                    embed.add_field(
+                        name="⚠️ Rôle non attribué",
+                        value="Je n’ai pas la permission d’attribuer ce rôle. Vérifie mes permissions ou la hiérarchie des rôles.",
+                        inline=False
+                    )
+            else:
+                embed.add_field(
+                    name="⚠️ Rôle non attribué",
+                    value="Le rôle est trop élevé dans la hiérarchie pour que je puisse l’attribuer.",
+                    inline=False
+                )
 
     # Ajout d'un item bonus s'il y en a
     reward_item_id = item_data.get("gives_item_id")
