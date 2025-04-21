@@ -36,6 +36,8 @@ bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
 #Configuration du Bot:
 # --- ID Owner Bot ---
 ISEY_ID = 792755123587645461
+# Définir GUILD_ID
+GUILD_ID = 1362462863293415604
 
 # Connexion MongoDB
 mongo_uri = os.getenv("MONGO_DB")  # URI de connexion à MongoDB
