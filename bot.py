@@ -4222,7 +4222,7 @@ async def renforcement(ctx):
 
     await user.add_roles(role, reason="Renforcement activé")
 
-    # Embed joli
+    # Embed joli avec image
     embed = discord.Embed(
         title="💪 Renforcement Activé",
         description=f"Tu as reçu le rôle **{role.name}** pour 24h.",
@@ -4231,6 +4231,7 @@ async def renforcement(ctx):
     )
     embed.set_footer(text="Cooldown de 7 jours")
     embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
+    embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/renfo.jpg?raw=true")  # Ajoute l'image
 
     await ctx.send(embed=embed)
 
@@ -4256,6 +4257,7 @@ async def renforcement(ctx):
 EMISSION_IDS = [1363817593252876368, 1363817609916584057]
 TARGET_ROLE_ID = 1363969965572755537 
 COOLDOWN_DAYS = 1 
+
 @bot.command(name="emission")
 async def emission(ctx, member: discord.Member):
     # Vérification du rôle
@@ -4280,7 +4282,7 @@ async def emission(ctx, member: discord.Member):
         upsert=True
     )
 
-    # Embed stylé
+    # Embed stylé avec image
     embed = discord.Embed(
         title="🌑 Emission : Technique Maudite",
         description=f"{member.mention} a été maudit pendant 24h.\nIl subira un malus de **-20%** sur ses collect !",
@@ -4288,6 +4290,8 @@ async def emission(ctx, member: discord.Member):
         timestamp=now
     )
     embed.set_footer(text="Utilisation du Nen : Emission")
+    embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/emission.jpg?raw=true")  # Ajout de l'image
+
     await ctx.send(embed=embed)
 
     # Attendre 24h et retirer le rôle
@@ -4324,7 +4328,18 @@ async def manipulation(ctx):
         return await ctx.send("❌ Le rôle de manipulation est introuvable.")
 
     await user.add_roles(role)
-    await ctx.send(f"🧠 Tu as activé la **Manipulation** ! Tu gagnes un **collect de 1%** toutes les 4h pendant 24h.")
+
+    # Embed avec image
+    embed = discord.Embed(
+        title="🧠 Manipulation Activée",
+        description="Tu gagnes un **collect de 1%** toutes les 4h pendant 24h.",
+        color=discord.Color.blue(),
+        timestamp=now
+    )
+    embed.set_footer(text="Cooldown de 7 jours")
+    embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/image0.jpg?raw=true")  # Ajout de l'image
+
+    await ctx.send(embed=embed)
 
     # Mets à jour le cooldown
     next_available = now + timedelta(days=COOLDOWN_DAYS)
@@ -4392,7 +4407,18 @@ async def materialisation(ctx):
             {"$push": {"items": selected_item["_id"]}},  # Ajouter l'item à l'inventaire
             upsert=True
         )
-        await ctx.send(f"Tu as matérialisé un item : {selected_item['title']} {selected_item['emoji']} !")
+
+        # Embed avec image
+        embed = discord.Embed(
+            title="✨ Matérialisation réussie",
+            description=f"Tu as matérialisé un item : {selected_item['title']} {selected_item['emoji']} !",
+            color=discord.Color.purple(),
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.set_footer(text="Commande de matérialisation")
+        embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/Materi.png?raw=true")  # Ajout de l'image
+
+        await ctx.send(embed=embed)
     else:
         await ctx.send("Aucun item n'a pu être matérialisé.")
 
@@ -4403,7 +4429,8 @@ async def materialisation(ctx):
         upsert=True
     )
 
-@bot.hybrid_command(
+
+@bot.command(
     name="transformation",
     description="Transforme ton aura en éclair et foudroie la banque d'un autre joueur pour lui retirer 25% de son solde bancaire.",
 )
@@ -4460,8 +4487,17 @@ async def transformation(ctx: commands.Context, target: discord.User):
         note=f"Transformation de l'aura en éclair. Perte de 25% de la banque de {target.display_name}."
     )
 
-    # Réponse à l'utilisateur
-    await ctx.send(f"Tu as transformé ton aura en éclair et foudroyé la banque de {target.display_name}, lui retirant {bank_loss:.2f} d'Ether.")
+    # Embed stylé avec image
+    embed = discord.Embed(
+        title="⚡ Transformation : Aura en Éclair",
+        description=f"Tu as transformé ton aura en éclair et foudroyé la banque de {target.display_name}, lui retirant {bank_loss:.2f} d'Ether.",
+        color=discord.Color.blue(),
+        timestamp=datetime.utcnow()
+    )
+    embed.set_footer(text="Utilisation du Nen : Transformation")
+    embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/Transfo.jpg?raw=true")  # Ajout de l'image
+
+    await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
