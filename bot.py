@@ -278,12 +278,16 @@ async def auto_collect_loop():
                             "user_id": member.id
                         }) or {"guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0}
 
-                        before = eco_data["cash"]
-                        eco_data["cash"] += config["amount"]
+                        before = eco_data[config["target"]]  # "cash" ou "bank"
+
+                        if "amount" in config:
+                            eco_data[config["target"]] += config["amount"]
+                        elif "percent" in config:
+                            eco_data[config["target"]] += eco_data[config["target"]] * (config["percent"] / 100)
 
                         collection.update_one(
                             {"guild_id": guild.id, "user_id": member.id},
-                            {"$set": {"cash": eco_data["cash"]}},
+                            {"$set": {config["target"]: eco_data[config["target"]]}},
                             upsert=True
                         )
 
@@ -293,8 +297,8 @@ async def auto_collect_loop():
                             upsert=True
                         )
 
-                        after = eco_data["cash"]
-                        await log_eco_channel(bot, guild.id, member, f"Auto Collect ({role.name})", config["amount"], before, after, note="Collect automatique")
+                        after = eco_data[config["target"]]
+                        await log_eco_channel(bot, guild.id, member, f"Auto Collect ({role.name})", config.get("amount", config.get("percent")), before, after, note="Collect automatique")
 
 # --- Boucle Top Roles ---
 @tasks.loop(seconds=5)
