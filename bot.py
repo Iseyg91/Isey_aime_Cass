@@ -2681,8 +2681,8 @@ ITEMS = [
     "price": 500000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Utilisable une seule fois avec !!berserk <@user> → roll 100, % retiré à la banque de la cible (ex : roll 67 = -67%). Nécessite l’armure du Berserker. Cooldown de 7j après achat. Objet détruit après usage.",
     "requirements": {
         "items": [81]
@@ -2759,8 +2759,8 @@ ITEMS = [
     "price": 500000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 1,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Vous donne l'accès de voler un objet au hasard de l'inventaire d'un joueur",
     "requirements": {},  # Aucun requirement
     "role_id": 1363942048075481379,  # Rôle à donner lors de l'utilisation
