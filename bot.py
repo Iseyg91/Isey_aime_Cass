@@ -69,6 +69,13 @@ collection20 = db['inventaire_badge'] #Stock les bagde des joueurs
 collection21 = db['daily_badge'] #Stock les cd des daily badge
 collection22 = db['start_date'] #Stock la date de commencemant des rewards
 collection23 = db['joueur_rewards'] #Stock ou les joueurs sont
+collection24 = db['cd_renforcement'] #Stock les cd
+collection25 = db['cd_emission'] #Stock les cd
+collection26 = db['cd_manipulation'] #Stock les cd
+collection27 = db['cd_materialisation'] #Stock les cd
+collection28 = db['cd_transformation'] #Stock les cd
+collection29 = db['cd_specialisation'] #Stock les cd
+
 
 # Fonction pour vérifier si l'utilisateur possède un item (fictif, à adapter à ta DB)
 async def check_user_has_item(user: discord.Member, item_id: int):
@@ -142,6 +149,12 @@ def load_guild_settings(guild_id):
     daily_badge_data = collection21.find_one({"guild_id": guild_id}) or {}
     start_date_data = collection22.find_one({"guild_id": guild_id}) or {}
     joueur_rewards_data = collection23.find_one({"guild_id": guild_id}) or {}
+    cd_renforcement_data = collection24.find_one({"guild_id": guild_id}) or {}
+    cd_emission_data = collection25.find_one({"guild_id": guild_id}) or {}
+    cd_manipultation_data = collection26.find_one({"guild_id": guild_id}) or {}
+    cd_materialisation_data = collection27.find_one({"guidl_id": guild_id}) or {}
+    cd_transformation_data = collection28.find_one({"guild_id": guild_id}) or {}
+    cd_specialisation_data = collection29.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -169,7 +182,13 @@ def load_guild_settings(guild_id):
         "inventaire_badge": inventaire_badge_data,
         "daily_badge": daily_badge_data,
         "start_date": start_date_data,
-        "joueur_rewards": joueur_rewards_data
+        "joueur_rewards": joueur_rewards_data,
+        "cd_renforcement": cd_renforcement_data,
+        "cd_emission": cd_emission_data,
+        "cd_manipultation": cd_manipultation_data,
+        "cd_materialisation": cd_materialisation_data,
+        "cd_transformation" : cd_transformation_data,
+        "cd_specialisation" : cd_specialisation_data
     }
 
     return combined_data
@@ -215,10 +234,25 @@ TOP_ROLES = {
 # Config des rôles
 COLLECT_ROLES_CONFIG = [
     {
-        "role_id": 1355157715550470335,  # à remplacer
+        "role_id": 1355157715550470335,
         "amount": 250,
         "cooldown": 3600,
-        "auto": False
+        "auto": False,
+        "target": "cash"  # ou "bank"
+    },
+    {
+        "role_id": 1363969965572755537,
+        "percent": -20,
+        "cooldown": 3600,
+        "auto": True,
+        "target": "bank"
+    },
+    {
+        "role_id": 1363974710739861676,
+        "percent": 1,
+        "cooldown": 3600,
+        "auto": True,
+        "target": "bank"
     }
 ]
 
@@ -3627,12 +3661,16 @@ async def collect_income(ctx: commands.Context):
         eco_data = collection.find_one({"guild_id": guild.id, "user_id": member.id}) or {
             "guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0
         }
-        before = eco_data["cash"]
-        eco_data["cash"] += config["amount"]
+
+        amount = config.get("amount", 0)
+        target = config.get("target", "cash")
+
+        before = eco_data.get(target, 0)
+        eco_data[target] += amount
 
         collection.update_one(
             {"guild_id": guild.id, "user_id": member.id},
-            {"$set": {"cash": eco_data["cash"]}},
+            {"$set": {target: eco_data[target]}},
             upsert=True
         )
 
@@ -3642,8 +3680,12 @@ async def collect_income(ctx: commands.Context):
             upsert=True
         )
 
-        collected.append(f"1 - {role.mention} | <:ecoEther:1341862366249357374>**{config['amount']}** (bank)")
-        await log_eco_channel(bot, guild.id, member, f"Collect ({role.name})", config["amount"], before, eco_data["cash"], note="Collect manuel")
+        collected.append(f"1 - {role.mention} | <:ecoEther:1341862366249357374>**{amount}** ({target})")
+        await log_eco_channel(
+            bot, guild.id, member,
+            f"Collect ({role.name})", amount, before, eco_data[target],
+            note=f"Collect manuel → {target}"
+        )
 
     if collected:
         embed = discord.Embed(
@@ -3655,7 +3697,7 @@ async def collect_income(ctx: commands.Context):
         await ctx.send(embed=embed)
 
     elif cooldowns:
-        shortest = min(cooldowns, key=lambda x: x[0])  # (remaining, role)
+        shortest = min(cooldowns, key=lambda x: x[0])
         remaining_minutes = int(shortest[0] // 60) or 1
         embed = discord.Embed(
             description=f"<:classic_x_mark:1362711858829725729> You can next collect income dans **{remaining_minutes}min** (`{shortest[1].name}`)",
@@ -3668,6 +3710,7 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
+
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
 @app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
@@ -4058,6 +4101,364 @@ async def rewards(interaction: discord.Interaction):
 
     # Donner la récompense pour le jour actuel
     await give_reward(interaction, days_elapsed)
+
+
+# Rôle autorisé à utiliser le Nen
+PERMISSION_ROLE_ID = 1363928528587984998
+
+# ID de l'item requis
+LICENSE_ITEM_ID = 7
+
+# Roles par type de Nen
+nen_roles = {
+    "renforcement": 1363306813688381681,
+    "emission": 1363817609916584057,
+    "manipulation": 1363817536348749875,
+    "materialisation": 1363817636793810966,
+    "transformation": 1363817619529924740,
+    "specialisation": 1363817593252876368,
+}
+
+# Chances de drop en %
+nen_drop_rates = [
+    ("renforcement", 24.5),
+    ("emission", 24.5),
+    ("manipulation", 16.5),
+    ("materialisation", 16.5),
+    ("transformation", 17.5),
+    ("specialisation", 0.5),
+]
+
+# === Vérifie si le joueur a une licence Hunter (item 7)
+def has_license(user_id, guild_id):
+    items_cursor = collection17.find({"guild_id": guild_id, "user_id": user_id})
+    for item in items_cursor:
+        if item["item_id"] == LICENSE_ITEM_ID:
+            return True
+    return False
+
+# === Sélection aléatoire du Nen selon les chances
+def get_random_nen():
+    roll = random.uniform(0, 100)
+    total = 0
+    for nen_type, chance in nen_drop_rates:
+        total += chance
+        if roll <= total:
+            return nen_type
+    return "renforcement"  # fallback (improbable)
+
+# === Commande Nen (ROLL)
+@bot.command()
+async def nen(ctx):
+    user = ctx.author
+    guild = ctx.guild
+
+    # Vérif rôle autorisé
+    permission_role = discord.utils.get(guild.roles, id=PERMISSION_ROLE_ID)
+    if permission_role not in user.roles:
+        return await ctx.send("❌ Tu n'es pas digne d'utiliser le Nen.")
+
+    # Vérif licence Hunter
+    if not has_license(user.id, guild.id):
+        return await ctx.send("❌ Tu n'as pas de Licence Hunter (item ID 7) dans ton inventaire.")
+
+    # Sélection Nen
+    nen_type = get_random_nen()
+    role_id = nen_roles.get(nen_type)
+    nen_role = discord.utils.get(guild.roles, id=role_id)
+
+    # Attribution du rôle Nen
+    if nen_role:
+        try:
+            await user.add_roles(nen_role)
+        except discord.Forbidden:
+            return await ctx.send("⚠️ Je n’ai pas la permission d’attribuer des rôles.")
+
+    # Embed de résultat
+    color = discord.Color.blue()
+    if nen_type == "specialisation":
+        color = discord.Color.purple()
+
+    embed = discord.Embed(
+        title="🎴 Résultat du Nen Roll",
+        description=f"Tu as éveillé le Nen de type **{nen_type.capitalize()}** !",
+        color=color
+    )
+    embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
+    embed.set_footer(text="Utilise tes pouvoirs avec sagesse... ou pas.")
+
+    await ctx.send(embed=embed)
+
+# Liste des rôles autorisés à activer le renforcement
+RENFORCEMENT_IDS = [1363306813688381681, 1363817593252876368]
+
+COOLDOWN_DAYS = 7
+DURATION_HOURS = 24
+RENFORCEMENT_ROLE_ID = 1363306813688381681  # Le rôle qu'on donne pour 24h
+
+@bot.command(name="renforcement")
+async def renforcement(ctx):
+    user = ctx.author
+    guild = ctx.guild
+    now = datetime.utcnow()
+
+    # Vérifie que l'utilisateur a un des rôles autorisés
+    if not any(role.id in RENFORCEMENT_IDS for role in user.roles):
+        return await ctx.send("❌ Tu n'as pas le rôle requis pour utiliser cette commande.")
+
+    # Vérifie le cooldown dans MongoDB
+    cd_data = collection24.find_one({"user_id": user.id})
+    if cd_data and "last_used" in cd_data:
+        last_used = cd_data["last_used"]
+        if now - last_used < timedelta(days=COOLDOWN_DAYS):
+            remaining = (last_used + timedelta(days=COOLDOWN_DAYS)) - now
+            hours, minutes = divmod(remaining.total_seconds() // 60, 60)
+            return await ctx.send(f"⏳ Tu dois encore attendre {int(hours)}h{int(minutes)} avant de pouvoir réutiliser cette commande.")
+
+    # Donne le rôle temporairement
+    role = guild.get_role(RENFORCEMENT_ROLE_ID)
+    if not role:
+        return await ctx.send("❌ Le rôle de renforcement n'existe pas.")
+
+    await user.add_roles(role, reason="Renforcement activé")
+
+    # Embed joli
+    embed = discord.Embed(
+        title="💪 Renforcement Activé",
+        description=f"Tu as reçu le rôle **{role.name}** pour 24h.",
+        color=discord.Color.green(),
+        timestamp=now
+    )
+    embed.set_footer(text="Cooldown de 7 jours")
+    embed.set_author(name=str(user), icon_url=user.avatar.url if user.avatar else None)
+
+    await ctx.send(embed=embed)
+
+    # Met à jour le cooldown dans Mongo
+    collection24.update_one(
+        {"user_id": user.id},
+        {"$set": {"last_used": now}},
+        upsert=True
+    )
+
+    # Attendre 24h puis retirer le rôle
+    await asyncio.sleep(DURATION_HOURS * 3600)
+    if role in user.roles:
+        try:
+            await user.remove_roles(role, reason="Renforcement expiré")
+            try:
+                await user.send("⏳ Ton rôle **Renforcement** a expiré après 24h.")
+            except discord.Forbidden:
+                pass
+        except discord.HTTPException:
+            pass
+
+@bot.command(name="emission")
+async def emission(ctx, member: discord.Member):
+    # Vérification du rôle
+    if not any(role.id in EMISSION_IDS for role in ctx.author.roles):
+        return await ctx.send("❌ Tu n'as pas le Nen nécessaire pour utiliser cette technique.")
+
+    # Cooldown MongoDB
+    cooldown = collection25.find_one({"user_id": ctx.author.id})
+    now = datetime.utcnow()
+    if cooldown and now < cooldown["next_use"]:
+        remaining = cooldown["next_use"] - now
+        return await ctx.send(f"⏳ Tu dois attendre encore {remaining.days}j {remaining.seconds // 3600}h.")
+
+    # Appliquer le rôle malus
+    role = ctx.guild.get_role(TARGET_ROLE_ID)
+    await member.add_roles(role)
+
+    # Enregistrer cooldown
+    collection25.update_one(
+        {"user_id": ctx.author.id},
+        {"$set": {"next_use": now + timedelta(days=COOLDOWN_DAYS)}},
+        upsert=True
+    )
+
+    # Embed stylé
+    embed = discord.Embed(
+        title="🌑 Emission : Technique Maudite",
+        description=f"{member.mention} a été maudit pendant 24h.\nIl subira un malus de **-20%** sur ses collect !",
+        color=discord.Color.dark_purple(),
+        timestamp=now
+    )
+    embed.set_footer(text="Utilisation du Nen : Emission")
+    await ctx.send(embed=embed)
+
+    # Attendre 24h et retirer le rôle
+    await asyncio.sleep(86400)  # 24h en secondes
+    await member.remove_roles(role)
+
+MANIPULATION_ROLE_ID = 1363974710739861676
+AUTHORIZED_MANI_IDS = [1363817593252876368, 1363817536348749875]
+COOLDOWN_DAYS = 7
+
+@bot.command(name='manipulation')
+@commands.guild_only()
+async def manipulation(ctx):
+    user = ctx.author
+    guild = ctx.guild
+
+    # Vérifie si l'utilisateur a l'un des rôles autorisés
+    if not any(role.id in AUTHORIZED_MANI_IDS for role in user.roles):
+        return await ctx.send("⛔ Tu n'as pas accès à cette commande.")
+
+    # Vérifie le cooldown en DB
+    cooldown_data = collection26.find_one({"user_id": user.id})
+    now = datetime.utcnow()
+
+    if cooldown_data and now < cooldown_data["next_available"]:
+        remaining = cooldown_data["next_available"] - now
+        hours, remainder = divmod(remaining.total_seconds(), 3600)
+        minutes = remainder // 60
+        return await ctx.send(f"⏳ Tu dois attendre encore {int(hours)}h{int(minutes)}m avant de réutiliser cette commande.")
+
+    # Donne le rôle de manipulation
+    role = guild.get_role(MANIPULATION_ROLE_ID)
+    if not role:
+        return await ctx.send("❌ Le rôle de manipulation est introuvable.")
+
+    await user.add_roles(role)
+    await ctx.send(f"🧠 Tu as activé la **Manipulation** ! Tu gagnes un **collect de 1%** toutes les 4h pendant 24h.")
+
+    # Mets à jour le cooldown
+    next_available = now + timedelta(days=COOLDOWN_DAYS)
+    collection26.update_one(
+        {"user_id": user.id},
+        {"$set": {"next_available": next_available}},
+        upsert=True
+    )
+
+    # Supprime le rôle après 24h
+    await asyncio.sleep(86400)
+    await user.remove_roles(role)
+    try:
+        await user.send("💤 Ton effet **Manipulation** est terminé.")
+    except discord.Forbidden:
+        pass
+
+MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
+
+
+@bot.command()
+async def materialisation(ctx):
+    # Récupérer le rôle de l'utilisateur
+    user_roles = [role.id for role in ctx.author.roles]
+    
+    # Vérifier si l'utilisateur a le rôle nécessaire
+    if not any(role in MATERIALISATION_IDS for role in user_roles):
+        await ctx.send("Tu n'as pas le rôle nécessaire pour utiliser cette commande.")
+        return
+
+    # Vérification du cooldown dans MongoDB (30 jours)
+    cooldown_data = collection27.find_one({"user_id": ctx.author.id})  # Collection pour le cooldown
+    if cooldown_data:
+        last_used = cooldown_data["last_used"]
+        cooldown_time = datetime.datetime.strptime(last_used, "%Y-%m-%d %H:%M:%S")
+        current_time = datetime.datetime.now()
+        
+        # Vérifier si le cooldown est expiré (30 jours)
+        if (current_time - cooldown_time).days < 30:
+            await ctx.send(f"Tu dois attendre encore {(30 - (current_time - cooldown_time).days)} jours avant de pouvoir utiliser cette commande.")
+            return
+    else:
+        current_time = datetime.datetime.now()
+
+    # Récupérer les items de la collection MongoDB
+    items = list(collection16.find())  # Collection des items
+
+    # Calculer les poids des items en fonction de leur prix
+    total_weight = sum(1 / item["price"] for item in items)  # Poids inverse du prix
+    random_choice = random.uniform(0, total_weight)  # Tirage aléatoire basé sur le poids
+
+    current_weight = 0
+    selected_item = None
+    
+    for item in items:
+        current_weight += 1 / item["price"]
+        if current_weight >= random_choice:
+            selected_item = item
+            break
+
+    if selected_item:
+        # Ajouter l'item à l'inventaire de l'utilisateur
+        collection17.update_one(
+            {"user_id": ctx.author.id},
+            {"$push": {"items": selected_item["_id"]}},  # Ajouter l'item à l'inventaire
+            upsert=True
+        )
+        await ctx.send(f"Tu as matérialisé un item : {selected_item['title']} {selected_item['emoji']} !")
+    else:
+        await ctx.send("Aucun item n'a pu être matérialisé.")
+
+    # Mettre à jour la date d'utilisation de la commande dans la collection des cooldowns
+    collection27.update_one(
+        {"user_id": ctx.author.id},
+        {"$set": {"last_used": current_time.strftime("%Y-%m-%d %H:%M:%S")}},
+        upsert=True
+    )
+
+@bot.hybrid_command(
+    name="transformation",
+    description="Transforme ton aura en éclair et foudroie la banque d'un autre joueur pour lui retirer 25% de son solde bancaire.",
+)
+async def transformation(ctx: commands.Context, target: discord.User):
+    # Vérifier si l'utilisateur a un des rôles autorisés
+    if not any(role.id in [1363817593252876368, 1363817619529924740] for role in ctx.author.roles):
+        return await ctx.send("Désolé, tu n'as pas le rôle nécessaire pour utiliser cette commande.")
+
+    # Vérifier si l'utilisateur cible est valide
+    if target == ctx.author:
+        return await ctx.send("Tu ne peux pas utiliser cette commande sur toi-même.")
+
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+    target_id = target.id
+
+    # Vérifier le cooldown
+    cooldown_data = collection28.find_one({"guild_id": guild_id, "user_id": user_id})
+    if cooldown_data:
+        last_used = cooldown_data.get("last_used")
+        if last_used and (datetime.utcnow() - last_used).days < 14:
+            remaining_days = 14 - (datetime.utcnow() - last_used).days
+            return await ctx.send(f"Tu as déjà utilisé cette commande récemment. Essaie dans {remaining_days} jours.")
+
+    # Récupérer les données de la banque de la cible
+    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id})
+    if not target_data:
+        target_data = {"guild_id": guild_id, "user_id": target_id, "cash": 0, "bank": 0}
+        collection.insert_one(target_data)
+
+    # Calculer la perte de la banque de la cible (25%)
+    bank_loss = target_data.get("bank", 0) * 0.25
+    new_bank_balance = target_data["bank"] - bank_loss
+
+    # Mettre à jour la banque de la cible
+    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"bank": new_bank_balance}})
+
+    # Enregistrer le temps de la dernière utilisation pour le cooldown
+    collection28.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$set": {"last_used": datetime.utcnow()}},
+        upsert=True,
+    )
+
+    # Log de l'action
+    await log_eco_channel(
+        bot=ctx.bot,
+        guild_id=guild_id,
+        user=ctx.author,
+        action="Foudroie la banque de",
+        amount=bank_loss,
+        balance_before=target_data["bank"],
+        balance_after=new_bank_balance,
+        note=f"Transformation de l'aura en éclair. Perte de 25% de la banque de {target.display_name}."
+    )
+
+    # Réponse à l'utilisateur
+    await ctx.send(f"Tu as transformé ton aura en éclair et foudroyé la banque de {target.display_name}, lui retirant {bank_loss:.2f} d'Ether.")
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
