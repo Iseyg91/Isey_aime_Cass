@@ -2698,7 +2698,6 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
     item_counts = {}
     item_details = {}
 
-    # Boucle classique (non async)
     for item in items_cursor:
         item_id = item["item_id"]
         item_counts[item_id] = item_counts.get(item_id, 0) + 1
@@ -2708,10 +2707,15 @@ async def item_inventory(interaction: discord.Interaction, user: discord.User = 
                 "emoji": item.get("emoji", ""),
             }
 
+    # Bleu doux (exemple : #89CFF0)
+    soft_blue = discord.Color.from_rgb(137, 207, 240)
+
     embed = discord.Embed(
-        title=f"🎒 Inventaire de {user.display_name}",
-        color=discord.Color.blurple()
+        title=user.name,
+        color=soft_blue
     )
+
+    embed.set_author(name=user.name, icon_url=user.avatar.url if user.avatar else user.default_avatar.url)
 
     if not item_counts:
         embed.title = "<:classic_x_mark:1362711858829725729> Inventaire vide"
