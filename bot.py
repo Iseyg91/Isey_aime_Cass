@@ -4364,8 +4364,9 @@ async def manipulation(ctx):
     except discord.Forbidden:
         pass
 
-MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
+from datetime import datetime  # Assurez-vous d'importer datetime de cette manière
 
+MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
 @bot.command()
 async def materialisation(ctx):
@@ -4381,15 +4382,15 @@ async def materialisation(ctx):
     cooldown_data = collection27.find_one({"user_id": ctx.author.id})  # Collection pour le cooldown
     if cooldown_data:
         last_used = cooldown_data["last_used"]
-        cooldown_time = datetime.datetime.strptime(last_used, "%Y-%m-%d %H:%M:%S")
-        current_time = datetime.datetime.now()
+        cooldown_time = datetime.strptime(last_used, "%Y-%m-%d %H:%M:%S")
+        current_time = datetime.now()
         
         # Vérifier si le cooldown est expiré (30 jours)
         if (current_time - cooldown_time).days < 30:
             await ctx.send(f"Tu dois attendre encore {(30 - (current_time - cooldown_time).days)} jours avant de pouvoir utiliser cette commande.")
             return
     else:
-        current_time = datetime.datetime.now()
+        current_time = datetime.now()
 
     # Récupérer les items de la collection MongoDB
     items = list(collection16.find())  # Collection des items
@@ -4420,7 +4421,7 @@ async def materialisation(ctx):
             title="✨ Matérialisation réussie",
             description=f"Tu as matérialisé un item : {selected_item['title']} {selected_item['emoji']} !",
             color=discord.Color.purple(),
-            timestamp=datetime.datetime.utcnow()
+            timestamp=datetime.utcnow()  # Utilisation correcte de datetime.utcnow()
         )
         embed.set_footer(text="Commande de matérialisation")
         embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/Materi.png?raw=true")  # Ajout de l'image
