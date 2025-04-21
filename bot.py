@@ -3429,125 +3429,73 @@ async def reset_item(interaction: discord.Interaction, item_id: int):
         f"✅ L'item **{item['title']}** a bien été supprimé de la boutique.", ephemeral=True
     )
 
-ITEMS = [
-    {
-        "id": 17,
-        "emoji": "<:armure:1363599057863311412>",
-        "title": "Armure du Berserker",
-        "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
-        "price": 100000,
-        "emoji_price": "<:ecoEther:1341862366249357374>",
-        "quantity": 5,
-        "tradeable": True,
-        "usable": True,
-        "use_effect": "Equipe l'armure du berserker et procure une protection au rob de 1h (le temps de l'armure) et permet d'activé la Rage du Berserker si l'utilisateur le souhaite.",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363793059237593099,  # ID du rôle à donner lors de l'utilisation
-        "role_duration": 3600,  # Durée en secondes (1 heure ici)
-        "remove_after_purchase": {
-            "roles": True,  # Supprimer le rôle après l'achat
-            "items": False  # Ne pas supprimer l'item après l'achat
-        }
-    },
+BADGES = [
     {
         "id": 1,
-        "emoji": "<:exorciste:1363602480792994003>",
-        "title": "Appel à un exorciste | 𝕊𝕆𝕀ℕ",
-        "description": "Permet de retirer le nen que quelqu'un nous a posé grâce à un exorciste !",
-        "price": 50000,
-        "emoji_price": "<:ecoEther:1341862366249357374>",
-        "quantity": 5,
-        "tradeable": True,  # Correction de `true` en `True`
-        "usable": True,
-        "use_effect": "Retire le rôle, faite !!heal",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363873859912335400,  # ID du rôle à donner lors de l'utilisation
-        "role_duration": 3600,  # Durée en secondes (1 heure ici)
-        "remove_after_purchase": {
-            "roles": False,  # Ne pas retirer immédiatement le rôle après l'achat
-            "items": False  # Ne pas supprimer l'item après l'achat
-        },
-        "used": False,  # Ajout d'un champ pour savoir si l'objet a été utilisé
-        "remove_role_after_use": True  # Retirer le rôle uniquement après utilisation
-    }
+        "emoji": "<:HxH:1363865482288955562>",
+        "title": "Badge Hunter X Hunter",
+        "description": "Badge Collector.",
+    },
+    {
+        "id": 2,
+        "emoji": "<:gon:1363870934066266304>",
+        "title": "Badge Gon",
+        "description": "Badge Collector",
+    },
 ]
 
-# Fonction pour insérer les items dans MongoDB
-def insert_items_into_db():
-    for item in ITEMS:
-        if not collection16.find_one({"id": item["id"]}):
-            collection16.insert_one(item)
+@bot.tree.command(name="badge-store", description="Affiche la boutique de badges")
+async def badge_store(interaction: discord.Interaction):
+    badges = list(collection19.find({}))
+    if not badges:
+        return await interaction.response.send_message("Aucun badge disponible pour l’instant.", ephemeral=True)
 
-def get_page_embed(user: discord.User, page: int, items_per_page=10):
-    start = page * items_per_page
-    end = start + items_per_page
-    items = ITEMS[start:end]
+    def get_badge_embed(page: int = 0, items_per_page=10):
+        start = page * items_per_page
+        end = start + items_per_page
+        badges_page = BADGES[start:end]
 
-    # Créer l'embed avec avatar de l'utilisateur et pseudonyme
-    embed = discord.Embed(title=f"🛒 Boutique de {user.name}", color=discord.Color.blue())
+        embed = discord.Embed(title="Collection de Badges", color=discord.Color.purple())
 
-    # Ajouter l'avatar de l'utilisateur en tant qu'icône de l'embed
-    embed.set_thumbnail(url=user.avatar.url)
+        for badge in badges_page:
+            name_line = f"ID: {badge['id']} | {badge['title']} {badge['emoji']}"
+            value = badge["description"]
+            embed.add_field(name=name_line, value=value, inline=False)
 
-    for item in items:
-        formatted_price = f"{item['price']:,}".replace(",", " ")
-        name_line = f"ID: {item['id']} | {formatted_price} {item['emoji_price']} - {item['title']} {item['emoji']}"
+        total_pages = (len(BADGES) - 1) // items_per_page + 1
+        embed.set_footer(text=f"Page {page + 1}/{total_pages}")
+        return embed
 
-        # Seulement la description, sans les "requirements" et "bonus"
-        value = item["description"]
+    class BadgePaginator(discord.ui.View):
+        def __init__(self, user):
+            super().__init__(timeout=60)
+            self.page = 0
+            self.user = user
 
-        embed.add_field(name=name_line, value=value, inline=False)
+        async def update(self, interaction):
+            await interaction.response.edit_message(embed=get_badge_embed(self.page), view=self)
 
-    total_pages = (len(ITEMS) - 1) // items_per_page + 1
-    embed.set_footer(text=f"Page {page + 1}/{total_pages}")
-    return embed
+        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+        async def prev(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if self.page > 0:
+                self.page -= 1
+                await self.update(interaction)
 
-# Vue pour les boutons de navigation
-class Paginator(discord.ui.View):
-    def __init__(self, user: discord.User):
-        super().__init__(timeout=60)
-        self.page = 0
-        self.user = user
+        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+        async def next(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if (self.page + 1) * 10 < len(BADGES):
+                self.page += 1
+                await self.update(interaction)
 
-    async def update(self, interaction: discord.Interaction):
-        embed = get_page_embed(self.page, user=self.user)
-        await interaction.response.edit_message(embed=embed, view=self)
-
-    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
-    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.user:
-            embed = discord.Embed(
-                title="❌ Erreur",
-                description="Tu n'as pas la permission de naviguer dans ce menu.",
-                color=discord.Color.red()
-            )
-            return await interaction.response.edit_message(embed=embed, view=self)
-        if self.page > 0:
-            self.page -= 1
-            await self.update(interaction)
-
-    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
-    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user != self.user:
-            embed = discord.Embed(
-                title="❌ Erreur",
-                description="Tu n'as pas la permission de naviguer dans ce menu.",
-                color=discord.Color.red()
-            )
-            return await interaction.response.edit_message(embed=embed, view=self)
-        if (self.page + 1) * 10 < len(ITEMS):
-            self.page += 1
-            await self.update(interaction)
-
-# Slash command /item-store
-@bot.tree.command(name="item-store", description="Affiche la boutique d'items")
-async def item_store(interaction: discord.Interaction):
-    embed = get_page_embed(0, user=interaction.user)
-    view = Paginator(user=interaction.user)
-    await interaction.response.send_message(embed=embed, view=view)
+    view = BadgePaginator(interaction.user)
+    await interaction.response.send_message(embed=get_badge_embed(), view=view, ephemeral=True)
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
-insert_items_into_db()
+insert_badge_into_db()
 
 @bot.tree.command(name="badge-inventory", description="Affiche ton inventaire de badges")
 async def badge_inventory(interaction: discord.Interaction):
