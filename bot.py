@@ -181,6 +181,13 @@ def get_or_create_user_data(guild_id: int, user_id: int):
         collection.insert_one(data)
     return data
 
+def insert_badge_into_db():
+    # Insérer les badges définis dans la base de données MongoDB
+    for badge in BADGES:
+        # Vérifier si le badge est déjà présent
+        if not collection19.find_one({"id": badge["id"]}):
+            collection19.insert_one(badge)
+
 # === UTILITAIRE POUR RÉCUPÉRER LA DATE DE DÉBUT ===
 def get_start_date(guild_id):
     start_date_data = collection22.find_one({"guild_id": guild_id})
