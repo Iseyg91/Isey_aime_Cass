@@ -2514,19 +2514,8 @@ def get_page_embed(page: int, items_per_page=10):
         formatted_price = f"{item['price']:,}".replace(",", " ")
         name_line = f"ID: {item['id']} | {formatted_price} {item['emoji_price']} - {item['title']} {item['emoji']}"
 
+        # Seulement la description, sans les "requirements" et "bonus"
         value = item["description"]
-        if "requirements" in item:
-            value += f"\n**Requirements :**"
-            if item['requirements'].get('roles'):
-                roles = [f"<@&{role_id}>" for role_id in item['requirements']['roles']]
-                value += f"\n🎭 Rôles requis : {', '.join(roles)}"
-            if item['requirements'].get('items'):
-                value += f"\n🛒 Items requis : {', '.join(map(str, item['requirements']['items']))}"
-
-        if item.get("role_id"):
-            role = discord.utils.get(bot.get_guild(GUILD_ID).roles, id=item["role_id"])
-            if role:
-                value += f"\n🎭 **Bonus :** Donne le rôle `{role.name}`"
 
         embed.add_field(name=name_line, value=value, inline=False)
 
