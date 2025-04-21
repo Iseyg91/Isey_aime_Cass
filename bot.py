@@ -273,10 +273,17 @@ async def auto_collect_loop():
                     last_collect = cd_data.get("last_collect") if cd_data else None
 
                     if not last_collect or (now - last_collect).total_seconds() >= config["cooldown"]:
+                        # Assurez-vous que 'cash' et 'bank' existent
                         eco_data = collection.find_one({
                             "guild_id": guild.id,
                             "user_id": member.id
                         }) or {"guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0}
+
+                        # Si 'cash' ou 'bank' n'existe pas, les initialiser à 0
+                        if "cash" not in eco_data:
+                            eco_data["cash"] = 0
+                        if "bank" not in eco_data:
+                            eco_data["bank"] = 0
 
                         before = eco_data[config["target"]]  # "cash" ou "bank"
 
@@ -285,6 +292,7 @@ async def auto_collect_loop():
                         elif "percent" in config:
                             eco_data[config["target"]] += eco_data[config["target"]] * (config["percent"] / 100)
 
+                        # Mise à jour de la base de données
                         collection.update_one(
                             {"guild_id": guild.id, "user_id": member.id},
                             {"$set": {config["target"]: eco_data[config["target"]]}},
