@@ -3737,13 +3737,13 @@ async def give_reward(interaction: discord.Interaction, day: int):
     item = reward.get("item")
 
     # Récupérer les données de l'utilisateur dans la base de données
-    user_data = collection_rewards.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
+    user_data = collection_joueur_rewards.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
     if not user_data:
         user_data = {"guild_id": interaction.guild.id, "user_id": interaction.user.id, "rewards_received": {}}
 
     # Mettre à jour les récompenses reçues
     user_data["rewards_received"][str(day)] = reward
-    collection_rewards.update_one(
+    collection_joueur_rewards.update_one(
         {"guild_id": interaction.guild.id, "user_id": interaction.user.id},
         {"$set": user_data},
         upsert=True
@@ -3792,7 +3792,7 @@ async def rewards(interaction: discord.Interaction):
         return
 
     # Récupérer les données de l'utilisateur
-    user_data = collection_rewards.find_one({"guild_id": guild_id, "user_id": user_id})
+    user_data = collection_joueur_rewards.find_one({"guild_id": guild_id, "user_id": user_id})
     received = user_data.get("rewards_received", {}) if user_data else {}
 
     # Vérifier si une récompense a été manquée
