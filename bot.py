@@ -3336,6 +3336,38 @@ async def collect_income(ctx: commands.Context):
         )
         await ctx.send(embed=embed)
 
+@bot.tree.command(name="restock", description="Restock un item dans la boutique")
+@app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
+async def restock(interaction: discord.Interaction, item_id: int, quantity: int):
+    if interaction.user.id != ISEY_ID:
+        return await interaction.response.send_message("❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True)
+
+    item = collection16.find_one({"id": item_id})
+    if not item:
+        return await interaction.response.send_message(f"❌ Aucun item trouvé avec l'ID {item_id}.", ephemeral=True)
+
+    collection16.update_one({"id": item_id}, {"$set": {"quantity": quantity}})
+    return await interaction.response.send_message(
+        f"✅ L'item **{item['title']}** a bien été restocké à **{quantity}** unités.", ephemeral=True
+    )
+
+@bot.tree.command(name="reset-item", description="Réinitialise ou supprime les items dans la boutique")
+@app_commands.describe(item_id="ID de l'item à réinitialiser ou supprimer")
+async def reset_item(interaction: discord.Interaction, item_id: int):
+    if interaction.user.id != ISEY_ID:
+        return await interaction.response.send_message("❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True)
+
+    item = collection16.find_one({"id": item_id})
+    if not item:
+        return await interaction.response.send_message(f"❌ Aucun item trouvé avec l'ID {item_id}.", ephemeral=True)
+
+    # Suppression de l'item dans la base de données
+    collection16.delete_one({"id": item_id})
+
+    return await interaction.response.send_message(
+        f"✅ L'item **{item['title']}** a bien été supprimé de la boutique.", ephemeral=True
+    )
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
