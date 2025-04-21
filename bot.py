@@ -2567,7 +2567,7 @@ ITEMS = [
     "usable": true,
     "use_effect": "Une fois le nen utilisé celui-ci vous attribue un nen aléatoirement avec la commande !!rollnen (avec 19.9% de chance pour chaque sauf la spécialisation qui est à 0.5%)",
     "requirements": {
-        "items": [07]
+        "items": [7]
     },
     "role_id": 1363928528587984998,
     "remove_after_purchase": {
