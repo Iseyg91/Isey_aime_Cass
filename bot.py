@@ -2552,7 +2552,7 @@ ITEMS = [
             "roles": False,  # Ne pas retirer immédiatement le rôle après l'achat
             "items": False  # Ne pas supprimer l'item après l'achat
         },
-        "used": False,  # Ajout d'un champ pour savoir si l'objet a été utilisé
+        "used": True,  # Ajout d'un champ pour savoir si l'objet a été utilisé
         "remove_role_after_use": True  # Retirer le rôle uniquement après utilisation
     },
  {
@@ -2563,18 +2563,18 @@ ITEMS = [
     "price": 500000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Une fois le nen utilisé celui-ci vous attribue un nen aléatoirement avec la commande !!rollnen (avec 19.9% de chance pour chaque sauf la spécialisation qui est à 0.5%)",
     "requirements": {
         "items": [7]
     },
     "role_id": 1363928528587984998,
     "remove_after_purchase": {
-        "roles": false,
-        "items": false
+        "roles": False,
+        "items": False
     },
-    "used": false
+    "used": True
 },
     {
         "id": 7,
@@ -2593,7 +2593,7 @@ ITEMS = [
             "roles": False,
             "items": False
         },
-        "used": False
+        "used": True
     },
  {
     "id": 22,
@@ -2603,18 +2603,18 @@ ITEMS = [
     "price": 500000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 3,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Un /roll 50 devra être fait et vous permettra de voler le pourcentage de ce roll à l’utilisateur de votre choix à condition que celui-ci soit plus riche que vous ",
     "requirements": {
         "items": [31]
     },
     "role_id": 1363817586466361514,
     "remove_after_purchase": {
-        "roles": false,
-        "items": false
+        "roles": False,
+        "items": False
     },
-    "used": false
+    "used": True
 },
     {
         "id": 31,
@@ -2633,7 +2633,7 @@ ITEMS = [
             "roles": False,
             "items": False
         },
-        "used": False
+        "used": True
     },
     {
         "id": 99,
@@ -2652,7 +2652,7 @@ ITEMS = [
             "roles": False,
             "items": False
         },
-        "used": False
+        "used": True
     },
     {
         "id": 45,
@@ -2671,7 +2671,7 @@ ITEMS = [
             "roles": False,
             "items": False
         },
-        "used": False
+        "used": True
     },
  {
     "id": 28,
@@ -2689,10 +2689,10 @@ ITEMS = [
     },
     "role_id": 1363821333624127618,
     "remove_after_purchase": {
-        "roles": false,
-        "items": false
+        "roles": False,
+        "items": False
     },
-    "used": false
+    "used": True
  },
  {
     "id": 8,
@@ -2702,8 +2702,8 @@ ITEMS = [
     "price": 25000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 3,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "L'infini protège des robs pendant 1h ",
     "requirements": {},  # Aucun requirement
     "role_id": 1363939565336920084,  # Rôle à donner lors de l'utilisation
@@ -2711,7 +2711,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 88,
@@ -2721,8 +2721,8 @@ ITEMS = [
     "price": 50000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "L'infini protège des robs pendant 3h ",
     "requirements": {},  # Aucun requirement
     "role_id": 1363939567627145660,  # Rôle à donner lors de l'utilisation
@@ -2730,7 +2730,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 888,
@@ -2740,8 +2740,8 @@ ITEMS = [
     "price": 100000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 1,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "L'infini protège des robs pendant 6h ",
     "requirements": {},  # Aucun requirement
     "role_id": 1363939486844850388,  # Rôle à donner lors de l'utilisation
@@ -2749,7 +2749,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 23,
@@ -2768,7 +2768,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 34,
@@ -2778,8 +2778,8 @@ ITEMS = [
     "price": 500000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "La commande +float vous donne accès au salon (nom du salon) durant 15min mais seulement possible 1/jour.",
     "requirements": {},  # Aucun requirement
     "role_id": 1363946902730575953,  # Rôle à donner lors de l'utilisation
@@ -2787,7 +2787,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 91,
@@ -2797,8 +2797,8 @@ ITEMS = [
     "price": 100000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Permet de visioner le prochain restock pendant 10 seconde",
     "requirements": {},  # Aucun requirement
     "role_id": 1363949082653098094,  # Rôle à donner lors de l'utilisation
@@ -2806,7 +2806,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
  {
     "id": 4,
@@ -2816,8 +2816,8 @@ ITEMS = [
     "price": 250000,
     "emoji_price": "<:ecoEther:1341862366249357374>",
     "quantity": 2,
-    "tradeable": true,
-    "usable": true,
+    "tradeable": True,
+    "usable": True,
     "use_effect": "Vous donne un collect qui vous donne 5,000 <:ecoEther:1341862366249357374> toute les 2 heures",
     "requirements": {},  # Aucun requirement
     "role_id": 1363948445282341135,  # Rôle à donner lors de l'utilisation
@@ -2825,7 +2825,7 @@ ITEMS = [
         "roles": False,
         "items": False
     },
-    "used": False
+    "used": True
  },
 ]
 
