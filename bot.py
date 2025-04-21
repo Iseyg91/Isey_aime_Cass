@@ -63,6 +63,14 @@ collection16 = db['ether_boutique'] #Stock les Items dans la boutique
 collection17 = db['joueur_ether_inventaire'] #Stock les items de joueurs
 collection18 = db['ether_effects'] #Stock les effets
 
+# Fonction pour vérifier si l'utilisateur possède un item (fictif, à adapter à ta DB)
+async def check_user_has_item(user: discord.Member, item_id: int):
+    # Ici tu devras interroger la base de données MongoDB ou autre pour savoir si l'utilisateur possède cet item
+    # Par exemple:
+    # result = collection.find_one({"user_id": user.id, "item_id": item_id})
+    # return result is not None
+    return True  # Pour l'exemple, on suppose que l'utilisateur a toujours l'item.
+
 def get_cf_config(guild_id):
     config = collection8.find_one({"guild_id": guild_id})
     if not config:
@@ -2404,8 +2412,10 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from pymongo import MongoClient
+import asyncio
+from datetime import datetime, timedelta
 
-# Exemple d'items dans la boutique
+# Exemple d'items dans la boutique avec vérification des rôles ou des items
 ITEMS = [
     {
         "id": 7,
@@ -2418,8 +2428,16 @@ ITEMS = [
         "tradeable": False,
         "usable": True,
         "use_effect": "Confère un anti-rob de 1h et active la Rage du Berserker.",
-        "requirements": "Niveau 10 minimum",
-        "role_id": 1363793059237593099  # ID du rôle à donner lors de l'utilisation
+        "requirements": {
+            "roles": [1363793059237593099],  # Liste des rôles nécessaires
+            "items": [5]  # Liste des IDs des items nécessaires
+        },
+        "role_id": 1363793059237593099,  # ID du rôle à donner lors de l'utilisation
+        "role_duration": 3600,  # Durée en secondes (1 heure ici)
+        "remove_after_purchase": {
+            "roles": True,  # Supprimer le rôle après l'achat
+            "items": False  # Ne pas supprimer l'item après l'achat
+        }
     },
 ]
 
@@ -2442,7 +2460,13 @@ def get_page_embed(page: int, items_per_page=10):
 
         value = item["description"]
         if "requirements" in item:
-            value += f"\n**Requirements :** {item['requirements']}"
+            value += f"\n**Requirements :**"
+            if item['requirements'].get('roles'):
+                roles = [f"<@&{role_id}>" for role_id in item['requirements']['roles']]
+                value += f"\n🎭 Rôles requis : {', '.join(roles)}"
+            if item['requirements'].get('items'):
+                value += f"\n🛒 Items requis : {', '.join(map(str, item['requirements']['items']))}"
+
         if item.get("role_id"):
             role = discord.utils.get(bot.get_guild(GUILD_ID).roles, id=item["role_id"])
             if role:
@@ -2491,17 +2515,51 @@ class Paginator(discord.ui.View):
             self.page += 1
             await self.update(interaction)
 
-# Slash command /item-store
-@bot.tree.command(name="item-store", description="Affiche la boutique d'items")
-async def item_store(interaction: discord.Interaction):
-    embed = get_page_embed(0)
-    view = Paginator(user=interaction.user)
-    await interaction.response.send_message(embed=embed, view=view)
+# Fonction de vérification des requirements (rôles et items)
+async def check_requirements(user: discord.Member, requirements: dict):
+    # Vérifier les rôles requis
+    if "roles" in requirements:
+        user_roles = [role.id for role in user.roles]
+        for role_id in requirements["roles"]:
+            if role_id not in user_roles:
+                return False, f"Tu n'as pas le rôle requis <@&{role_id}>."
+
+    # Vérifier les items requis (dans un système de base de données par exemple)
+    if "items" in requirements:
+        for item_id in requirements["items"]:
+            item_in_inventory = await check_user_has_item(user, item_id)  # Fonction fictive à implémenter
+            if not item_in_inventory:
+                return False, f"Tu n'as pas l'item requis ID:{item_id}."
+
+    return True, "Requirements vérifiés avec succès."
+
+# Fonction d'achat d'un item
+async def buy_item(user: discord.Member, item_id: int):
+    # Chercher l'item dans la boutique
+    item = next((i for i in ITEMS if i["id"] == item_id), None)
+    if not item:
+        return f"L'item avec l'ID {item_id} n'existe pas."
+
+    # Vérifier les requirements
+    success, message = await check_requirements(user, item["requirements"])
+    if not success:
+        return message
+
+    # Vérifier si le rôle doit être ajouté ou supprimé après l'achat
+    if item["remove_after_purchase"]["roles"]:
+        role = discord.utils.get(user.guild.roles, id=item["role_id"])
+        if role:
+            await user.remove_roles(role)
+            return f"Le rôle {role.name} a été supprimé après l'achat de {item['title']}."
+
+    if item["remove_after_purchase"]["items"]:
+        # Logique pour supprimer l'item (par exemple, de l'inventaire du joueur)
+        pass
+
+    return f"L'achat de {item['title']} a été effectué avec succès."
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_items_into_db()
-
-from datetime import datetime
 
 @bot.tree.command(name="item-buy", description="Achète un item de la boutique via son ID.")
 @app_commands.describe(item_id="ID de l'item à acheter", quantity="Quantité à acheter (défaut: 1)")
@@ -2530,6 +2588,16 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
         embed = discord.Embed(
             title="<:classic_x_mark:1362711858829725729> Stock insuffisant",
             description=f"Il ne reste que **{item['quantity']}x** de cet item en stock.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
+    # Vérifier les requirements avant de permettre l'achat
+    valid, message = await check_requirements(interaction.user, item.get("requirements", {}))
+    if not valid:
+        embed = discord.Embed(
+            title="<:classic_x_mark:1362711858829725729> Prérequis non remplis",
+            description=message,
             color=discord.Color.red()
         )
         return await interaction.response.send_message(embed=embed)
@@ -2585,6 +2653,32 @@ async def item_buy(interaction: discord.Interaction, item_id: int, quantity: int
         {"id": item_id},
         {"$inc": {"quantity": -quantity}}
     )
+
+    # Gestion de la suppression des rôles et items si nécessaire
+    if item.get("remove_after_purchase"):
+        # Suppression des rôles si la configuration l'exige
+        if item["remove_after_purchase"].get("roles", False):
+            role = discord.utils.get(interaction.guild.roles, id=item["role_id"])
+            if role:
+                await interaction.user.remove_roles(role)
+                print(f"Rôle {role.name} supprimé pour {interaction.user.name} après l'achat.")
+
+        # Suppression des items si la configuration l'exige
+        if item["remove_after_purchase"].get("items", False):
+            # Logique pour supprimer un item de l'inventaire, si nécessaire
+            # Exemple fictif :
+            inventory = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
+            if inventory:
+                user_items = inventory.get("items", {})
+                if str(item_id) in user_items:
+                    user_items[str(item_id)] -= quantity
+                    if user_items[str(item_id)] <= 0:
+                        del user_items[str(item_id)]  # Supprimer l'item si sa quantité atteint zéro
+                    collection7.update_one(
+                        {"user_id": user_id, "guild_id": guild_id},
+                        {"$set": {"items": user_items}}
+                    )
+                    print(f"{quantity} de l'item {item['title']} supprimé de l'inventaire de {interaction.user.name}.")
 
     embed = discord.Embed(
         title="<:Check:1362710665663615147> Achat effectué",
@@ -2668,8 +2762,33 @@ async def item_info(interaction: discord.Interaction, id: int):
     if item.get("use_effect"):
         embed.add_field(name="Effet à l'utilisation", value=item["use_effect"], inline=False)
 
+    # Vérifier et afficher les prérequis
     if item.get("requirements"):
-        embed.add_field(name="Prérequis", value=item["requirements"], inline=False)
+        requirements = item["requirements"]
+        req_message = []
+
+        # Vérifier les rôles requis
+        if "roles" in requirements:
+            for role_id in requirements["roles"]:
+                role = discord.utils.get(interaction.guild.roles, id=role_id)
+                if role:
+                    req_message.append(f"• Rôle requis: <@&{role_id}> ({role.name})")
+                else:
+                    req_message.append(f"• Rôle requis: <@&{role_id}> (Introuvable)")
+
+        # Vérifier les items requis
+        if "items" in requirements:
+            for required_item_id in requirements["items"]:
+                item_in_inventory = await check_user_has_item(interaction.user, required_item_id)
+                if item_in_inventory:
+                    req_message.append(f"• Item requis: ID {required_item_id} (Possédé)")
+                else:
+                    req_message.append(f"• Item requis: ID {required_item_id} (Non possédé)")
+
+        if req_message:
+            embed.add_field(name="Prérequis", value="\n".join(req_message), inline=False)
+        else:
+            embed.add_field(name="Prérequis", value="Aucun prérequis", inline=False)
 
     emoji = item["emoji"]
     if emoji:
@@ -2679,7 +2798,6 @@ async def item_info(interaction: discord.Interaction, id: int):
 
     await interaction.response.send_message(embed=embed)
 
-# Slash command /item-use
 @bot.tree.command(name="item-use", description="Utilise un item de ton inventaire.")
 @app_commands.describe(item_id="ID de l'item à utiliser")
 async def item_use(interaction: discord.Interaction, item_id: int):
@@ -2708,8 +2826,33 @@ async def item_use(interaction: discord.Interaction, item_id: int):
         )
         return await interaction.response.send_message(embed=embed)
 
-    title = item_data["title"]
-    emoji = item_data.get("emoji", "")
+    # Vérifier les prérequis
+    if item_data.get("requirements"):
+        requirements = item_data["requirements"]
+        req_message = []
+
+        # Vérifier les rôles requis
+        if "roles" in requirements:
+            for role_id in requirements["roles"]:
+                role = discord.utils.get(interaction.guild.roles, id=role_id)
+                if role and role not in user.roles:
+                    req_message.append(f"• Rôle requis: <@&{role_id}> ({role.name})")
+        
+        # Vérifier les items requis
+        if "items" in requirements:
+            for required_item_id in requirements["items"]:
+                item_in_inventory = await check_user_has_item(interaction.user, required_item_id)
+                if not item_in_inventory:
+                    req_message.append(f"• Item requis: ID {required_item_id} (Non possédé)")
+
+        # Si des prérequis ne sont pas remplis, empêcher l'utilisation de l'item
+        if req_message:
+            embed = discord.Embed(
+                title="<:classic_x_mark:1362711858829725729> Prérequis non remplis",
+                description="Tu ne remplis pas les prérequis suivants pour utiliser cet item :\n" + "\n".join(req_message),
+                color=discord.Color.red()
+            )
+            return await interaction.response.send_message(embed=embed)
 
     # Supprime un exemplaire dans l'inventaire
     collection17.delete_one({
@@ -2720,7 +2863,7 @@ async def item_use(interaction: discord.Interaction, item_id: int):
 
     embed = discord.Embed(
         title=f"<:Check:1362710665663615147> Utilisation de l'item",
-        description=f"Tu as utilisé **{title}** {emoji}.",
+        description=f"Tu as utilisé **{item_data['title']}** {item_data.get('emoji', '')}.",
         color=discord.Color.green()
     )
 
@@ -2760,6 +2903,25 @@ async def item_use(interaction: discord.Interaction, item_id: int):
             reward_title = reward_data["title"]
             reward_emoji = reward_data.get("emoji", "")
             embed.add_field(name="🎁 Récompense reçue", value=f"Tu as reçu **{reward_title}** {reward_emoji}.", inline=False)
+
+    # Gestion de la suppression après utilisation
+    if item_data.get("remove_after_use"):
+        # Suppression des rôles après utilisation
+        if item_data["remove_after_use"].get("roles", False):
+            role = discord.utils.get(interaction.guild.roles, id=item_data["role_id"])
+            if role:
+                await interaction.user.remove_roles(role)
+                print(f"Rôle {role.name} supprimé pour {interaction.user.name} après l'utilisation de l'item.")
+
+        # Suppression des items après utilisation
+        if item_data["remove_after_use"].get("items", False):
+            # Suppression de l'item de l'inventaire
+            collection17.delete_one({
+                "user_id": user_id,
+                "guild_id": guild_id,
+                "item_id": item_id
+            })
+            print(f"Item ID {item_id} supprimé de l'inventaire de {interaction.user.name}.")
 
     await interaction.response.send_message(embed=embed)
 
@@ -2911,10 +3073,11 @@ async def item_sell(interaction: discord.Interaction, member: discord.User, item
     buyer_data = collection.find_one({"guild_id": guild_id, "user_id": buyer_id}) or {"cash": 1500}
     total_price = price * quantity
 
+    # Vérification du cash uniquement
     if buyer_data.get("cash", 0) < total_price:
         embed = discord.Embed(
             title="<:classic_x_mark:1362711858829725729> Fonds insuffisants",
-            description=f"{member.mention} n'a pas assez d'argent pour acheter **{quantity}x {item_name}** {emoji}.",
+            description=f"{member.mention} n'a pas assez d'argent en **cash** pour acheter **{quantity}x {item_name}** {emoji}.",
             color=discord.Color.red()
         )
         return await interaction.response.send_message(embed=embed)
@@ -2949,12 +3112,12 @@ async def item_sell(interaction: discord.Interaction, member: discord.User, item
             # Paiement
             collection.update_one(
                 {"guild_id": guild_id, "user_id": buyer_id},
-                {"$inc": {"cash": -total_price}},
+                {"$inc": {"cash": -total_price}},  # Décrémentation du cash de l'acheteur
                 upsert=True
             )
             collection.update_one(
                 {"guild_id": guild_id, "user_id": seller_id},
-                {"$inc": {"cash": total_price}},
+                {"$inc": {"cash": total_price}},  # Ajout du cash au vendeur
                 upsert=True
             )
 
