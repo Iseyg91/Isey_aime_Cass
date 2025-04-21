@@ -64,6 +64,11 @@ collection15 = db['anti_rob'] #Stock les rôle anti-rob
 collection16 = db['ether_boutique'] #Stock les Items dans la boutique
 collection17 = db['joueur_ether_inventaire'] #Stock les items de joueurs
 collection18 = db['ether_effects'] #Stock les effets
+collection19 = db['ether_badge'] #Stock les bagde
+collection20 = db['inventaire_badge'] #Stock les bagde des joueurs
+collection21 = db['daily_badge'] #Stock les cd des daily badge
+collection22 = db['start_date'] #Stock la date de commencemant des rewards
+collection23 = db['joueur_rewards'] #Stock ou les joueurs sont
 
 # Fonction pour vérifier si l'utilisateur possède un item (fictif, à adapter à ta DB)
 async def check_user_has_item(user: discord.Member, item_id: int):
@@ -132,6 +137,11 @@ def load_guild_settings(guild_id):
     ether_boutique_data = collection16.find_one({"guild_id": guild_id}) or {}
     joueur_ether_inventaire_data = collection17.find_one({"guild_id": guild_id}) or {}
     ether_effects_data = collection18.find_one({"guild_id": guild_id}) or {}
+    ether_badge_data = collection19.find_one({"guild_id": guild_id}) or {}
+    inventaire_badge_data = collection20.find_one({"guild_id": guild_id}) or {}
+    daily_badge_data = collection21.find_one({"guild_id": guild_id}) or {}
+    start_date_data = collection22.find_one({"guild_id": guild_id}) or {}
+    joueur_rewards_data = collection23.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -154,8 +164,12 @@ def load_guild_settings(guild_id):
         "anti_rob": anti_rob_data,
         "ether_boutique": ether_boutique_data,
         "joueur_ether_inventaire": joueur_ether_inventaire_data,
-        "ether_effects": ether_effects_data
-
+        "ether_effects": ether_effects_data,
+        "ether_badge": ether_badge_data,
+        "inventaire_badge": inventaire_badge_data,
+        "daily_badge": daily_badge_data,
+        "start_date": start_date_data,
+        "joueur_rewards": joueur_rewards_data
     }
 
     return combined_data
@@ -166,6 +180,24 @@ def get_or_create_user_data(guild_id: int, user_id: int):
         data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
         collection.insert_one(data)
     return data
+
+# === UTILITAIRE POUR RÉCUPÉRER LA DATE DE DÉBUT ===
+def get_start_date(guild_id):
+    start_date_data = collection22.find_one({"guild_id": guild_id})
+    if start_date_data:
+        return datetime.fromisoformat(start_date_data["start_date"])
+    return None
+
+# === CONFIGURATION DES RÉCOMPENSES PAR JOUR ===
+rewards = {
+    1: {"coins": 1000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.1.png?raw=true"},
+    2: {"coins": 2000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.2.png?raw=true"},
+    3: {"coins": 3000, "badge": 2, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.3.png?raw=true"},
+    4: {"coins": 4000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.4.png?raw=true"},
+    5: {"coins": 5000, "badge": None, "item": 1, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.5.png?raw=true"},
+    6: {"coins": 6000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.6.png?raw=true"},
+    7: {"coins": 7000, "badge": 1, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.7.png?raw=true"}
+}
 
 TOP_ROLES = {
     1: 1362832820417855699,  # ID du rôle Top 1
@@ -2495,6 +2527,28 @@ ITEMS = [
             "items": False  # Ne pas supprimer l'item après l'achat
         }
     },
+{
+            "id": 1,
+            "emoji": "<:exorciste:1363602480792994003>",
+            "title": "Appel à un exorciste | 𝕊𝕆𝕀ℕ",
+            "description": "Permet de retirer le nen que quelqu'un nous a posé grâce à un exorciste !",
+            "price": 50000,
+            "emoji_price": "<:ecoEther:1341862366249357374>",
+            "quantity": 5,
+            "tradeable": true,
+            "usable": true,
+            "use_effect": "Retire le rôle, faite !!heal",
+            "requirements": {},  # Aucun requirement
+            "role_id": 1363873859912335400,  # ID du rôle à donner lors de l'utilisation
+            "role_duration": 3600,  # Durée en secondes (1 heure ici)
+                "remove_after_purchase": {
+                "roles": false,  # Ne pas retirer immédiatement le rôle après l'achat
+                "items": false  # Ne pas supprimer l'item après l'achat
+            },
+            "used": false,  # Ajout d'un champ pour savoir si l'objet a été utilisé
+            "remove_role_after_use": true  # Retirer le rôle uniquement après utilisation
+        }
+    },
 ]
 
 # Fonction pour insérer les items dans MongoDB
@@ -2964,9 +3018,11 @@ async def item_use(interaction: discord.Interaction, item_id: int):
     if item_data.get("remove_after_use"):
         # Suppression des rôles après utilisation
         if item_data["remove_after_use"].get("roles", False):
+            # Vérifie si le rôle a été attribué avant de le retirer
             role = discord.utils.get(interaction.guild.roles, id=item_data["role_id"])
-            if role:
-                await interaction.user.remove_roles(role)
+            if role and role in user.roles:
+                await user.remove_roles(role)
+                embed.add_field(name="⚠️ Rôle supprimé", value=f"Le rôle **{role.name}** a été supprimé après l'utilisation de l'item.", inline=False)
                 print(f"Rôle {role.name} supprimé pour {interaction.user.name} après l'utilisation de l'item.")
 
         # Suppression des items après utilisation
@@ -3365,6 +3421,318 @@ async def reset_item(interaction: discord.Interaction, item_id: int):
     return await interaction.response.send_message(
         f"✅ L'item **{item['title']}** a bien été supprimé de la boutique.", ephemeral=True
     )
+
+BADGES = [
+    {
+        "id": 1,
+        "emoji": "<:HxH:1363865482288955562>",
+        "title": "Badge Hunter X Hunter",
+        "description": "Badge Collector.",
+    },
+    {
+        "id": 2,
+        "emoji": "<:gon:1363870934066266304>",
+        "title": "Badge Gon",
+        "description": "Badge Collector",
+    },
+]
+
+@bot.tree.command(name="badge-store", description="Affiche la boutique de badges")
+async def badge_store(interaction: discord.Interaction):
+    badges = list(collection19.find({}))
+    if not badges:
+        return await interaction.response.send_message("Aucun badge disponible pour l’instant.", ephemeral=True)
+
+    def get_badge_embed(page: int = 0, items_per_page=10):
+        start = page * items_per_page
+        end = start + items_per_page
+        badges_page = BADGES[start:end]
+
+        embed = discord.Embed(title="Collection de Badges", color=discord.Color.purple())
+
+        for badge in badges_page:
+            name_line = f"ID: {badge['id']} | {badge['title']} {badge['emoji']}"
+            value = badge["description"]
+            embed.add_field(name=name_line, value=value, inline=False)
+
+        total_pages = (len(BADGES) - 1) // items_per_page + 1
+        embed.set_footer(text=f"Page {page + 1}/{total_pages}")
+        return embed
+
+    class BadgePaginator(discord.ui.View):
+        def __init__(self, user):
+            super().__init__(timeout=60)
+            self.page = 0
+            self.user = user
+
+        async def update(self, interaction):
+            await interaction.response.edit_message(embed=get_badge_embed(self.page), view=self)
+
+        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+        async def prev(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if self.page > 0:
+                self.page -= 1
+                await self.update(interaction)
+
+        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+        async def next(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if (self.page + 1) * 10 < len(BADGES):
+                self.page += 1
+                await self.update(interaction)
+
+    view = BadgePaginator(interaction.user)
+    await interaction.response.send_message(embed=get_badge_embed(), view=view, ephemeral=True)
+
+@bot.tree.command(name="badge-inventory", description="Affiche ton inventaire de badges")
+async def badge_inventory(interaction: discord.Interaction):
+    data = collection20.find_one({"user_id": interaction.user.id})
+    if not data or not data.get("badges"):
+        return await interaction.response.send_message("Tu ne possèdes aucun badge pour l’instant.", ephemeral=True)
+
+    user_badges = data["badges"]
+    badge_list = list(collection19.find({"id": {"$in": user_badges}}))
+
+    def get_inventory_embed(page=0, per_page=10):
+        embed = discord.Embed(title=f"🎖️ Badges de {interaction.user.display_name}", color=discord.Color.orange())
+        start = page * per_page
+        end = start + per_page
+        for badge in badge_list[start:end]:
+            embed.add_field(
+                name=f"ID: {badge['id']} | {badge['name']} {badge['emoji']}",
+                value=badge["description"],
+                inline=False
+            )
+        total_pages = (len(badge_list) - 1) // per_page + 1
+        embed.set_footer(text=f"Page {page + 1}/{total_pages}")
+        return embed
+
+    class InventoryPaginator(discord.ui.View):
+        def __init__(self, user):
+            super().__init__(timeout=60)
+            self.page = 0
+            self.user = user
+
+        async def update(self, interaction):
+            await interaction.response.edit_message(embed=get_inventory_embed(self.page), view=self)
+
+        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+        async def prev(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if self.page > 0:
+                self.page -= 1
+                await self.update(interaction)
+
+        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+        async def next(self, interaction, button):
+            if interaction.user.id != self.user.id:
+                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+            if (self.page + 1) * 10 < len(badge_list):
+                self.page += 1
+                await self.update(interaction)
+
+    view = InventoryPaginator(interaction.user)
+    await interaction.response.send_message(embed=get_inventory_embed(), view=view, ephemeral=True)
+
+@bot.tree.command(name="badge-give", description="(Admin) Donne un badge à un utilisateur.")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    member="Utilisateur à qui donner le badge",
+    badge_id="ID du badge à donner"
+)
+async def badge_give(interaction: discord.Interaction, member: discord.Member, badge_id: int):
+    badge = collection19.find_one({"id": badge_id})
+    if not badge:
+        embed = discord.Embed(
+            title="❌ Badge introuvable",
+            description="Ce badge n'existe pas.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
+    user_data = collection20.find_one({"user_id": member.id})
+    if user_data and badge_id in user_data.get("badges", []):
+        embed = discord.Embed(
+            title="❌ Badge déjà possédé",
+            description=f"{member.mention} possède déjà ce badge.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
+    collection20.update_one(
+        {"user_id": member.id},
+        {"$addToSet": {"badges": badge_id}},
+        upsert=True
+    )
+
+    embed = discord.Embed(
+        title="🎖️ Badge donné",
+        description=f"Le badge **{badge['title']}** {badge['emoji']} a été donné à {member.mention}.",
+        color=discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="badge-take", description="(Admin) Retire un badge d'un utilisateur.")
+@app_commands.checks.has_permissions(administrator=True)
+@app_commands.describe(
+    member="Utilisateur à qui retirer le badge",
+    badge_id="ID du badge à retirer"
+)
+async def badge_take(interaction: discord.Interaction, member: discord.Member, badge_id: int):
+    badge = collection19.find_one({"id": badge_id})
+    if not badge:
+        embed = discord.Embed(
+            title="❌ Badge introuvable",
+            description="Ce badge n'existe pas.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
+    user_data = collection20.find_one({"user_id": member.id})
+    if not user_data or badge_id not in user_data.get("badges", []):
+        embed = discord.Embed(
+            title="❌ Badge non possédé",
+            description=f"{member.mention} ne possède pas ce badge.",
+            color=discord.Color.red()
+        )
+        return await interaction.response.send_message(embed=embed)
+
+    collection20.update_one(
+        {"user_id": member.id},
+        {"$pull": {"badges": badge_id}}
+    )
+
+    embed = discord.Embed(
+        title="🧼 Badge retiré",
+        description=f"Le badge **{badge['title']}** {badge['emoji']} a été retiré à {member.mention}.",
+        color=discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="reset-badge", description="Réinitialise ou supprime un badge de la boutique")
+@app_commands.describe(badge_id="ID du badge à réinitialiser ou supprimer")
+async def reset_badge(interaction: discord.Interaction, badge_id: int):
+    if interaction.user.id != ISEY_ID:
+        return await interaction.response.send_message("❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True)
+
+    badge = collection19.find_one({"id": badge_id})
+    if not badge:
+        return await interaction.response.send_message(f"❌ Aucun badge trouvé avec l'ID {badge_id}.", ephemeral=True)
+
+    # Supprime le badge de la boutique
+    collection19.delete_one({"id": badge_id})
+
+    return await interaction.response.send_message(
+        f"✅ Le badge **{badge['title']}** {badge.get('emoji', '')} a été supprimé de la boutique.", ephemeral=True
+    )
+
+@tree.command(name="start-rewards", description="Définit la date de début des rewards (réservé à ISEY)")
+async def start_rewards(interaction: discord.Interaction):
+    if interaction.user.id != ISEY_ID:
+        await interaction.response.send_message("❌ Tu n'es pas autorisé à utiliser cette commande.", ephemeral=True)
+        return
+
+    guild_id = interaction.guild.id
+
+    # Vérifie si une date est déjà enregistrée
+    existing = collection22.find_one({"guild_id": guild_id})
+    if existing:
+        await interaction.response.send_message(
+            f"⚠️ Les rewards ont déjà été démarrés le <t:{int(existing['start_timestamp'])}:F>.",
+            ephemeral=True
+        )
+        return
+
+    now = datetime.utcnow()
+    timestamp = int(now.timestamp())
+
+    collection22.insert_one({
+        "guild_id": guild_id,
+        "start_date": now.isoformat(),
+        "start_timestamp": timestamp
+    })
+
+    await interaction.response.send_message(
+        f"✅ Le système de rewards a bien été lancé ! Début : <t:{timestamp}:F>",
+        ephemeral=True
+    )
+
+# === FONCTION POUR DONNER LA RÉCOMPENSE ===
+async def give_reward(interaction: discord.Interaction, day: int):
+    reward = rewards.get(day)
+    if not reward:
+        await interaction.response.send_message("Aucune récompense disponible pour ce jour.", ephemeral=True)
+        return
+
+    coins = reward["coins"]
+    badge = reward["badge"]
+    item = reward["item"]
+
+    user_data = collection_rewards.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
+    if not user_data:
+        user_data = {"guild_id": interaction.guild.id, "user_id": interaction.user.id, "rewards_received": {}}
+
+    user_data["rewards_received"][str(day)] = reward
+    collection_rewards.update_one(
+        {"guild_id": interaction.guild.id, "user_id": interaction.user.id},
+        {"$set": user_data},
+        upsert=True
+    )
+
+    # Création de l'embed avec le progress bar
+    days_elapsed = (datetime.utcnow() - get_start_date(interaction.guild.id)).days + 1
+    total_days = 7
+    days_received = len(user_data["rewards_received"])
+
+    embed = discord.Embed(title="🎁 Récompense de la journée", description=f"Voici ta récompense pour le jour {day} !", color=discord.Color.green())
+    embed.add_field(name="Coins", value=f"{coins} <:ecoEther:1341862366249357374>", inline=False)
+    if badge:
+        embed.add_field(name="Badge", value=f"Badge ID {badge}", inline=False)
+    if item:
+        embed.add_field(name="Item", value=f"Item ID {item}", inline=False)
+    embed.set_image(url=reward["image_url"])
+
+    # Progress bar avec les jours reçus
+    progress = "█" * days_received + "░" * (total_days - days_received)
+    embed.add_field(name="Progress", value=f"{progress} ({days_received}/{total_days})", inline=False)
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+# === COMMANDE SLASH /rewards ===
+@bot.tree.command(name="rewards", description="Récupère ta récompense quotidienne")
+async def rewards(interaction: discord.Interaction):
+    guild_id = interaction.guild.id
+    user_id = interaction.user.id
+
+    start_date = get_start_date(guild_id)
+    if not start_date:
+        await interaction.response.send_message("Le système de récompenses n'est pas encore configuré.", ephemeral=True)
+        return
+
+    days_elapsed = (datetime.utcnow() - start_date).days + 1
+    if days_elapsed > 7:
+        await interaction.response.send_message("La période de récompenses est terminée.", ephemeral=True)
+        return
+
+    user_data = collection_rewards.find_one({"guild_id": guild_id, "user_id": user_id})
+    received = user_data.get("rewards_received", {}) if user_data else {}
+
+    # Vérifie si une récompense précédente a été manquée
+    for i in range(1, days_elapsed):
+        if str(i) not in received:
+            await interaction.response.send_message("Tu as manqué un jour. Tu ne peux plus récupérer les récompenses.", ephemeral=True)
+            return
+
+    # Vérifie si la récompense d’aujourd’hui est déjà récupérée
+    if str(days_elapsed) in received:
+        await interaction.response.send_message("Tu as déjà récupéré ta récompense aujourd'hui.", ephemeral=True)
+        return
+
+    await give_reward(interaction, days_elapsed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
