@@ -31,13 +31,13 @@ from discord.ui import Select, View
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
 start_time = time.time()
-bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
+bot = commands.Bot(command_prefix="0", intents=intents, help_command=None)
 
 #Configuration du Bot:
 # --- ID Owner Bot ---
 ISEY_ID = 792755123587645461
 # Définir GUILD_ID
-GUILD_ID = 1362462863293415604
+GUILD_ID = 1034007767050104892
 
 # Connexion MongoDB
 mongo_uri = os.getenv("MONGO_DB")  # URI de connexion à MongoDB
@@ -207,15 +207,15 @@ daily_rewards = {
 }
 
 TOP_ROLES = {
-    1: 1362832820417855699,  # ID du rôle Top 1
-    2: 1362735276090327080,  # ID du rôle Top 2
-    3: 1362832919789572178,  # ID du rôle Top 3
+    1: 1363923497885237298,  # ID du rôle Top 1
+    2: 1363923494504501510,  # ID du rôle Top 2
+    3: 1363923356688056401,  # ID du rôle Top 3
 }
 
 # Config des rôles
 COLLECT_ROLES_CONFIG = [
     {
-        "role_id": 1362836142902218812,  # à remplacer
+        "role_id": 1355157715550470335,  # à remplacer
         "amount": 250,
         "cooldown": 3600,
         "auto": False
@@ -3432,13 +3432,13 @@ async def reset_item(interaction: discord.Interaction, item_id: int):
 BADGES = [
     {
         "id": 1,
-        "emoji": "<:HxH:1363865482288955562>",
+        "emoji": "<:gon:1363923253134889082>",
         "title": "Badge Hunter X Hunter",
         "description": "Badge Collector.",
     },
     {
         "id": 2,
-        "emoji": "<:gon:1363870934066266304>",
+        "emoji": "<:hxh:1363923320256463088>",
         "title": "Badge Gon",
         "description": "Badge Collector",
     },
