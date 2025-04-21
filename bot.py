@@ -2418,14 +2418,14 @@ from datetime import datetime, timedelta
 # Exemple d'items dans la boutique avec vérification des rôles ou des items
 ITEMS = [
     {
-        "id": 15,
+        "id": 17,
         "emoji": "<:armure:1363599057863311412>",
         "title": "Armure du Berserker",
         "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
         "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 5,
-        "tradeable": False,
+        "tradeable": True,
         "usable": True,
         "use_effect": "Equipe l'armure du berserker et procure une protection au rob de 1h (le temps de l'armure) et permet d'activé la Rage du Berserker si l'utilisateur le souhaite.",
         "requirements": {},  # Aucun requirement
