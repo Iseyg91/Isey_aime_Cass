@@ -4368,75 +4368,66 @@ from datetime import datetime  # Assurez-vous d'importer datetime de cette mani�
 
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
-@bot.command()
-async def materialisation(ctx):
-    # Récupérer le rôle de l'utilisateur
-    user_roles = [role.id for role in ctx.author.roles]
-    
-    # Vérifier si l'utilisateur a le rôle nécessaire
-    if not any(role in MATERIALISATION_IDS for role in user_roles):
-        await ctx.send("Tu n'as pas le rôle nécessaire pour utiliser cette commande.")
-        return
+@bot.tree.command(name="materialisation", description="Matérialise un item aléatoire.")
+async def materialisation(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    guild_id = interaction.guild.id
 
-    # Vérification du cooldown dans MongoDB (30 jours)
-    cooldown_data = collection27.find_one({"user_id": ctx.author.id})  # Collection pour le cooldown
-    if cooldown_data:
-        last_used = cooldown_data["last_used"]
-        cooldown_time = datetime.strptime(last_used, "%Y-%m-%d %H:%M:%S")
-        current_time = datetime.now()
-        
-        # Vérifier si le cooldown est expiré (30 jours)
-        if (current_time - cooldown_time).days < 30:
-            await ctx.send(f"Tu dois attendre encore {(30 - (current_time - cooldown_time).days)} jours avant de pouvoir utiliser cette commande.")
-            return
-    else:
-        current_time = datetime.now()
-
-    # Récupérer les items de la collection MongoDB
-    items = list(collection16.find())  # Collection des items
-
-    # Calculer les poids des items en fonction de leur prix
-    total_weight = sum(1 / item["price"] for item in items)  # Poids inverse du prix
-    random_choice = random.uniform(0, total_weight)  # Tirage aléatoire basé sur le poids
-
-    current_weight = 0
-    selected_item = None
-    
-    for item in items:
-        current_weight += 1 / item["price"]
-        if current_weight >= random_choice:
-            selected_item = item
-            break
-
-    if selected_item:
-        # Ajouter l'item à l'inventaire de l'utilisateur
-        collection17.update_one(
-            {"user_id": ctx.author.id},
-            {"$push": {"items": selected_item["_id"]}},  # Ajouter l'item à l'inventaire
-            upsert=True
-        )
-
-        # Embed avec image
+    # Récupérer un item aléatoire de la collection de la boutique
+    items = list(collection16.find())
+    if not items:
         embed = discord.Embed(
-            title="✨ Matérialisation réussie",
-            description=f"Tu as matérialisé un item : {selected_item['title']} {selected_item['emoji']} !",
-            color=discord.Color.purple(),
-            timestamp=datetime.utcnow()  # Utilisation correcte de datetime.utcnow()
+            title="<:classic_x_mark:1362711858829725729> Aucune item disponible",
+            description="Il n'y a pas d'items à matérialiser.",
+            color=discord.Color.red()
         )
-        embed.set_footer(text="Commande de matérialisation")
-        embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/Materi.png?raw=true")  # Ajout de l'image
+        return await interaction.response.send_message(embed=embed)
 
-        await ctx.send(embed=embed)
+    # Sélectionner un item aléatoire
+    selected_item = random.choice(items)
+
+    # Mise à jour de l'inventaire simple (collection7)
+    existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
+    if existing:
+        inventory = existing.get("items", {})
+        inventory[str(selected_item["id"])] = inventory.get(str(selected_item["id"]), 0) + 1
+        collection7.update_one(
+            {"user_id": user_id, "guild_id": guild_id},
+            {"$set": {"items": inventory}}
+        )
     else:
-        await ctx.send("Aucun item n'a pu être matérialisé.")
+        collection7.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "items": {str(selected_item["id"]): 1}
+        })
 
-    # Mettre à jour la date d'utilisation de la commande dans la collection des cooldowns
-    collection27.update_one(
-        {"user_id": ctx.author.id},
-        {"$set": {"last_used": current_time.strftime("%Y-%m-%d %H:%M:%S")}},
-        upsert=True
+    # Mise à jour de l'inventaire structuré (collection17)
+    collection17.insert_one({
+        "guild_id": guild_id,
+        "user_id": user_id,
+        "item_id": selected_item["id"],
+        "item_name": selected_item["title"],
+        "emoji": selected_item.get("emoji"),
+        "price": selected_item["price"],
+        "acquired_at": datetime.utcnow()
+    })
+
+    # Mise à jour du stock boutique
+    collection16.update_one(
+        {"id": selected_item["id"]},
+        {"$inc": {"quantity": -1}}  # Diminuer le stock de l'item matérialisé
     )
 
+    # Embed de confirmation
+    embed = discord.Embed(
+        title="<:Check:1362710665663615147> Matérialisation réussie",
+        description=(
+            f"Tu as matérialisé **1x {selected_item['title']}** {selected_item['emoji']} !"
+        ),
+        color=discord.Color.green()
+    )
+    await interaction.response.send_message(embed=embed)
 
 @bot.command(
     name="transformation",
