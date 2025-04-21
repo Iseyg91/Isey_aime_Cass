@@ -3630,7 +3630,7 @@ async def reset_badge(interaction: discord.Interaction, badge_id: int):
         f"✅ Le badge **{badge['title']}** {badge.get('emoji', '')} a été supprimé de la boutique.", ephemeral=True
     )
 
-@tree.command(name="start-rewards", description="Définit la date de début des rewards (réservé à ISEY)")
+@bot.tree.command(name="start-rewards", description="Définit la date de début des rewards (réservé à ISEY)")
 async def start_rewards(interaction: discord.Interaction):
     if interaction.user.id != ISEY_ID:
         await interaction.response.send_message("❌ Tu n'es pas autorisé à utiliser cette commande.", ephemeral=True)
