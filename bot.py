@@ -3429,6 +3429,7 @@ async def reset_item(interaction: discord.Interaction, item_id: int):
         f"✅ L'item **{item['title']}** a bien été supprimé de la boutique.", ephemeral=True
     )
 
+# Exemple des badges avec l'emoji et les autres informations
 BADGES = [
     {
         "id": 1,
@@ -3440,59 +3441,70 @@ BADGES = [
         "id": 2,
         "emoji": "<:gon:1363870934066266304>",
         "title": "Badge Gon",
-        "description": "Badge Collector",
+        "description": "Badge Collector.",
     },
 ]
 
+# Fonction pour obtenir le Embed de la boutique de badges
+def get_badge_page_embed(page: int, items_per_page=10):
+    start = page * items_per_page
+    end = start + items_per_page
+    badges = BADGES[start:end]
+
+    embed = discord.Embed(title="🏅 Boutique de Badges", color=discord.Color.green())
+
+    for badge in badges:
+        name_line = f"ID: {badge['id']} | {badge['title']} {badge['emoji']}"
+        value = badge["description"]
+        embed.add_field(name=name_line, value=value, inline=False)
+
+    total_pages = (len(BADGES) - 1) // items_per_page + 1
+    embed.set_footer(text=f"Page {page + 1}/{total_pages}")
+    return embed
+
+# Vue pour les boutons de navigation dans la boutique de badges
+class BadgePaginator(discord.ui.View):
+    def __init__(self, user: discord.User):
+        super().__init__(timeout=60)
+        self.page = 0
+        self.user = user
+
+    async def update(self, interaction: discord.Interaction):
+        embed = get_badge_page_embed(self.page)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+    async def previous(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description="Tu n'as pas la permission de naviguer dans ce menu.",
+                color=discord.Color.red()
+            )
+            return await interaction.response.edit_message(embed=embed, view=self)
+        if self.page > 0:
+            self.page -= 1
+            await self.update(interaction)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if interaction.user != self.user:
+            embed = discord.Embed(
+                title="❌ Erreur",
+                description="Tu n'as pas la permission de naviguer dans ce menu.",
+                color=discord.Color.red()
+            )
+            return await interaction.response.edit_message(embed=embed, view=self)
+        if (self.page + 1) * 10 < len(BADGES):
+            self.page += 1
+            await self.update(interaction)
+
+# Commande slash pour afficher la boutique de badges
 @bot.tree.command(name="badge-store", description="Affiche la boutique de badges")
 async def badge_store(interaction: discord.Interaction):
-    badges = list(collection19.find({}))
-    if not badges:
-        return await interaction.response.send_message("Aucun badge disponible pour l’instant.", ephemeral=True)
-
-    def get_badge_embed(page: int = 0, items_per_page=10):
-        start = page * items_per_page
-        end = start + items_per_page
-        badges_page = BADGES[start:end]
-
-        embed = discord.Embed(title="Collection de Badges", color=discord.Color.purple())
-
-        for badge in badges_page:
-            name_line = f"ID: {badge['id']} | {badge['title']} {badge['emoji']}"
-            value = badge["description"]
-            embed.add_field(name=name_line, value=value, inline=False)
-
-        total_pages = (len(BADGES) - 1) // items_per_page + 1
-        embed.set_footer(text=f"Page {page + 1}/{total_pages}")
-        return embed
-
-    class BadgePaginator(discord.ui.View):
-        def __init__(self, user):
-            super().__init__(timeout=60)
-            self.page = 0
-            self.user = user
-
-        async def update(self, interaction):
-            await interaction.response.edit_message(embed=get_badge_embed(self.page), view=self)
-
-        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
-        async def prev(self, interaction, button):
-            if interaction.user.id != self.user.id:
-                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-            if self.page > 0:
-                self.page -= 1
-                await self.update(interaction)
-
-        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
-        async def next(self, interaction, button):
-            if interaction.user.id != self.user.id:
-                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-            if (self.page + 1) * 10 < len(BADGES):
-                self.page += 1
-                await self.update(interaction)
-
-    view = BadgePaginator(interaction.user)
-    await interaction.response.send_message(embed=get_badge_embed(), view=view, ephemeral=True)
+    embed = get_badge_page_embed(0)
+    view = BadgePaginator(user=interaction.user)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
 insert_badge_into_db()
