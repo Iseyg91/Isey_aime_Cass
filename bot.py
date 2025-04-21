@@ -3685,19 +3685,23 @@ async def start_rewards(interaction: discord.Interaction):
 
 # === FONCTION POUR DONNER LA RÉCOMPENSE ===
 async def give_reward(interaction: discord.Interaction, day: int):
+    # Récupérer la récompense pour le jour spécifique
     reward = rewards.get(day)
     if not reward:
         await interaction.response.send_message("Aucune récompense disponible pour ce jour.", ephemeral=True)
         return
 
-    coins = reward["coins"]
-    badge = reward["badge"]
-    item = reward["item"]
+    # Récupérer les éléments de la récompense (coins, badge, item)
+    coins = reward.get("coins", 0)
+    badge = reward.get("badge")
+    item = reward.get("item")
 
+    # Récupérer les données de l'utilisateur dans la base de données
     user_data = collection_rewards.find_one({"guild_id": interaction.guild.id, "user_id": interaction.user.id})
     if not user_data:
         user_data = {"guild_id": interaction.guild.id, "user_id": interaction.user.id, "rewards_received": {}}
 
+    # Mettre à jour les récompenses reçues
     user_data["rewards_received"][str(day)] = reward
     collection_rewards.update_one(
         {"guild_id": interaction.guild.id, "user_id": interaction.user.id},
@@ -3707,10 +3711,14 @@ async def give_reward(interaction: discord.Interaction, day: int):
 
     # Création de l'embed avec le progress bar
     days_elapsed = (datetime.utcnow() - get_start_date(interaction.guild.id)).days + 1
-    total_days = 7
+    total_days = 7  # La période de récompenses dure 7 jours
     days_received = len(user_data["rewards_received"])
 
-    embed = discord.Embed(title="🎁 Récompense de la journée", description=f"Voici ta récompense pour le jour {day} !", color=discord.Color.green())
+    embed = discord.Embed(
+        title="🎁 Récompense de la journée", 
+        description=f"Voici ta récompense pour le jour {day} !", 
+        color=discord.Color.green()
+    )
     embed.add_field(name="Coins", value=f"{coins} <:ecoEther:1341862366249357374>", inline=False)
     if badge:
         embed.add_field(name="Badge", value=f"Badge ID {badge}", inline=False)
@@ -3722,6 +3730,7 @@ async def give_reward(interaction: discord.Interaction, day: int):
     progress = "█" * days_received + "░" * (total_days - days_received)
     embed.add_field(name="Progress", value=f"{progress} ({days_received}/{total_days})", inline=False)
 
+    # Envoi de l'embed en réponse
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # === COMMANDE SLASH /rewards ===
@@ -3730,30 +3739,34 @@ async def rewards(interaction: discord.Interaction):
     guild_id = interaction.guild.id
     user_id = interaction.user.id
 
+    # Vérifier la date de début des récompenses
     start_date = get_start_date(guild_id)
     if not start_date:
         await interaction.response.send_message("Le système de récompenses n'est pas encore configuré.", ephemeral=True)
         return
 
+    # Calculer le nombre de jours écoulés depuis le début
     days_elapsed = (datetime.utcnow() - start_date).days + 1
     if days_elapsed > 7:
         await interaction.response.send_message("La période de récompenses est terminée.", ephemeral=True)
         return
 
+    # Récupérer les données de l'utilisateur
     user_data = collection_rewards.find_one({"guild_id": guild_id, "user_id": user_id})
     received = user_data.get("rewards_received", {}) if user_data else {}
 
-    # Vérifie si une récompense précédente a été manquée
+    # Vérifier si une récompense a été manquée
     for i in range(1, days_elapsed):
         if str(i) not in received:
             await interaction.response.send_message("Tu as manqué un jour. Tu ne peux plus récupérer les récompenses.", ephemeral=True)
             return
 
-    # Vérifie si la récompense d’aujourd’hui est déjà récupérée
+    # Vérifier si la récompense d’aujourd’hui a déjà été récupérée
     if str(days_elapsed) in received:
         await interaction.response.send_message("Tu as déjà récupéré ta récompense aujourd'hui.", ephemeral=True)
         return
 
+    # Donner la récompense pour le jour actuel
     await give_reward(interaction, days_elapsed)
 
 # Token pour démarrer le bot (à partir des secrets)
