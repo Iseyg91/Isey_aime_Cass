@@ -2030,8 +2030,10 @@ async def set_anti_rob(ctx):
     anti_rob_roles = data["roles"]
 
     embed = discord.Embed(
-        title="Gestion des rôles anti-rob",
-        description="Choisis une action à effectuer :",
+        title="🔐 Gestion des rôles anti-rob",
+        description="Choisis une action à effectuer ci-dessous.\n\n"
+                    "**Rôles actuellement protégés :**\n"
+                    f"{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun rôle protégé.'}",
         color=discord.Color.blurple()
     )
 
