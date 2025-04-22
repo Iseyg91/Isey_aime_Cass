@@ -5565,6 +5565,9 @@ async def quetes(interaction: discord.Interaction):
     # Ajout de la photo de profil de l'utilisateur
     embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
 
+    # Ajout de l'image en haut à droite
+    embed.set_thumbnail(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/Design_sans_titre__7_-removebg-preview_Nero_AI_Image_Upscaler_Anime_Face.png?raw=true")
+
     for quest in quests:
         item = collection16.find_one({"id": quest["reward_item_id"]})
         item_name = item["title"] if item else "Inconnu"
