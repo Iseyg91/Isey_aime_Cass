@@ -5018,8 +5018,8 @@ async def has_authorized_role(user):
     return any(role.id == POKEBALL_ID for role in user.roles)
 
 # Commande pokeball
-@bot.command(name="pokeball", description="Permet de voler un objet à une personne aléatoire.")
-async def pokeball(ctx):
+@bot.command(name="pokeball", description="Permet de voler un objet à une personne spécifique.")
+async def pokeball(ctx, target: discord.Member = None):
     user = ctx.author
     
     # Vérifier si l'utilisateur a le bon rôle
@@ -5035,22 +5035,23 @@ async def pokeball(ctx):
             await ctx.send("Vous avez déjà utilisé cette commande cette semaine. Réessayez plus tard.")
             return
     
-    # Choisir un utilisateur aléatoire et voler un objet
-    guild = ctx.guild
-    members = [member for member in guild.members if not member.bot]
-    
-    if not members:
-        await ctx.send("Aucun membre trouvé dans le serveur.")
+    # Si aucune cible n'est spécifiée, l'utilisateur doit mentionner un membre
+    if target is None:
+        await ctx.send("Veuillez mentionner un membre à qui voler un objet.")
         return
     
-    random_member = random.choice(members)
+    # Vérifier que la cible n'est pas un bot
+    if target.bot:
+        await ctx.send("Vous ne pouvez pas voler des objets à un bot.")
+        return
     
     # Récupérer l'inventaire de l'utilisateur choisi
-    items_cursor = collection17.find({"guild_id": guild.id, "user_id": random_member.id})
+    guild = ctx.guild
+    items_cursor = collection17.find({"guild_id": guild.id, "user_id": target.id})
     items = list(items_cursor)
 
     if not items:
-        await ctx.send(f"{random_member.name} n'a pas d'objets dans son inventaire.")
+        await ctx.send(f"{target.name} n'a pas d'objets dans son inventaire.")
         return
 
     # Voler un objet au hasard
@@ -5076,7 +5077,7 @@ async def pokeball(ctx):
     # Embed de la réponse
     embed = discord.Embed(
         title="Pokeball utilisée avec succès !",
-        description=f"Vous avez volé **1x {item_name} {item_emoji}** à {random_member.name}.",
+        description=f"Vous avez volé **1x {item_name} {item_emoji}** à {target.name}.",
         color=discord.Color.green()
     )
     embed.set_image(url="https://miro.medium.com/v2/resize:fit:1024/0*wATbQ49jziZTyhZH.jpg")
