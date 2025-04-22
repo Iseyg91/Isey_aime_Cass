@@ -4557,8 +4557,6 @@ async def heal(ctx):
     # Envoyer l'embed
     await ctx.send(embed=embed)
 
-import logging
-
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -4569,8 +4567,13 @@ ARME_DEMONIAQUE_ID = 1363817586466361514
     name="imperial",
     description="Vol avec un pouvoir démoniaque.",
 )
-async def imperial(ctx, cible: discord.Member):
+async def imperial(ctx, cible: discord.Member = None):
     auteur = ctx.author
+
+    # Vérification si la cible est précisée
+    if not cible:
+        logger.warning(f"{auteur} a tenté d'utiliser la commande 'imperial' sans spécifier de cible.")
+        return await ctx.send("❌ Tu dois spécifier une cible pour utiliser cette commande.")
 
     # Vérifie que l'utilisateur a le rôle spécial
     if ARME_DEMONIAQUE_ID not in [r.id for r in auteur.roles]:
@@ -4592,7 +4595,7 @@ async def imperial(ctx, cible: discord.Member):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
         if not data:
             # Log pour savoir si on crée de nouvelles données
-            print(f"Création de données pour l'utilisateur {user_id}")
+            logger.info(f"Création de données pour l'utilisateur {user_id}")
             data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
             collection.insert_one(data)
         return data
@@ -4602,7 +4605,7 @@ async def imperial(ctx, cible: discord.Member):
 
     # Vérifie la structure des données et log si un champ est manquant
     if "cash" not in data_cible or "bank" not in data_cible:
-        print(f"Erreur : Les données de {cible.id} sont corrompues. Création de nouvelles données.")
+        logger.warning(f"Les données de {cible.id} sont corrompues. Création de nouvelles données.")
         data_cible["cash"] = 1500
         data_cible["bank"] = 0
         collection.update_one(
@@ -4614,7 +4617,7 @@ async def imperial(ctx, cible: discord.Member):
         total_auteur = data_auteur["cash"] + data_auteur["bank"]
         total_cible = data_cible["cash"] + data_cible["bank"]
     except KeyError as e:
-        print(f"Erreur d'accès aux données : {e}")
+        logger.error(f"Erreur d'accès aux données : {e}")
         return await ctx.send(f"❌ Une erreur est survenue lors de l'accès aux données de {cible.display_name}.")
 
     # Vérifie si l'auteur est plus riche que la cible
@@ -4646,6 +4649,10 @@ async def imperial(ctx, cible: discord.Member):
 
     # Supprime le rôle
     role = ctx.guild.get_role(ARME_DEMONIAQUE_ID)
+    if role is None:
+        logger.error(f"Le rôle ARME_DEMONIAQUE_ID ({ARME_DEMONIAQUE_ID}) n'a pas été trouvé.")
+        return await ctx.send("❌ Le rôle d'arme démoniaque n'existe pas.")
+    
     await auteur.remove_roles(role)
 
     emoji_currency = "<:ecoEther:1341862366249357374>"
@@ -4661,7 +4668,7 @@ async def imperial(ctx, cible: discord.Member):
     embed.set_image(url="https://pm1.aminoapps.com/6591/d1e3c1527dc792f004068d914ca00c411031ccd2_hq.jpg")
     
     await ctx.send(embed=embed)
-    
+
 @bot.command()
 @commands.has_role("DEMON_ID")
 async def demon(ctx):
