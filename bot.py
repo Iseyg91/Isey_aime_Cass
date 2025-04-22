@@ -4854,16 +4854,15 @@ async def berserk(ctx, target: discord.Member = None):
     result = ""
     image_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unnamed.jpg?raw=true"
 
-    if roll <= 10:
-        perte = int(author_data["bank"] * 0.15)
-        collection.update_one({"guild_id": guild_id, "user_id": author_id}, {"$inc": {"bank": -perte}})
-        result = f"🎲 Roll: {roll}\n⚠️ L’armure se retourne contre toi ! Tu perds **15%** de ta propre banque soit **{perte:,}**."
+if roll <= 10:
+    perte = int(author_data["bank"] * 0.15)
+    collection.update_one({"guild_id": guild_id, "user_id": author_id}, {"$inc": {"bank": -perte}})
+    result = f"🎲 Roll: {roll}\n⚠️ L’armure se retourne contre toi ! Tu perds **15%** de ta propre banque soit **{perte:,}**."
 
-    elif roll == 100:
-        perte = target_data["bank"]
-        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
-    
-    # Ajout du rôle Éclipse
+elif roll == 100:
+    perte = target_data["bank"]
+    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
+
     eclipse_role = ctx.guild.get_role(ECLIPSE_ROLE_ID)
     if eclipse_role:
         try:
@@ -4881,13 +4880,14 @@ async def berserk(ctx, target: discord.Member = None):
         f"→ Tu deviens **L’incarnation de la Rage**."
     )
 
-    else:
-        perte = int(target_data["bank"] * (roll / 100))
-        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
-        result = (
-            f"🎲 Roll: {roll}\n🎯 {target.mention} perd **{roll}%** de sa banque soit **{perte:,}**.\n"
-            f"Tu ne gagnes rien. Juste le chaos."
-        )
+else:
+    perte = int(target_data["bank"] * (roll / 100))
+    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
+    result = (
+        f"🎲 Roll: {roll}\n🎯 {target.mention} perd **{roll}%** de sa banque soit **{perte:,}**.\n"
+        f"Tu ne gagnes rien. Juste le chaos."
+    )
+
 
     # Embed
     embed = discord.Embed(title="🔥 Berserk Activé ! 🔥", description=result, color=discord.Color.red())
