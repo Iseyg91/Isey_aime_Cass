@@ -5234,7 +5234,7 @@ async def pokeball(ctx, target: discord.Member = None):
         description=f"Vous avez volé **1x {item_name} {item_emoji}** à {target.name}.",
         color=discord.Color.green()
     )
-    embed.set_image(url="https://miro.medium.com/v2/resize:fit:1024/0*wATbQ49jziZTyhZH.jpg")
+    embed.set_image(url="https://fr.web.img2.acsta.net/newsv7/20/03/19/15/11/26541590.jpg")
     embed.set_footer(text="Utilisation 1x par semaine.")
     
     await ctx.send(embed=embed)
@@ -5369,7 +5369,7 @@ async def help(ctx: commands.Context):
         options=[
             discord.SelectOption(label="Jeux", description="🪙 Commandes pour jouer a l'économie", emoji="💸"),
             discord.SelectOption(label="Items & Badges", description="📦Commandes pour accéder aux Items & Badges", emoji="🛒"),
-            discord.SelectOption(label="Pourvoir", description="🌊Commandes pour attaquer d'autre joueur ou encore se défendre ", emoji="🪭"),
+            discord.SelectOption(label="Pouvoir", description="🌊Commandes pour attaquer d'autre joueur ou encore se défendre ", emoji="🪭"),
             discord.SelectOption(label="Crédits", description="💖 Remerciements et crédits", emoji="🙏")
         ], 
         custom_id="help_select"
@@ -5414,7 +5414,7 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="🎖 /badge-inventory", value="Affiche les badges que tu possèdes dans ton inventaire.", inline=False)
             new_embed.add_field(name="🏅 /rewards", value="Récupère une **récompense quotidienne**.", inline=False)
             new_embed.set_footer(text="♥️ by Iseyg")
-        if category == "Pourvoir":
+        if category == "Pouvoir":
             new_embed.title = "🗃️ **Commandes pour attaquer d'autre joueur ou encore se défendre**"
             new_embed.description = "Bienvenue dans la section Pouvoir !"
             new_embed.add_field(name="!!nen", value="Cet objet permet d'utiliser le Nen aléatoirement, avec un serment pour chaque technique. La spécialisation est inaccessible.", inline=False)
@@ -5431,7 +5431,7 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="!!berserk <@user>", value="Berserk te consume, tu détruis sans gain. Roll 100 : cible perd tout, tu obtiens 'L'incarnation de la Rage'. Roll ≤ 10 : perds 15% de ta banque. 7 jours de cooldown.", inline=False)
             new_embed.add_field(name="!!armure", value="Offre une protection anti-rob de 1h. L'armure s'auto-consomme après l'utilisation.", inline=False)
             new_embed.add_field(name="!!infini", value="Vous donne un anti-rob", inline=False)
-            new_embed.add_field(name="!!pokeball <@user>", value="Permet de voler un objet aléatoire à une personne aléatoire, ou d'obtenir rien.", inline=False)
+            new_embed.add_field(name="!!pokeball <@user>", value="Permet de voler un objet aléatoire à une personne ciblé, ou d'obtenir rien.", inline=False)
             new_embed.add_field(name="!!float", value="Accès au salon (nom du salon) pendant 15 minutes, utilisable une fois par jour", inline=False)
             new_embed.add_field(name="!!oeil", value="Voir l'avenir et entrevoir le prochain restock pendant 10 sec, cooldown de 1 semaine.", inline=False)
             new_embed.set_footer(text="♥️ by Iseyg")
