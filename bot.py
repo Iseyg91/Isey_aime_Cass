@@ -5919,8 +5919,8 @@ async def ginvite(ctx, member: discord.Member):
     # Créer la vue pour les boutons
     view = InviteButtons(ctx.author, member)
 
-    # Envoyer l'embed et ajouter la vue avec les boutons
-    await member.send(embed=embed, view=view)
+    # Envoyer l'embed et ajouter la vue avec les boutons dans le salon d'origine
+    await ctx.send(embed=embed, view=view)
 
     await ctx.send(f"Une invitation a été envoyée à {member.mention}.")
 
