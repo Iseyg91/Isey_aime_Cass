@@ -4557,11 +4557,11 @@ async def heal(ctx):
     # Envoyer l'embed
     await ctx.send(embed=embed)
 
+import logging
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-import logging
 ARME_DEMONIAQUE_ID = 1363817586466361514
 
 @bot.hybrid_command( 
