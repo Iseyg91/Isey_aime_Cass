@@ -4673,7 +4673,7 @@ async def imperial(ctx, cible: discord.Member = None):
 DEMON_ID = 1363817629781069907
 
 @bot.command()
-@commands.has_role("DEMON_ID")
+@commands.has_role(DEMON_ID)
 async def demon(ctx):
     embed = discord.Embed(
         title="Accès aux équipements de contrôle des démons",
