@@ -6134,6 +6134,116 @@ async def gwith(ctx, amount: int):
 
     await ctx.send(f"{amount} coins ont été retirés de la banque de la guilde.")
 
+@bot.tree.command(name="dep-guild-inventory", description="Dépose un item de ton inventaire vers celui de ta guilde")
+@app_commands.describe(item_id="ID de l'item à transférer", quantite="Quantité à transférer")
+async def dep_guild_inventory(interaction: discord.Interaction, item_id: int, quantite: int):
+    user = interaction.user
+    guild_id = interaction.guild.id
+    user_id = user.id
+
+    if quantite <= 0:
+        return await interaction.response.send_message("❌ La quantité doit être supérieure à 0.", ephemeral=True)
+
+    # Vérifie la guilde du joueur
+    guilde = collection35.find_one({"guild_id": guild_id, "membres.user_id": user_id})
+    if not guilde:
+        return await interaction.response.send_message("❌ Tu n'es dans aucune guilde.", ephemeral=True)
+
+    # Vérifie l'inventaire du joueur
+    items = list(collection17.find({
+        "guild_id": guild_id,
+        "user_id": user_id,
+        "item_id": item_id
+    }))
+
+    if len(items) < quantite:
+        return await interaction.response.send_message(f"❌ Tu n'as pas `{quantite}` de cet item dans ton inventaire.", ephemeral=True)
+
+    # Supprimer les items du joueur
+    for i in range(quantite):
+        collection17.delete_one({
+            "_id": items[i]["_id"]
+        })
+
+    # Ajouter à l'inventaire de la guilde
+    existing = collection36.find_one({
+        "guild_id": guild_id,
+        "item_id": item_id
+    })
+
+    if existing:
+        collection36.update_one(
+            {"_id": existing["_id"]},
+            {"$inc": {"quantity": quantite}}
+        )
+    else:
+        # On récupère les infos du premier item pour les détails
+        item_data = items[0]
+        collection36.insert_one({
+            "guild_id": guild_id,
+            "item_id": item_id,
+            "item_name": item_data.get("item_name", "Inconnu"),
+            "emoji": item_data.get("emoji", ""),
+            "quantity": quantite
+        })
+
+    await interaction.response.send_message(
+        f"✅ Tu as transféré **{quantite}x** `{item_id}` dans l'inventaire de ta guilde.",
+        ephemeral=True
+    )
+
+@bot.tree.command(name="with-guild-inventory", description="Retire un item de l'inventaire de la guilde vers le tien")
+@app_commands.describe(item_id="ID de l'item à retirer", quantite="Quantité à retirer")
+async def with_guild_inventory(interaction: discord.Interaction, item_id: int, quantite: int):
+    user = interaction.user
+    guild_id = interaction.guild.id
+    user_id = user.id
+
+    if quantite <= 0:
+        return await interaction.response.send_message("❌ La quantité doit être supérieure à 0.", ephemeral=True)
+
+    # Vérifie la guilde du joueur
+    guilde = collection35.find_one({"guild_id": guild_id, "membres.user_id": user_id})
+    if not guilde:
+        return await interaction.response.send_message("❌ Tu n'es dans aucune guilde.", ephemeral=True)
+
+    # Vérifie l'inventaire de la guilde
+    guild_item = collection36.find_one({
+        "guild_id": guild_id,
+        "item_id": item_id
+    })
+
+    if not guild_item or guild_item.get("quantity", 0) < quantite:
+        return await interaction.response.send_message("❌ Pas assez de cet item dans l'inventaire de la guilde.", ephemeral=True)
+
+    # Retirer les items de la guilde
+    new_quantity = guild_item["quantity"] - quantite
+    if new_quantity > 0:
+        collection36.update_one(
+            {"_id": guild_item["_id"]},
+            {"$set": {"quantity": new_quantity}}
+        )
+    else:
+        collection36.delete_one({"_id": guild_item["_id"]})
+
+    # Ajouter les items dans l'inventaire du joueur
+    insert_items = []
+    for _ in range(quantite):
+        insert_items.append({
+            "guild_id": guild_id,
+            "user_id": user_id,
+            "item_id": item_id,
+            "item_name": guild_item.get("item_name", "Inconnu"),
+            "emoji": guild_item.get("emoji", "")
+        })
+    if insert_items:
+        collection17.insert_many(insert_items)
+
+    await interaction.response.send_message(
+        f"📦 Tu as récupéré **{quantite}x** `{item_id}` depuis l'inventaire de la guilde.",
+        ephemeral=True
+    )
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
