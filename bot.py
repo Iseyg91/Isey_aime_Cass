@@ -24,6 +24,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import psutil
 import pytz
 import platform
+from discord import Interaction
 import logging
 
 token = os.environ['ETHERYA']
