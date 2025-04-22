@@ -4561,6 +4561,7 @@ async def heal(ctx):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+import logging
 ARME_DEMONIAQUE_ID = 1363817586466361514
 
 @bot.hybrid_command( 
