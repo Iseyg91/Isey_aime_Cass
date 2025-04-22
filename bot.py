@@ -5058,8 +5058,7 @@ OEIL_ID = 1363949082653098094
 ROLE_ID = 1364123507532890182
 from datetime import timedelta
 
-# Maintenant, vous pouvez utiliser timedelta directement
-COOLDOWN_TIME = timedelta(week=1)
+COOLDOWN_TIME = timedelta(weeks=1)
 
 # Dictionnaire pour stocker le dernier usage de la commande .oeil par utilisateur
 oeil_last_used = {}
