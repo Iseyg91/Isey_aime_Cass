@@ -4565,30 +4565,23 @@ logger = logging.getLogger(__name__)
 
 ARME_DEMONIAQUE_ID = 1363817586466361514
 
-@bot.command(name="imperial")
-async def imperial(ctx, cible: discord.Member = None):
+@bot.hybrid_command( 
+    name="imperial",
+    description="Vol avec un pouvoir démoniaque.",
+)
+async def imperial(ctx, cible: discord.Member):
     auteur = ctx.author
-
-    # Log si la cible n'est pas précisée
-    if cible is None:
-        logger.warning(f"Commande 'imperial' exécutée sans cible. Auteur: {auteur.name}#{auteur.discriminator}")
-        return await ctx.send("❌ Tu dois spécifier une cible.")
-
-    logger.info(f"Commande 'imperial' lancée par {auteur.name}#{auteur.discriminator} sur {cible.name}#{cible.discriminator}")
 
     # Vérifie que l'utilisateur a le rôle spécial
     if ARME_DEMONIAQUE_ID not in [r.id for r in auteur.roles]:
-        logger.warning(f"{auteur.name}#{auteur.discriminator} n'a pas le rôle spécial pour utiliser la commande.")
         return await ctx.send("❌ Tu n'as pas le pouvoir démoniaque pour utiliser cette commande.")
 
     # Vérifie que la cible n'est pas un bot
     if cible.bot:
-        logger.warning(f"{auteur.name}#{auteur.discriminator} a tenté de cibler un bot : {cible.name}#{cible.discriminator}.")
         return await ctx.send("❌ Tu ne peux pas cibler un bot.")
 
     # Vérifie que l'utilisateur ne cible pas lui-même
     if auteur.id == cible.id:
-        logger.warning(f"{auteur.name}#{auteur.discriminator} a tenté de se voler lui-même.")
         return await ctx.send("❌ Tu ne peux pas te voler toi-même.")
 
     # Récupère l'ID du serveur
@@ -4598,6 +4591,8 @@ async def imperial(ctx, cible: discord.Member = None):
     def get_or_create_user_data(user_id):
         data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
         if not data:
+            # Log pour savoir si on crée de nouvelles données
+            print(f"Création de données pour l'utilisateur {user_id}")
             data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
             collection.insert_one(data)
         return data
@@ -4605,16 +4600,25 @@ async def imperial(ctx, cible: discord.Member = None):
     data_auteur = get_or_create_user_data(auteur.id)
     data_cible = get_or_create_user_data(cible.id)
 
-    # Calcul des totaux
-    total_auteur = data_auteur["cash"] + data_auteur["bank"]
-    total_cible = data_cible["cash"] + data_cible["bank"]
+    # Vérifie la structure des données et log si un champ est manquant
+    if "cash" not in data_cible or "bank" not in data_cible:
+        print(f"Erreur : Les données de {cible.id} sont corrompues. Création de nouvelles données.")
+        data_cible["cash"] = 1500
+        data_cible["bank"] = 0
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": cible.id},
+            {"$set": {"cash": 1500, "bank": 0}}
+        )
 
-    # Log sur les totaux des utilisateurs
-    logger.info(f"{auteur.name} a {total_auteur} en total. {cible.name} a {total_cible} en total.")
+    try:
+        total_auteur = data_auteur["cash"] + data_auteur["bank"]
+        total_cible = data_cible["cash"] + data_cible["bank"]
+    except KeyError as e:
+        print(f"Erreur d'accès aux données : {e}")
+        return await ctx.send(f"❌ Une erreur est survenue lors de l'accès aux données de {cible.display_name}.")
 
     # Vérifie si l'auteur est plus riche que la cible
     if total_cible <= total_auteur:
-        logger.warning(f"{auteur.name}#{auteur.discriminator} a tenté de voler quelqu'un de moins riche ou égal.")
         return await ctx.send("❌ Tu ne peux voler que quelqu'un de plus riche que toi.")
 
     # Roll 1-50
@@ -4622,16 +4626,12 @@ async def imperial(ctx, cible: discord.Member = None):
     pourcentage = roll / 100
     vol_total = int(total_cible * pourcentage)
 
-    # Log du roll
-    logger.info(f"Le roll a donné {roll}% de vol, soit {vol_total} à voler de {cible.name}#{cible.discriminator}.")
-
     # Prélève en priorité du cash, puis de la banque
     vol_cash = min(vol_total, data_cible["cash"])
     vol_bank = vol_total - vol_cash
 
     # Vérifie que l'auteur peut voler l'argent
     if vol_total > total_cible:
-        logger.warning(f"{auteur.name}#{auteur.discriminator} a tenté de voler plus que ce que {cible.name}#{cible.discriminator} a.")
         return await ctx.send("❌ Il n'y a pas assez de fonds disponibles à voler.")
 
     # Mise à jour des comptes
@@ -4661,7 +4661,6 @@ async def imperial(ctx, cible: discord.Member = None):
     embed.set_image(url="https://pm1.aminoapps.com/6591/d1e3c1527dc792f004068d914ca00c411031ccd2_hq.jpg")
     
     await ctx.send(embed=embed)
-    logger.info(f"Le vol de {vol_total} {emoji_currency} par {auteur.name}#{auteur.discriminator} sur {cible.name}#{cible.discriminator} a été effectué avec succès.")
     
 @bot.command()
 @commands.has_role("DEMON_ID")
