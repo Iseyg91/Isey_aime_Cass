@@ -79,6 +79,8 @@ collection31 = db['cd_haki_subis'] #Stock les cd
 collection32 = db['ether_quetes'] #Stock les quetes
 collection33 = db['inventory_collect'] #Stock les items de quetes
 collection34 = db['collect_items'] #Stock les items collector
+collection35 = db['ether_guild'] #Stock les Guild
+collection36 = db['guild_inventaire'] #Stock les inventaire de Guild
 
 
 # Fonction pour vérifier si l'utilisateur possède un item (fictif, à adapter à ta DB)
@@ -164,6 +166,8 @@ def load_guild_settings(guild_id):
     ether_quetes_data = collection32.find_one({"guild_id": guild_id}) or {}
     inventory_collect_data = collection33.find_one({"guild_id": guild_id}) or {}
     collect_items_data = collection34.find_one({"guild_id": guild_id}) or {}
+    ether_guild_data = collection35.find_one({"guild_id": guild_id}) or {}
+    guild_inventaire_data = collection36.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -202,7 +206,10 @@ def load_guild_settings(guild_id):
         "cd_haki_subis": cd_haki_subis_data,
         "ether_quetes": ether_quetes_data,
         "inventory_collect": inventory_collect_data,
-        "collect_items": collect_items_data
+        "collect_items": collect_items_data,
+        "ether_guild": ether_guild_data,
+        "guild_inventaire": guild_inventaire
+
     }
 
     return combined_data
@@ -5703,6 +5710,85 @@ async def benediction(ctx):
     embed.set_image(url="https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=70,width=1200,height=675/catalog/crunchyroll/59554268b0e9e3e565547ab4e25453f4.jpg")
     await ctx.send(embed=embed)
 
+@bot.command(name="gcreate")
+async def create_guild(ctx):
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Vérifie si le joueur a déjà une guilde
+    if collection35.find_one({"guild_id": guild_id, "owner_id": user_id}):
+        return await ctx.send("❌ Tu possèdes déjà une guilde !")
+
+    # Vérifie si le joueur a assez de cash
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
+    if user_data.get("cash", 0) < 5000:
+        return await ctx.send("❌ Tu n'as pas assez de coins pour créer une guilde (5000 requis).")
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    await ctx.send("📝 Quel est le **nom** de ta guilde ? (ce sera son ID unique)")
+    try:
+        name_msg = await bot.wait_for("message", timeout=60.0, check=check)
+    except asyncio.TimeoutError:
+        return await ctx.send("⏱️ Temps écoulé, création annulée.")
+    guild_name = name_msg.content.strip()
+
+    await ctx.send("✏️ Donne une **description** pour ta guilde :")
+    try:
+        desc_msg = await bot.wait_for("message", timeout=60.0, check=check)
+    except asyncio.TimeoutError:
+        return await ctx.send("⏱️ Temps écoulé, création annulée.")
+    description = desc_msg.content.strip()
+
+    # Déduire les coins
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": -5000}}
+    )
+
+    # Stocker dans la DB
+    collection35.insert_one({
+        "guild_id": guild_id,
+        "guild_name": guild_name,
+        "description": description,
+        "owner_id": user_id,
+        "members": [user_id],
+        "created_at": datetime.utcnow()
+    })
+
+    await ctx.send(f"✅ Guilde **{guild_name}** créée avec succès !")
+
+@bot.command(name="g")
+async def show_guild(ctx):
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    guild_data = collection35.find_one({"guild_id": guild_id, "members": user_id})
+    if not guild_data:
+        return await ctx.send("❌ Tu n'es dans aucune guilde.")
+
+    owner = await bot.fetch_user(guild_data["owner_id"])
+    members = [await bot.fetch_user(uid) for uid in guild_data.get("members", [])]
+
+    embed = discord.Embed(
+        title=f"🏰 Guilde : {guild_data['guild_name']}",
+        description=guild_data["description"],
+        color=discord.Color.teal()
+    )
+    embed.add_field(
+        name="👑 Créateur",
+        value=f"{owner.mention} (`{owner.name}`)",
+        inline=False
+    )
+    embed.add_field(
+        name="👥 Membres",
+        value="\n".join([f"- {m.mention}" for m in members]),
+        inline=False
+    )
+    embed.set_footer(text="Système de Guildes | Cass-Eco")
+
+    await ctx.send(embed=embed)
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
