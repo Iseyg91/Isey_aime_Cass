@@ -5569,7 +5569,7 @@ async def reset_quetes(interaction: discord.Interaction):
         await interaction.response.send_message("Tu n'as pas l'autorisation d'utiliser cette commande.", ephemeral=True)
         return
 
-    result = await collection32.delete_many({})
+    result = collection32.delete_many({})
     await interaction.response.send_message(f"🧹 Collection `ether_quetes` reset avec succès. {result.deleted_count} quêtes supprimées.")
 
 # Token pour démarrer le bot (à partir des secrets)
