@@ -5559,7 +5559,7 @@ async def quetes(interaction: discord.Interaction):
     if not quests:
         return await interaction.response.send_message("❌ Aucune quête enregistrée.", ephemeral=True)
 
-    embed = discord.Embed(title="📜 Quêtes disponibles", color=discord.Color.green())
+    embed = discord.Embed(title="Quêtes disponibles", color=discord.Color.blue())
 
     for quest in quests:
         item = collection16.find_one({"id": quest["reward_item_id"]})
