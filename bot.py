@@ -5562,6 +5562,16 @@ async def quete_faite(interaction: discord.Interaction, quest_id: int, user: dis
         f"✅ Récompenses de la quête **{quest['nom']}** données à {user.mention} !",
         ephemeral=True
     )
+
+@bot.slash_command(name="reset-quetes", description="Supprime toutes les quêtes (ADMIN)")
+async def reset_quetes(ctx: discord.ApplicationContext):
+    if ctx.author.id != ISEY_ID:
+        await ctx.respond("Tu n'as pas l'autorisation d'utiliser cette commande.", ephemeral=True)
+        return
+
+    result = await quetes_collection.delete_many({})
+    await ctx.respond(f"🧹 Collection `ether_quetes` reset avec succès. {result.deleted_count} quêtes supprimées.")
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
