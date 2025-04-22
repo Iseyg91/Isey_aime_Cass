@@ -6,7 +6,6 @@ from discord.utils import get
 from discord import TextStyle
 from functools import wraps
 import os
-from discord import app_commands, Interaction, TextChannel, Role
 import io
 import random
 import asyncio
@@ -17,7 +16,7 @@ import sys
 import math
 import traceback
 from keep_alive import keep_alive
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta  # Tu as déjà la bonne importation pour datetime et timedelta
 from collections import defaultdict, deque
 import pymongo
 from pymongo import MongoClient
@@ -25,7 +24,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import psutil
 import pytz
 import platform
-from discord.ui import Select, View
+import logging
 
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
@@ -269,7 +268,7 @@ async def auto_collect_loop():
             for config in COLLECT_ROLES_CONFIG:
                 role = discord.utils.get(guild.roles, id=config["role_id"])
                 if role in member.roles and config["auto"]:
-                    now = datetime.utcnow()
+                    now = datetime.datetime.utcnow()
                     cd_data = collection5.find_one({
                         "guild_id": guild.id,
                         "user_id": member.id,
@@ -4369,8 +4368,6 @@ async def manipulation(ctx):
     except discord.Forbidden:
         pass
 
-from datetime import datetime  # Assurez-vous d'importer datetime de cette manière
-
 # ID d'objets matérialisables
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
@@ -4556,7 +4553,6 @@ async def heal(ctx):
     # Envoyer l'embed
     await ctx.send(embed=embed)
 
-import logging
 # Configuration des logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -4782,10 +4778,6 @@ async def haki_error(ctx, error):
     else:
         print(f"[ERREUR] Erreur dans haki : {type(error).__name__} - {error}")
         await ctx.send("Une erreur est survenue lors de l'exécution de la commande.")
-
-import discord
-from discord.ext import commands
-import datetime
 
 ULTRA_ID = 1363821033060307106
 
@@ -5128,7 +5120,6 @@ async def pokeball(ctx):
 # Identifiants
 FLOAT_ID = 1363946902730575953
 ROLE_ID = 1364121382908067890
-from datetime import timedelta
 
 # Maintenant, vous pouvez utiliser timedelta directement
 COOLDOWN_TIME = timedelta(days=1)
