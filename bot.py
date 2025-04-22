@@ -5760,35 +5760,45 @@ async def create_guild(ctx):
     await ctx.send(f"✅ Guilde **{guild_name}** créée avec succès !")
 
 @bot.command(name="g")
-async def show_guild(ctx):
+async def afficher_guilde(ctx):
     guild_id = ctx.guild.id
     user_id = ctx.author.id
 
-    guild_data = collection35.find_one({"guild_id": guild_id, "members": user_id})
-    if not guild_data:
-        return await ctx.send("❌ Tu n'es dans aucune guilde.")
+    # Récupérer la guilde du joueur
+    guilde = collection35.find_one({"guild_id": guild_id, "membres.user_id": user_id})
+    if not guilde:
+        return await ctx.send("Tu n'es dans aucune guilde.")
 
-    owner = await bot.fetch_user(guild_data["owner_id"])
-    members = [await bot.fetch_user(uid) for uid in guild_data.get("members", [])]
+    guild_name = guilde.get("guild_name", "Inconnue")
+    description = guilde.get("description", "Aucune description.")
+    banque = guilde.get("bank", 0)
+    coffre_fort = guilde.get("vault", 0)
+    membres = guilde.get("membres", [])
 
     embed = discord.Embed(
-        title=f"🏰 Guilde : {guild_data['guild_name']}",
-        description=guild_data["description"],
-        color=discord.Color.teal()
+        title=f"📘 Informations sur la guilde : {guild_name}",
+        color=discord.Color.blue()
     )
-    embed.add_field(
-        name="👑 Créateur",
-        value=f"{owner.mention} (`{owner.name}`)",
-        inline=False
-    )
-    embed.add_field(
-        name="👥 Membres",
-        value="\n".join([f"- {m.mention}" for m in members]),
-        inline=False
-    )
-    embed.set_footer(text="Système de Guildes | Cass-Eco")
+
+    embed.add_field(name="Description", value=description, inline=False)
+    embed.add_field(name="Banque", value=f"{banque:,} <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="Coffre fort", value=f"{coffre_fort:,} / 750,000 <:ecoEther:1341862366249357374>", inline=True)
+    embed.add_field(name="ID", value=guilde.get("guild_name"), inline=False)
+
+    # Affichage des membres
+    membre_text = ""
+    for membre in membres:
+        mention = f"<@{membre['user_id']}>"
+        role = membre.get("role", "Membre")
+        if role == "Créateur":
+            membre_text += f"**Créateur** | {mention}\n"
+        else:
+            membre_text += f"**Membre** | {mention}\n"
+
+    embed.add_field(name=f"Membres ({len(membres)}/5)", value=membre_text or "Aucun membre", inline=False)
 
     await ctx.send(embed=embed)
+
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
