@@ -4869,7 +4869,7 @@ async def berserk(ctx, target: discord.Member):
     target_data = get_data(guild_id, target_id)
 
     roll = random.randint(1, 100)
-    image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFnYq97GQStqdha5XbLwyLuT6i4CyZRIdB8A&s"
+    image_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unnamed.jpg?raw=true"
     effect_text = ""
 
     # Log des données et du roll
