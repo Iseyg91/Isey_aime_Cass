@@ -269,7 +269,7 @@ async def auto_collect_loop():
             for config in COLLECT_ROLES_CONFIG:
                 role = discord.utils.get(guild.roles, id=config["role_id"])
                 if role in member.roles and config["auto"]:
-                    now = datetime.datetime.utcnow()
+                    now = datetime.utcnow()
                     cd_data = collection5.find_one({
                         "guild_id": guild.id,
                         "user_id": member.id,
