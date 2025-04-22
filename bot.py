@@ -4830,7 +4830,7 @@ ECLIPSE_ROLE_ID = 1364115033197510656
 
 
 @bot.command(name="berserk")
-@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown de 7 jours
+@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown global pour chaque utilisateur (7 jours)
 async def berserk(ctx, target: discord.Member):
     author = ctx.author
 
@@ -4848,11 +4848,21 @@ async def berserk(ctx, target: discord.Member):
 
     now = datetime.utcnow()
 
-    # Vérifie cooldown en base
+    # Vérifie cooldown en base (régle le cooldown dans la base de données)
     cooldown_entry = cooldowns.find_one({"user_id": user_id})
-    if cooldown_entry and (now - cooldown_entry["last_used"]).days < 7:
-        remaining = 7 - (now - cooldown_entry["last_used"]).days
-        return await ctx.send(f"🕒 Tu dois encore patienter **{remaining} jours** avant d’utiliser de nouveau `.berserk`.")
+    if cooldown_entry:
+        # Si le cooldown existe, vérifier si l'utilisateur a déjà utilisé la commande
+        days_since_last_use = (now - cooldown_entry["last_used"]).days
+        if days_since_last_use < 7:
+            remaining = 7 - days_since_last_use
+            return await ctx.send(f"🕒 Tu dois encore patienter **{remaining} jours** avant d’utiliser de nouveau `.berserk`.")
+    
+    # Si pas d'entrée ou cooldown expiré, on met à jour le cooldown
+    cooldowns.update_one(
+        {"user_id": user_id},
+        {"$set": {"last_used": now}},
+        upsert=True
+    )
 
     # Fonction de chargement des données utilisateur
     def get_data(guild_id, user_id):
@@ -4898,13 +4908,6 @@ async def berserk(ctx, target: discord.Member):
             f"💥 Tu roll **{roll}** → la cible **{target.display_name}** perd **{roll}%** de sa banque (**{lost:,}**).\n"
             f"Tu ne gagnes rien. Juste le chaos."
         )
-
-    # Enregistre le cooldown
-    cooldowns.update_one(
-        {"user_id": user_id},
-        {"$set": {"last_used": now}},
-        upsert=True
-    )
 
     # Création de l'embed
     embed = discord.Embed(
