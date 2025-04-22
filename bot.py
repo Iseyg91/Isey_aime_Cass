@@ -5246,7 +5246,7 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="💸 !!roulette <amount> <space>", value="Mise à la **roulette** avec un certain montant.", inline=False)
             new_embed.add_field(name="💰 !!pay <@user> <amount>", value="Envoie de l'argent à un autre utilisateur.", inline=False)
             new_embed.set_footer(text="♥️ by Iseyg")
-        if category == ="Items & Badges":
+        if category == "Items & Badges":
             new_embed.title = "📦 **Commandes pour accéder aux Items & Badges**"
             new_embed.description = "Bienvenue dans la section Items & Badges !"
             new_embed.add_field(name="🛒 /item-store", value="Accède au **magasin d'items** pour acheter des objets.", inline=False)
