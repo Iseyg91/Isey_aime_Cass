@@ -4821,26 +4821,23 @@ import discord
 from discord.ext import commands
 from datetime import datetime
 import random
+import traceback  # pour logs d'erreurs détaillés
 
 # IDs
 RAGE_ID = 1363821333624127618
 ECLIPSE_ROLE_ID = 1364115033197510656
 
 @bot.command(name="berserk")
-@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown global pour chaque utilisateur (7 jours)
+@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown global par utilisateur (7 jours)
 async def berserk(ctx, target: discord.Member):
     try:
         print("✅ Commande .berserk déclenchée")
         author = ctx.author
 
-        # Serveur uniquement
         if ctx.guild is None:
-            print("❌ Utilisation en dehors d'un serveur.")
             return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
 
-        # Vérifie si l’auteur a le rôle Berserker
         if not discord.utils.get(author.roles, id=RAGE_ID):
-            print("❌ L'utilisateur n'a pas le rôle Berserker.")
             return await ctx.send("Tu n’es pas digne de porter l’armure du Berserker.")
 
         guild_id = ctx.guild.id
@@ -4850,13 +4847,12 @@ async def berserk(ctx, target: discord.Member):
 
         # Vérifie cooldown en base
         cooldown_entry = cooldowns.find_one({"user_id": user_id})
-        print("Cooldown entry:", cooldown_entry)
+        print("📥 Cooldown entry:", cooldown_entry)
 
-        if cooldown_entry:
+        if cooldown_entry and cooldown_entry.get("last_used"):
             days_since_last_use = (now - cooldown_entry["last_used"]).days
             if days_since_last_use < 7:
                 remaining = 7 - days_since_last_use
-                print(f"⏳ Cooldown actif: {remaining} jours restants.")
                 return await ctx.send(f"🕒 Tu dois encore patienter **{remaining} jours** avant d’utiliser de nouveau `.berserk`.")
 
         # Mise à jour du cooldown
@@ -4877,8 +4873,6 @@ async def berserk(ctx, target: discord.Member):
 
         author_data = get_data(guild_id, user_id)
         target_data = get_data(guild_id, target_id)
-        print("Données auteur:", author_data)
-        print("Données cible:", target_data)
 
         author_bank = int(author_data.get("bank", 0) or 0)
         target_bank = int(target_data.get("bank", 0) or 0)
@@ -4896,14 +4890,22 @@ async def berserk(ctx, target: discord.Member):
             malus = int(author_bank * 0.15)
             collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"bank": -malus}})
             effect_text = f"⚠️ Tu roll **{roll}**. L’armure se retourne contre toi ! Tu perds **{malus:,}** de ta propre banque."
+
         elif roll == 100:
             collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"bank": 0}})
-            await author.add_roles(discord.Object(id=ECLIPSE_ROLE_ID))
+            try:
+                await author.add_roles(discord.Object(id=ECLIPSE_ROLE_ID))
+            except discord.Forbidden:
+                print("❌ Permission insuffisante pour ajouter le rôle Éclipse.")
+            except Exception as e:
+                print(f"❌ Erreur lors de l’ajout du rôle Éclipse : {e}")
+
             effect_text = (
                 f"🌑 Tu roll **100**. Effet **Éclipse** !\n"
                 f"La cible **{target.display_name}** perd **100%** de sa banque (**{target_bank:,}**).\n"
                 f"🏆 Tu obtiens le titre temporaire : **L’incarnation de la Rage**."
             )
+
         else:
             lost = int(target_bank * (roll / 100))
             collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -lost}})
@@ -4912,7 +4914,6 @@ async def berserk(ctx, target: discord.Member):
                 f"Tu ne gagnes rien. Juste le chaos."
             )
 
-        # Création de l'embed
         embed = discord.Embed(
             title="🔥 RAGE DÉCHAÎNÉE 🔥",
             description=(
@@ -4928,11 +4929,11 @@ async def berserk(ctx, target: discord.Member):
         await ctx.send(embed=embed)
         print("✅ Embed envoyé avec succès.")
 
-    except Exception as e:
-        print(f"❌ Erreur attrapée dans la commande .berserk: {e}")
+    except Exception:
+        error_details = traceback.format_exc()
+        print(f"❌ Erreur critique dans la commande .berserk:\n{error_details}")
         await ctx.send("❌ Une erreur critique est survenue lors de l’exécution de `.berserk`.")
 
-# Gestion des erreurs de la commande
 @berserk.error
 async def berserk_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
