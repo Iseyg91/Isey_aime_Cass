@@ -4694,42 +4694,63 @@ HAKI_ROI_ID = 1363817645249527879
 HAKI_SUBIS_ID = 1364109450197078026  # Rôle attribué pendant 7 jours
 
 async def is_on_cooldown(user_id):
+    print(f"[LOG] Recherche du cooldown MongoDB pour {user_id}")
     cooldown = collection30.find_one({"user_id": user_id})
     if cooldown:
         last_used = cooldown["last_used"]
-        print(f"[DEBUG] last_used = {last_used} ({type(last_used)})")
+        print(f"[LOG] Dernière utilisation trouvée : {last_used} ({type(last_used)})")
         cooldown_time = timedelta(weeks=2)
         if datetime.utcnow() - last_used < cooldown_time:
+            print("[LOG] Cooldown actif")
             return True
+        else:
+            print("[LOG] Cooldown expiré")
+    else:
+        print("[LOG] Aucun cooldown trouvé pour cet utilisateur")
     return False
 
 async def apply_haki_role(ctx, user):
     try:
+        print("[LOG] Début de apply_haki_role")
+
+        print(f"[LOG] Vérification du cooldown pour l'utilisateur : {user.id}")
         if await is_on_cooldown(user.id):
+            print("[LOG] Utilisateur encore en cooldown")
             await ctx.send(f"{user.mention} doit attendre 2 semaines avant d'être ciblé à nouveau.")
             return
+        print("[LOG] Utilisateur pas en cooldown")
 
         role = discord.utils.get(ctx.guild.roles, id=HAKI_SUBIS_ID)
         if not role:
+            print("[ERREUR] Rôle Haki non trouvé dans le serveur")
             await ctx.send("Erreur : le rôle Haki à attribuer n'a pas été trouvé.")
             return
+        print(f"[LOG] Rôle trouvé : {role.name}")
 
         await user.add_roles(role)
+        print(f"[LOG] Rôle ajouté à {user.name}")
         await ctx.send(f"{user.mention} a été paralysé avec le Haki des Rois pour 7 jours.")
 
+        now = datetime.utcnow()
+        print(f"[LOG] Mise à jour du cooldown à {now}")
         collection30.update_one(
             {"user_id": user.id},
-            {"$set": {"last_used": datetime.utcnow()}},
+            {"$set": {"last_used": now}},
             upsert=True
         )
+        print("[LOG] Cooldown enregistré en base de données")
 
+        print("[LOG] Attente 7 jours (asyncio.sleep)")
         await asyncio.sleep(7 * 24 * 60 * 60)
+
         await user.remove_roles(role)
+        print(f"[LOG] Rôle retiré de {user.name}")
         await ctx.send(f"{user.mention} est maintenant libéré du Haki des Rois.")
 
     except Exception as e:
+        print(f"[ERREUR] Exception dans apply_haki_role : {type(e).__name__} - {e}")
         await ctx.send(f"Une erreur est survenue pendant l'application du Haki : `{type(e).__name__} - {e}`")
-        traceback.print_exc()
+
 
 # Commande .haki
 @bot.command()
@@ -4750,12 +4771,13 @@ async def haki(ctx, user: discord.Member):
     # Application du Haki
     await apply_haki_role(ctx, user)
 
-# Gestion d'erreur de permission
 @haki.error
 async def haki_error(ctx, error):
     if isinstance(error, commands.MissingRole):
+        print("[ERREUR] Permission manquante pour utiliser .haki")
         await ctx.send("Vous n'avez pas le rôle requis pour utiliser cette commande.")
     else:
+        print(f"[ERREUR] Erreur dans haki : {type(error).__name__} - {error}")
         await ctx.send("Une erreur est survenue lors de l'exécution de la commande.")
 
 ULTRA_ID = 1363821033060307106
