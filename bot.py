@@ -5580,6 +5580,86 @@ async def reset_quetes(interaction: discord.Interaction):
     result = collection32.delete_many({})
     await interaction.response.send_message(f"🧹 Collection `ether_quetes` reset avec succès. {result.deleted_count} quêtes supprimées.")
 
+
+BENEDICTION_ROLE_ID = 1364294230343684137  # Rôle autorisé à utiliser la commande
+
+@bot.command(name="benediction")
+async def benediction(ctx):
+    user_id = ctx.author.id
+    guild_id = ctx.guild.id
+    now = datetime.utcnow()
+
+    # Vérifie si l'utilisateur a le rôle requis
+    if BENEDICTION_ROLE_ID not in [role.id for role in ctx.author.roles]:
+        embed = discord.Embed(
+            title="❌ Accès refusé",
+            description="Tu n'as pas le rôle nécessaire pour recevoir la bénédiction d'Etherya.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    # Récupère un item aléatoire de la boutique (en stock uniquement, et pas interdit)
+    items = list(collection16.find({
+        "quantity": {"$gt": 0},
+        "id": {"$nin": ITEMS_INTERDITS}
+    }))
+    
+    if not items:
+        embed = discord.Embed(
+            title="❌ Aucun item disponible",
+            description="Il n'y a pas d'items à matérialiser actuellement.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed)
+
+    selected_item = random.choice(items)
+
+    # Met à jour l'inventaire simple
+    existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
+    if existing:
+        inventory = existing.get("items", {})
+        inventory[str(selected_item["id"])] = inventory.get(str(selected_item["id"]), 0) + 1
+        collection7.update_one(
+            {"user_id": user_id, "guild_id": guild_id},
+            {"$set": {"items": inventory}}
+        )
+    else:
+        collection7.insert_one({
+            "user_id": user_id,
+            "guild_id": guild_id,
+            "items": {str(selected_item["id"]): 1}
+        })
+
+    # Ajoute à l'inventaire structuré
+    collection17.insert_one({
+        "guild_id": guild_id,
+        "user_id": user_id,
+        "item_id": selected_item["id"],
+        "item_name": selected_item["title"],
+        "emoji": selected_item.get("emoji"),
+        "price": selected_item["price"],
+        "obtained_at": now
+    })
+
+    # Retire le rôle après utilisation
+    role = discord.utils.get(ctx.guild.roles, id=BENEDICTION_ROLE_ID)
+    if role:
+        await ctx.author.remove_roles(role)
+
+    # Message de confirmation avec image et texte modifié
+    embed = discord.Embed(
+        title="🌟 Bénédiction d'Etherya",
+        description=(
+            "La bénédiction d'Etherya t'a été accordée ! **La Divinité t'a offert un cadeau précieux pour "
+            "ta quête. Que ce pouvoir guide tes pas vers la victoire !**\n\n"
+            f"Tu as reçu **{selected_item['emoji']} {selected_item['title']}** pour ta bravoure et ta foi."
+        ),
+        color=discord.Color.green()
+    )
+    embed.set_image(url="https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=auto,quality=70,width=1200,height=675/catalog/crunchyroll/59554268b0e9e3e565547ab4e25453f4.jpg")
+    await ctx.send(embed=embed)
+
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
