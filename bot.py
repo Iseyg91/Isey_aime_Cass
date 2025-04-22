@@ -4862,12 +4862,24 @@ async def berserk(ctx, target: discord.Member = None):
     elif roll == 100:
         perte = target_data["bank"]
         collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
-        await ctx.author.add_roles(ctx.guild.get_role(ECLIPSE_ROLE_ID))
-        result = (
-            f"🎲 Roll: {roll}\n💥 **Effet Éclipse !**\n"
-            f"→ {target.mention} perd **100%** de sa banque soit **{perte:,}**.\n"
-            f"→ Tu deviens **L’incarnation de la Rage**."
-        )
+    
+    # Ajout du rôle Éclipse
+    eclipse_role = ctx.guild.get_role(ECLIPSE_ROLE_ID)
+    if eclipse_role:
+        try:
+            await ctx.author.add_roles(eclipse_role)
+        except discord.Forbidden:
+            await ctx.send("❌ Je n’ai pas les permissions pour te donner le rôle Éclipse.")
+        except Exception as e:
+            await ctx.send(f"❌ Une erreur est survenue lors de l’ajout du rôle : {e}")
+    else:
+        await ctx.send("⚠️ Le rôle Éclipse n’a pas été trouvé sur le serveur.")
+
+    result = (
+        f"🎲 Roll: {roll}\n💥 **Effet Éclipse !**\n"
+        f"→ {target.mention} perd **100%** de sa banque soit **{perte:,}**.\n"
+        f"→ Tu deviens **L’incarnation de la Rage**."
+    )
 
     else:
         perte = int(target_data["bank"] * (roll / 100))
