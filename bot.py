@@ -5560,7 +5560,7 @@ async def quetes(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ Aucune quête enregistrée.", ephemeral=True)
 
     # Créez l'embed avec l'utilisateur comme auteur
-    embed = discord.Embed(title=f"Quêtes disponibles - {interaction.user.name}", color=discord.Color.blue())
+    embed = discord.Embed(title=f"Quêtes disponibles", color=discord.Color.blue())
     
     # Ajout de la photo de profil de l'utilisateur
     embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
