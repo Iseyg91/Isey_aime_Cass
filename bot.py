@@ -2031,22 +2031,20 @@ async def set_anti_rob(ctx):
 
     embed = discord.Embed(
         title="Gestion des rôles anti-rob",
-        description=f"**Rôles actuellement protégés :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}\n\nSélectionne les rôles à ajouter/enlever de l’anti-rob.",
+        description="Choisis une action à effectuer :",
         color=discord.Color.blurple()
     )
 
-    class AntiRobSelect(Select):
+    class ActionSelect(Select):
         def __init__(self):
             options = [
-                discord.SelectOption(label=role.name, value=str(role.id), default=(role.name in anti_rob_roles))
-                for role in ctx.guild.roles
-                if role != ctx.guild.default_role and not role.managed
-            ][:25]  # Discord limite à 25 options
-
+                discord.SelectOption(label="Ajouter un rôle", value="add", emoji="✅"),
+                discord.SelectOption(label="Supprimer un rôle", value="remove", emoji="❌")
+            ]
             super().__init__(
-                placeholder="Choisis les rôles à ajouter ou retirer",
+                placeholder="Choisis une action",
                 min_values=1,
-                max_values=len(options),
+                max_values=1,
                 options=options
             )
 
@@ -2054,28 +2052,40 @@ async def set_anti_rob(ctx):
             if interaction.user != ctx.author:
                 return await interaction.response.send_message("Cette interaction ne t'est pas destinée.", ephemeral=True)
 
-            changes = []
-            for role_id in self.values:
-                role = discord.utils.get(ctx.guild.roles, id=int(role_id))
-                if role.name in anti_rob_roles:
-                    anti_rob_roles.remove(role.name)
-                    changes.append(f"➖ {role.name}")
-                else:
-                    anti_rob_roles.append(role.name)
-                    changes.append(f"➕ {role.name}")
+            await interaction.response.send_message(
+                f"Tu as choisi **{self.values[0]}**. Merci de **mentionner un rôle** dans le chat.",
+                ephemeral=True
+            )
 
-            # Mise à jour BDD
-            collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}}, upsert=True)
+            def check(msg):
+                return msg.author == ctx.author and msg.channel == ctx.channel and msg.role_mentions
 
-            # Feedback
-            await interaction.response.edit_message(embed=discord.Embed(
-                title="✅ Mise à jour des rôles anti-rob",
-                description="\n".join(changes) + f"\n\n**Rôles protégés actuels :**\n{', '.join(anti_rob_roles) if anti_rob_roles else 'Aucun'}",
-                color=discord.Color.green()
-            ), view=None)
+            try:
+                msg = await bot.wait_for("message", timeout=30.0, check=check)
+                role = msg.role_mentions[0]
+                role_name = role.name
+
+                if self.values[0] == "add":
+                    if role_name in anti_rob_roles:
+                        await ctx.send(f"🔸 Le rôle **{role_name}** est déjà protégé.")
+                    else:
+                        anti_rob_roles.append(role_name)
+                        await ctx.send(f"✅ Le rôle **{role_name}** a été ajouté à la protection anti-rob.")
+                elif self.values[0] == "remove":
+                    if role_name in anti_rob_roles:
+                        anti_rob_roles.remove(role_name)
+                        await ctx.send(f"❌ Le rôle **{role_name}** a été retiré de la protection anti-rob.")
+                    else:
+                        await ctx.send(f"🔸 Le rôle **{role_name}** n’est pas protégé.")
+
+                # Mise à jour BDD
+                collection15.update_one({"guild_id": guild_id}, {"$set": {"roles": anti_rob_roles}}, upsert=True)
+
+            except asyncio.TimeoutError:
+                await ctx.send("⏱️ Temps écoulé. Merci de réessayer.")
 
     view = View()
-    view.add_item(AntiRobSelect())
+    view.add_item(ActionSelect())
     await ctx.send(embed=embed, view=view)
 
 @bot.hybrid_command(
