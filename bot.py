@@ -5711,35 +5711,42 @@ async def benediction(ctx):
     await ctx.send(embed=embed)
 
 @bot.command(name="gcreate")
-async def create_guild(ctx):
+async def creer_guilde(ctx):
     guild_id = ctx.guild.id
     user_id = ctx.author.id
 
-    # Vérifie si le joueur a déjà une guilde
-    if collection35.find_one({"guild_id": guild_id, "owner_id": user_id}):
-        return await ctx.send("❌ Tu possèdes déjà une guilde !")
+    # Vérifier s'il est déjà dans une guilde
+    guilde_existante = collection35.find_one({"guild_id": guild_id, "membres.user_id": user_id})
+    if guilde_existante:
+        return await ctx.send("Tu es déjà dans une guilde.")
 
-    # Vérifie si le joueur a assez de cash
-    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
-    if user_data.get("cash", 0) < 5000:
-        return await ctx.send("❌ Tu n'as pas assez de coins pour créer une guilde (5000 requis).")
+    # Vérifier les coins
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not user_data or user_data.get("cash", 0) < 5000:
+        return await ctx.send("Tu n'as pas assez de coins pour créer une guilde (5000 requis).")
 
-    def check(m):
+    def check_msg(m):
         return m.author == ctx.author and m.channel == ctx.channel
 
-    await ctx.send("📝 Quel est le **nom** de ta guilde ? (ce sera son ID unique)")
+    # Demander le nom de la guilde
+    await ctx.send("📝 Quel est le nom de ta guilde ? (Ce sera l'ID interne)")
     try:
-        name_msg = await bot.wait_for("message", timeout=60.0, check=check)
+        msg_nom = await bot.wait_for("message", check=check_msg, timeout=60)
+        nom_guilde = msg_nom.content.strip()
     except asyncio.TimeoutError:
-        return await ctx.send("⏱️ Temps écoulé, création annulée.")
-    guild_name = name_msg.content.strip()
+        return await ctx.send("⏳ Temps écoulé. Recommence la commande.")
 
-    await ctx.send("✏️ Donne une **description** pour ta guilde :")
+    # Vérifier si une guilde avec ce nom existe déjà
+    if collection35.find_one({"guild_id": guild_id, "guild_name": nom_guilde}):
+        return await ctx.send("❌ Une guilde avec ce nom existe déjà.")
+
+    # Demander la description
+    await ctx.send("📄 Donne une petite description pour ta guilde :")
     try:
-        desc_msg = await bot.wait_for("message", timeout=60.0, check=check)
+        msg_desc = await bot.wait_for("message", check=check_msg, timeout=60)
+        description = msg_desc.content.strip()
     except asyncio.TimeoutError:
-        return await ctx.send("⏱️ Temps écoulé, création annulée.")
-    description = desc_msg.content.strip()
+        return await ctx.send("⏳ Temps écoulé. Recommence la commande.")
 
     # Déduire les coins
     collection.update_one(
@@ -5747,17 +5754,33 @@ async def create_guild(ctx):
         {"$inc": {"cash": -5000}}
     )
 
-    # Stocker dans la DB
-    collection35.insert_one({
-        "guild_id": guild_id,
-        "guild_name": guild_name,
-        "description": description,
-        "owner_id": user_id,
-        "members": [user_id],
-        "created_at": datetime.utcnow()
-    })
+    # Log éco si tu veux
+    await log_eco_channel(
+        bot, guild_id, ctx.author, "Création Guilde", 5000,
+        user_data["cash"], user_data["cash"] - 5000,
+        note=f"Guilde: {nom_guilde}"
+    )
 
-    await ctx.send(f"✅ Guilde **{guild_name}** créée avec succès !")
+    # Enregistrement dans la DB
+    nouvelle_guilde = {
+        "guild_id": guild_id,
+        "guild_name": nom_guilde,
+        "description": description,
+        "bank": 0,
+        "vault": 0,
+        "membres": [
+            {
+                "user_id": user_id,
+                "role": "Créateur",
+                "joined_at": datetime.utcnow()
+            }
+        ]
+    }
+
+    collection35.insert_one(nouvelle_guilde)
+
+    await ctx.send(f"✅ Guilde **{nom_guilde}** créée avec succès !")
+
 
 @bot.command(name="g")
 async def afficher_guilde(ctx):
