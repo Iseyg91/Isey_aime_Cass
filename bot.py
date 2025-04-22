@@ -5475,6 +5475,93 @@ def insert_quetes_into_db():
         if not collection32.find_one({"id": quete["id"]}):
             collection32.insert_one(quete)
 
+@bot.tree.command(name="add-quete", description="Ajoute une nouvelle quête.")
+@app_commands.describe(
+    quest_id="L'ID unique de la quête",
+    nom="Nom de la quête",
+    description="Description de la quête",
+    reward_item_id="ID de l'item en récompense (doit exister dans la boutique)",
+    reward_coins="Montant de pièces en récompense"
+)
+async def add_quete(interaction: discord.Interaction, quest_id: int, nom: str, description: str, reward_item_id: int, reward_coins: int):
+    if interaction.user.id != 792755123587645461:
+        return await interaction.response.send_message("❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True)
+
+    # Vérifie que l'item existe
+    item = collection16.find_one({"id": reward_item_id})
+    if not item:
+        return await interaction.response.send_message("❌ L'item spécifié n'existe pas dans la boutique.", ephemeral=True)
+
+    existing = collection32.find_one({"id": quest_id})
+    if existing:
+        return await interaction.response.send_message("❌ Une quête avec cet ID existe déjà.", ephemeral=True)
+
+    quest = {
+        "id": quest_id,
+        "nom": nom,
+        "description": description,
+        "reward_item_id": reward_item_id,
+        "reward_coins": reward_coins
+    }
+
+    collection32.insert_one(quest)
+    await interaction.response.send_message(f"✅ Quête **{nom}** ajoutée avec succès !", ephemeral=True)
+
+@bot.tree.command(name="quetes", description="Affiche la liste des quêtes disponibles")
+async def quetes(interaction: discord.Interaction):
+    quests = list(collection32.find({}))
+
+    if not quests:
+        return await interaction.response.send_message("❌ Aucune quête enregistrée.", ephemeral=True)
+
+    embed = discord.Embed(title="📜 Quêtes disponibles", color=discord.Color.green())
+
+    for quest in quests:
+        item = collection16.find_one({"id": quest["reward_item_id"]})
+        item_name = item["title"] if item else "Inconnu"
+        item_emoji = item["emoji"] if item else ""
+
+        embed.add_field(
+            name=f"🔹 {quest['nom']} (ID: {quest['id']})",
+            value=f"{quest['description']}\n**Récompense**: {item_name} {item_emoji} + {quest['reward_coins']} <:ecoEther:1341862366249357374>",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="quete-faite", description="Valide une quête et donne les récompenses à un utilisateur.")
+@app_commands.describe(quest_id="ID de la quête", user="Utilisateur à récompenser")
+@commands.has_permissions(administrator=True)
+async def quete_faite(interaction: discord.Interaction, quest_id: int, user: discord.User):
+    quest = collection32.find_one({"id": quest_id})
+    if not quest:
+        return await interaction.response.send_message("❌ Quête introuvable.", ephemeral=True)
+
+    # Ajouter item dans l'inventaire
+    collection17.insert_one({
+        "guild_id": interaction.guild.id,
+        "user_id": user.id,
+        "item_id": quest["reward_item_id"],
+        "item_name": collection16.find_one({"id": quest["reward_item_id"]})["title"],
+        "emoji": collection16.find_one({"id": quest["reward_item_id"]})["emoji"]
+    })
+
+    # Ajouter des coins
+    user_data = collection.find_one({"guild_id": interaction.guild.id, "user_id": user.id})
+    if not user_data:
+        user_data = {"guild_id": interaction.guild.id, "user_id": user.id, "cash": 0, "bank": 0}
+        collection.insert_one(user_data)
+
+    new_cash = user_data["cash"] + quest["reward_coins"]
+    collection.update_one(
+        {"guild_id": interaction.guild.id, "user_id": user.id},
+        {"$set": {"cash": new_cash}}
+    )
+
+    await interaction.response.send_message(
+        f"✅ Récompenses de la quête **{quest['nom']}** données à {user.mention} !",
+        ephemeral=True
+    )
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
