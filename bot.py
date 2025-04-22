@@ -4783,14 +4783,21 @@ async def haki_error(ctx, error):
         print(f"[ERREUR] Erreur dans haki : {type(error).__name__} - {error}")
         await ctx.send("Une erreur est survenue lors de l'exécution de la commande.")
 
+import discord
+from discord.ext import commands
+import datetime
+
 ULTRA_ID = 1363821033060307106
+
+class MissingUltraRole(commands.CheckFailure):
+    pass
 
 @bot.command(name="ultra")
 @commands.cooldown(1, 432000, commands.BucketType.user)  # 432000 sec = 5 jours
 async def ultra(ctx):
     # Vérifie si l'utilisateur a le rôle ULTRA
     if not any(role.id == ULTRA_ID for role in ctx.author.roles):
-        return await ctx.send("❌ Vous n'avez pas la puissance nécessaire pour utiliser cette commande.")
+        raise MissingUltraRole()
 
     embed = discord.Embed(
         title="☁️ Ultra Instinct ☁️",
@@ -4810,10 +4817,14 @@ async def ultra(ctx):
 @ultra.error
 async def ultra_error(ctx, error):
     if isinstance(error, commands.CommandOnCooldown):
-        remaining = str(datetime.timedelta(seconds=int(error.retry_after)))
+        remaining = str(timedelta(seconds=int(error.retry_after)))
         await ctx.send(f"🕒 Vous devez attendre encore **{remaining}** avant de réutiliser cette forme ultime.")
+    elif isinstance(error, MissingUltraRole):
+        await ctx.send("❌ Vous n'avez pas la puissance nécessaire pour utiliser cette commande.")
+    else:
+        await ctx.send("⚠️ Une erreur inconnue s'est produite.")
 
-# IDs
+#IDs
 RAGE_ID = 1363821333624127618
 ECLIPSE_ROLE_ID = 1364115033197510656
 
