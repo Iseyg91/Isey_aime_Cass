@@ -5559,7 +5559,11 @@ async def quetes(interaction: discord.Interaction):
     if not quests:
         return await interaction.response.send_message("❌ Aucune quête enregistrée.", ephemeral=True)
 
-    embed = discord.Embed(title="Quêtes disponibles", color=discord.Color.blue())
+    # Créez l'embed avec l'utilisateur comme auteur
+    embed = discord.Embed(title=f"Quêtes disponibles - {interaction.user.name}", color=discord.Color.blue())
+    
+    # Ajout de la photo de profil de l'utilisateur
+    embed.set_author(name=interaction.user.name, icon_url=interaction.user.display_avatar.url)
 
     for quest in quests:
         item = collection16.find_one({"id": quest["reward_item_id"]})
