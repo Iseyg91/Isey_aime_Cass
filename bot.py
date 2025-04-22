@@ -5990,17 +5990,21 @@ async def gban(ctx, member: discord.Member):
 
     await ctx.send(f"{member.mention} a été banni de la guilde.")
 
-# Commande .gdelete : Supprimer une guilde
 @bot.command(name="gdelete")
 async def gdelete(ctx, guild_id: int):
     # Vérifier que l'utilisateur est autorisé à supprimer la guilde (par exemple, propriétaire)
     if ctx.author.id != 792755123587645461:  # ISEY_ID
         return await ctx.send("Tu n'as pas la permission de supprimer cette guilde.")
     
+    # Vérifier si la guilde existe dans la base de données
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde:
+        return await ctx.send(f"Aucune guilde trouvée avec l'ID {guild_id}.")
+
     # Supprimer la guilde
     collection35.delete_one({"guild_id": guild_id})
 
-    await ctx.send(f"La guilde avec l'ID {guild_id} a été supprimée.")
+    await ctx.send(f"La guilde avec l'ID {guild_id} a été supprimée avec succès.")
 
 # Commande .gdep : Déposer des coins dans la banque de la guilde
 @bot.command(name="gdep")
