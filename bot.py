@@ -4523,11 +4523,15 @@ async def manipulation(ctx):
     except discord.Forbidden:
         pass
 
+import random
+from datetime import datetime, timedelta
+import discord
+
 # ID d'objets matérialisables
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
-# Cooldown en heures
-MATERIALISATION_COOLDOWN_HOURS = 6
+# IDs d'items interdits à la matérialisation
+ITEMS_INTERDITS = [202, 197, 425, 736, 872, 964, 987]
 
 # Cooldown en heures
 MATERIALISATION_COOLDOWN_HOURS = 6
@@ -4553,8 +4557,12 @@ async def materialisation(ctx):
             )
             return await ctx.send(embed=embed)
 
-    # Récupère un item aléatoire de la boutique (en stock uniquement)
-    items = list(collection16.find({"quantity": {"$gt": 0}, "id": {"$in": MATERIALISATION_IDS}}))
+    # Récupère un item aléatoire de la boutique (en stock uniquement, et pas interdit)
+    items = list(collection16.find({
+        "quantity": {"$gt": 0},
+        "id": {"$in": MATERIALISATION_IDS, "$nin": ITEMS_INTERDITS}
+    }))
+    
     if not items:
         embed = discord.Embed(
             title="❌ Aucun item disponible",
