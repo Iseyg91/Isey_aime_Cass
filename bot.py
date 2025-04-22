@@ -4830,7 +4830,7 @@ ECLIPSE_ROLE_ID = 1364115033197510656
 
 
 @bot.command(name="berserk")
-@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # backup cooldown
+@commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown de 7 jours
 async def berserk(ctx, target: discord.Member):
     author = ctx.author
 
@@ -4869,16 +4869,22 @@ async def berserk(ctx, target: discord.Member):
     image_url = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRFnYq97GQStqdha5XbLwyLuT6i4CyZRIdB8A&s"
     effect_text = ""
 
+    # Log des données et du roll
+    print(f"Roll: {roll}")
+    print(f"Auteur: {author.display_name} | Bank: {author_data.get('bank', 0)}")
+    print(f"Cible: {target.display_name} | Bank: {target_data.get('bank', 0)}")
+
+    # Vérifications et calculs
     if roll <= 10:
         # Retour contre soi
-        malus = int(author_data["bank"] * 0.15)
+        malus = int(author_data.get("bank", 0) * 0.15)
         collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"bank": -malus}})
         effect_text = f"⚠️ Tu roll **{roll}**. L’armure se retourne contre toi ! Tu perds **{malus:,}** de ta propre banque."
     elif roll == 100:
         # Effet Éclipse
-        lost = target_data["bank"]
+        lost = target_data.get("bank", 0)
         collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"bank": 0}})
-        await author.add_roles(discord.Object(id=1364115033197510656))
+        await author.add_roles(discord.Object(id=1364115033197510656))  # Donne le rôle Éclipse
         effect_text = (
             f"🌑 Tu roll **100**. Effet **Éclipse** !\n"
             f"La cible **{target.display_name}** perd **100%** de sa banque (**{lost:,}**).\n"
@@ -4886,7 +4892,7 @@ async def berserk(ctx, target: discord.Member):
         )
     else:
         # Rage normale
-        lost = int(target_data["bank"] * (roll / 100))
+        lost = int(target_data.get("bank", 0) * (roll / 100))
         collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -lost}})
         effect_text = (
             f"💥 Tu roll **{roll}** → la cible **{target.display_name}** perd **{roll}%** de sa banque (**{lost:,}**).\n"
@@ -4900,7 +4906,7 @@ async def berserk(ctx, target: discord.Member):
         upsert=True
     )
 
-    # Embed réponse
+    # Création de l'embed
     embed = discord.Embed(
         title="🔥 RAGE DÉCHAÎNÉE 🔥",
         description=(
@@ -4913,7 +4919,13 @@ async def berserk(ctx, target: discord.Member):
     embed.set_thumbnail(url=image_url)
     embed.set_footer(text="⏳ Cooldown : 7 jours")
 
-    await ctx.send(embed=embed)
+    # Tentative d'envoi de l'embed avec gestion des erreurs
+    try:
+        await ctx.send(embed=embed)
+        print("Embed envoyé avec succès.")
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de l'embed: {e}")
+        await ctx.send("❌ Une erreur est survenue lors de l’envoi de l’embed.")
 
 @berserk.error
 async def berserk_error(ctx, error):
@@ -4922,7 +4934,9 @@ async def berserk_error(ctx, error):
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"🕒 Cette commande est en cooldown. Réessaie dans {round(error.retry_after / 3600 / 24, 2)} jours.")
     else:
-        raise error  # pour ne pas masquer d'autres erreurs
+        print(f"Erreur inattendue : {error}")
+        await ctx.send("❌ Une erreur est survenue.")
+        raise error  # relancer l'erreur pour ne pas la masquer
 
 ARMURE_ID = 1363821649002238142
 ANTI_ROB_ID = 1363964754678513664
