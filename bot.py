@@ -76,6 +76,9 @@ collection28 = db['cd_transformation'] #Stock les cd
 collection29 = db['cd_specialisation'] #Stock les cd
 collection30 = db['cd_haki_attaque'] #Stock les cd
 collection31 = db['cd_haki_subis'] #Stock les cd
+collection32 = db['ether_quetes'] #Stock les quetes
+collection33 = db['inventory_collect'] #Stock les items de quetes
+collection34 = db['collect_items'] #Stock les items collector
 
 
 # Fonction pour vérifier si l'utilisateur possède un item (fictif, à adapter à ta DB)
@@ -158,6 +161,9 @@ def load_guild_settings(guild_id):
     cd_specialisation_data = collection29.find_one({"guild_id": guild_id}) or {}
     cd_haki_attaque_data = collection30.find_one({"guild_id": guild_id}) or {}
     cd_haki_subis_data = collection31.find_one({"guild_id": guild_id}) or {}
+    ether_quetes_data = collection32.find_one({"guild_id": guild_id}) or {}
+    inventory_collect_data = collection33.find_one({"guild_id": guild_id}) or {}
+    collect_items_data = collection34.find_one({"guild_id": guild_id}) or {}
 
     # Débogage : Afficher les données de setup
     print(f"Setup data for guild {guild_id}: {setup_data}")
@@ -193,7 +199,10 @@ def load_guild_settings(guild_id):
         "cd_transformation" : cd_transformation_data,
         "cd_specialisation" : cd_specialisation_data,
         "cd_haki_attaque": cd_haki_attaque_data,
-        "cd_haki_subis": cd_haki_subis_data
+        "cd_haki_subis": cd_haki_subis_data,
+        "ether_quetes": ether_quetes_data,
+        "inventory_collect": inventory_collect_data,
+        "collect_items": collect_items_data
     }
 
     return combined_data
@@ -2890,6 +2899,139 @@ ITEMS = [
     },
     "used": True
  },
+{
+    "id": 202,
+    "emoji": "<:bc1s1:1364217784439144488>",
+    "title": "Boule de Cristal n°1",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 197,
+    "emoji": "<:bc2s1:1364224502996930642>",
+    "title": "Boule de Cristal n°2",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 425,
+    "emoji": "<:bc3s1:1364224526476640306>",
+    "title": "Boule de Cristal n°3",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 736,
+    "emoji": "<:bc4s1:1364224543937396746>",
+    "title": "Boule de Cristal n°4",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 872,
+    "emoji": "<:bc5s1:1364224573306048522>",
+    "title": "Boule de Cristal n°5",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 964,
+    "emoji": "<:bc6s1:1364224591488221276>",
+    "title": "Boule de Cristal n°6",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
+{
+    "id": 987,
+    "emoji": "<:bc7s1:1364224611536994315>",
+    "title": "Boule de Cristal n°7",
+    "description": "Une sphère mystérieuse et brillante, sans utilité apparente pour l'instant, mais qui semble receler un pouvoir caché en attente d'être découvert.",
+    "price": 0,
+    "emoji_price": "<:ecoEther:1341862366249357374>",
+    "quantity": 0,
+    "tradeable": True,
+    "usable": False,
+    "use_effect": "???",
+    "requirements": {},  # Aucun requirement
+    "role_id": null,  # Aucun rôle à donner
+    "remove_after_purchase": {
+        "roles": False,
+        "items": False
+    },
+    "used": False
+},
 ]
 
 
@@ -5319,6 +5461,77 @@ async def help(ctx: commands.Context):
     view.add_item(select)
     
     await ctx.send(embed=embed, view=view)
+
+@bot.tree.command(name="quêtes", description="Ajoute une quête et récompense un joueur.")
+@app_commands.describe(
+    id="ID de la quête",
+    nom="Nom de la quête",
+    description="Description de la quête",
+    emoji="Emoji associé à la quête",
+    recompense="Récompense donnée (en coins)",
+    user="Utilisateur à récompenser"
+)
+async def ajouter_quete(
+    interaction: discord.Interaction,
+    id: int,
+    nom: str,
+    description: str,
+    emoji: str,
+    recompense: str,
+    user: discord.User
+):
+    # Création de l'objet quête
+    quete_data = {
+        "id": id,
+        "nom": nom,
+        "description": description,
+        "emoji": emoji,
+        "recompense": recompense
+    }
+
+    # Insertion dans MongoDB
+    if collection32.find_one({"id": id}):
+        return await interaction.response.send_message(
+            embed=discord.Embed(
+                title="❌ Erreur",
+                description=f"La quête avec l'ID `{id}` existe déjà.",
+                color=discord.Color.red()
+            ),
+            ephemeral=True
+        )
+
+    collection32.insert_one(quete_data)
+
+    # Ajouter les coins à l'utilisateur
+    guild_id = interaction.guild.id
+    user_id = user.id
+    coins = int(recompense)
+
+    data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not data:
+        data = {"guild_id": guild_id, "user_id": user_id, "cash": coins, "bank": 0}
+        collection.insert_one(data)
+    else:
+        collection.update_one(
+            {"guild_id": guild_id, "user_id": user_id},
+            {"$inc": {"cash": coins}}
+        )
+
+    # Embed de confirmation
+    embed = discord.Embed(
+        title=f"{emoji} Nouvelle Quête Ajoutée !",
+        description=f"Et {user.mention} a reçu **{coins:,} <:ecoEther:1341862366249357374>** en récompense !",
+        color=discord.Color.green()
+    )
+    embed.add_field(name="🆔 ID", value=id, inline=True)
+    embed.add_field(name="📛 Nom", value=nom, inline=True)
+    embed.add_field(name="📄 Description", value=description, inline=False)
+    embed.add_field(name="🎁 Récompense", value=f"{coins:,} <:ecoEther:1341862366249357374>", inline=True)
+
+    await interaction.response.send_message(embed=embed)
+
+# Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
+insert_collector_into_db()
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
