@@ -1,8 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands, Embed, ButtonStyle, ui
-from discord.ui import Button, View, Select, Modal, TextInput, button
-from discord.ui import Modal, TextInput, Button, View
+from discord.ui import Button, View, Select, Modal, TextInput
 from discord.utils import get
 from discord import TextStyle
 from functools import wraps
@@ -4694,38 +4693,43 @@ async def demon_error(ctx, error):
 HAKI_ROI_ID = 1363817645249527879
 HAKI_SUBIS_ID = 1364109450197078026  # Rôle attribué pendant 7 jours
 
-# Fonction pour vérifier le cooldown
 async def is_on_cooldown(user_id):
     cooldown = collection30.find_one({"user_id": user_id})
     if cooldown:
         last_used = cooldown["last_used"]
-        cooldown_time = timedelta(weeks=2)  # 2 semaines de cooldown
-        if datetime.datetime.utcnow() - last_used < cooldown_time:
+        print(f"[DEBUG] last_used = {last_used} ({type(last_used)})")
+        cooldown_time = timedelta(weeks=2)
+        if datetime.utcnow() - last_used < cooldown_time:
             return True
     return False
 
-# Fonction pour appliquer le Haki
 async def apply_haki_role(ctx, user):
-    if await is_on_cooldown(user.id):
-        await ctx.send(f"{user.mention} doit attendre 2 semaines avant d'être ciblé à nouveau.")
-        return
+    try:
+        if await is_on_cooldown(user.id):
+            await ctx.send(f"{user.mention} doit attendre 2 semaines avant d'être ciblé à nouveau.")
+            return
 
-    # Ajout du rôle
-    role = discord.utils.get(ctx.guild.roles, id=HAKI_SUBIS_ID)
-    await user.add_roles(role)
-    await ctx.send(f"{user.mention} a été paralysé avec le Haki des Rois pour 7 jours.")
+        role = discord.utils.get(ctx.guild.roles, id=HAKI_SUBIS_ID)
+        if not role:
+            await ctx.send("Erreur : le rôle Haki à attribuer n'a pas été trouvé.")
+            return
 
-    # Enregistrement du cooldown
-    collection30.update_one(
-        {"user_id": user.id},
-        {"$set": {"last_used": datetime.datetime.utcnow()}},
-        upsert=True
-    )
+        await user.add_roles(role)
+        await ctx.send(f"{user.mention} a été paralysé avec le Haki des Rois pour 7 jours.")
 
-    # Retrait du rôle après 7 jours
-    await asyncio.sleep(7 * 24 * 60 * 60)
-    await user.remove_roles(role)
-    await ctx.send(f"{user.mention} est maintenant libéré du Haki des Rois.")
+        collection30.update_one(
+            {"user_id": user.id},
+            {"$set": {"last_used": datetime.utcnow()}},
+            upsert=True
+        )
+
+        await asyncio.sleep(7 * 24 * 60 * 60)
+        await user.remove_roles(role)
+        await ctx.send(f"{user.mention} est maintenant libéré du Haki des Rois.")
+
+    except Exception as e:
+        await ctx.send(f"Une erreur est survenue pendant l'application du Haki : `{type(e).__name__} - {e}`")
+        traceback.print_exc()
 
 # Commande .haki
 @bot.command()
