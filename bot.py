@@ -4817,116 +4817,122 @@ async def ultra_error(ctx, error):
     else:
         await ctx.send("⚠️ Une erreur inconnue s'est produite.")
 
-#IDs
+import discord
+from discord.ext import commands
+from datetime import datetime
+import random
+
+# IDs
 RAGE_ID = 1363821333624127618
 ECLIPSE_ROLE_ID = 1364115033197510656
-
 
 @bot.command(name="berserk")
 @commands.cooldown(1, 7 * 24 * 60 * 60, commands.BucketType.user)  # cooldown global pour chaque utilisateur (7 jours)
 async def berserk(ctx, target: discord.Member):
-    author = ctx.author
-
-    # Serveur uniquement
-    if ctx.guild is None:
-        return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
-
-    # Vérifie si l’auteur a le rôle Berserker
-    if not discord.utils.get(author.roles, id=1363821333624127618):
-        return await ctx.send("Tu n’es pas digne de porter l’armure du Berserker.")
-
-    guild_id = ctx.guild.id
-    user_id = author.id
-    target_id = target.id
-
-    now = datetime.utcnow()
-
-    # Vérifie cooldown en base (régle le cooldown dans la base de données)
-    cooldown_entry = cooldowns.find_one({"user_id": user_id})
-    if cooldown_entry:
-        # Si le cooldown existe, vérifier si l'utilisateur a déjà utilisé la commande
-        days_since_last_use = (now - cooldown_entry["last_used"]).days
-        if days_since_last_use < 7:
-            remaining = 7 - days_since_last_use
-            return await ctx.send(f"🕒 Tu dois encore patienter **{remaining} jours** avant d’utiliser de nouveau `.berserk`.")
-    
-    # Si pas d'entrée ou cooldown expiré, on met à jour le cooldown
-    cooldowns.update_one(
-        {"user_id": user_id},
-        {"$set": {"last_used": now}},
-        upsert=True
-    )
-
-    # Fonction de chargement des données utilisateur
-    def get_data(guild_id, user_id):
-        data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
-        if not data:
-            data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
-            collection.insert_one(data)
-        return data
-
-    author_data = get_data(guild_id, user_id)
-    target_data = get_data(guild_id, target_id)
-
-    roll = random.randint(1, 100)
-    image_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unnamed.jpg?raw=true"
-    effect_text = ""
-
-    # Log des données et du roll
-    print(f"Roll: {roll}")
-    print(f"Auteur: {author.display_name} | Bank: {author_data.get('bank', 0)}")
-    print(f"Cible: {target.display_name} | Bank: {target_data.get('bank', 0)}")
-
-    # Vérifications et calculs
-    if roll <= 10:
-        # Retour contre soi
-        malus = int(author_data.get("bank", 0) * 0.15)
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"bank": -malus}})
-        effect_text = f"⚠️ Tu roll **{roll}**. L’armure se retourne contre toi ! Tu perds **{malus:,}** de ta propre banque."
-    elif roll == 100:
-        # Effet Éclipse
-        lost = target_data.get("bank", 0)
-        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"bank": 0}})
-        await author.add_roles(discord.Object(id=1364115033197510656))  # Donne le rôle Éclipse
-        effect_text = (
-            f"🌑 Tu roll **100**. Effet **Éclipse** !\n"
-            f"La cible **{target.display_name}** perd **100%** de sa banque (**{lost:,}**).\n"
-            f"🏆 Tu obtiens le titre temporaire : **L’incarnation de la Rage**."
-        )
-    else:
-        # Rage normale
-        lost = int(target_data.get("bank", 0) * (roll / 100))
-        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -lost}})
-        effect_text = (
-            f"💥 Tu roll **{roll}** → la cible **{target.display_name}** perd **{roll}%** de sa banque (**{lost:,}**).\n"
-            f"Tu ne gagnes rien. Juste le chaos."
-        )
-
-    # Création de l'embed
-    embed = discord.Embed(
-        title="🔥 RAGE DÉCHAÎNÉE 🔥",
-        description=(
-            "Tu perds tout contrôle. L’armure du Berserker te consume, et avec elle, ta dernière part d’humanité.\n"
-            "Tu ne voles pas. Tu ne gagnes rien. Tu détruis, par pure haine.\n\n"
-            f"{effect_text}"
-        ),
-        color=discord.Color.red()
-    )
-    embed.set_thumbnail(url=image_url)
-    embed.set_footer(text="⏳ Cooldown : 7 jours")
-
-# Tentative d'envoi de l'embed avec gestion des erreurs
     try:
+        print("✅ Commande .berserk déclenchée")
+        author = ctx.author
+
+        # Serveur uniquement
+        if ctx.guild is None:
+            print("❌ Utilisation en dehors d'un serveur.")
+            return await ctx.send("Cette commande ne peut être utilisée qu'en serveur.")
+
+        # Vérifie si l’auteur a le rôle Berserker
+        if not discord.utils.get(author.roles, id=RAGE_ID):
+            print("❌ L'utilisateur n'a pas le rôle Berserker.")
+            return await ctx.send("Tu n’es pas digne de porter l’armure du Berserker.")
+
+        guild_id = ctx.guild.id
+        user_id = author.id
+        target_id = target.id
+        now = datetime.utcnow()
+
+        # Vérifie cooldown en base
+        cooldown_entry = cooldowns.find_one({"user_id": user_id})
+        print("Cooldown entry:", cooldown_entry)
+
+        if cooldown_entry:
+            days_since_last_use = (now - cooldown_entry["last_used"]).days
+            if days_since_last_use < 7:
+                remaining = 7 - days_since_last_use
+                print(f"⏳ Cooldown actif: {remaining} jours restants.")
+                return await ctx.send(f"🕒 Tu dois encore patienter **{remaining} jours** avant d’utiliser de nouveau `.berserk`.")
+
+        # Mise à jour du cooldown
+        cooldowns.update_one(
+            {"user_id": user_id},
+            {"$set": {"last_used": now}},
+            upsert=True
+        )
+        print("✅ Cooldown mis à jour")
+
+        # Fonction pour charger les données utilisateur
+        def get_data(guild_id, user_id):
+            data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+            if not data:
+                data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+                collection.insert_one(data)
+            return data
+
+        author_data = get_data(guild_id, user_id)
+        target_data = get_data(guild_id, target_id)
+        print("Données auteur:", author_data)
+        print("Données cible:", target_data)
+
+        author_bank = int(author_data.get("bank", 0) or 0)
+        target_bank = int(target_data.get("bank", 0) or 0)
+
+        roll = random.randint(1, 100)
+        image_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unnamed.jpg?raw=true"
+        effect_text = ""
+
+        print(f"🎲 Roll: {roll}")
+        print(f"Auteur: {author.display_name} | Bank: {author_bank}")
+        print(f"Cible: {target.display_name} | Bank: {target_bank}")
+
+        # Résultat du roll
+        if roll <= 10:
+            malus = int(author_bank * 0.15)
+            collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"bank": -malus}})
+            effect_text = f"⚠️ Tu roll **{roll}**. L’armure se retourne contre toi ! Tu perds **{malus:,}** de ta propre banque."
+        elif roll == 100:
+            collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$set": {"bank": 0}})
+            await author.add_roles(discord.Object(id=ECLIPSE_ROLE_ID))
+            effect_text = (
+                f"🌑 Tu roll **100**. Effet **Éclipse** !\n"
+                f"La cible **{target.display_name}** perd **100%** de sa banque (**{target_bank:,}**).\n"
+                f"🏆 Tu obtiens le titre temporaire : **L’incarnation de la Rage**."
+            )
+        else:
+            lost = int(target_bank * (roll / 100))
+            collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -lost}})
+            effect_text = (
+                f"💥 Tu roll **{roll}** → la cible **{target.display_name}** perd **{roll}%** de sa banque (**{lost:,}**).\n"
+                f"Tu ne gagnes rien. Juste le chaos."
+            )
+
+        # Création de l'embed
+        embed = discord.Embed(
+            title="🔥 RAGE DÉCHAÎNÉE 🔥",
+            description=(
+                "Tu perds tout contrôle. L’armure du Berserker te consume, et avec elle, ta dernière part d’humanité.\n"
+                "Tu ne voles pas. Tu ne gagnes rien. Tu détruis, par pure haine.\n\n"
+                f"{effect_text}"
+            ),
+            color=discord.Color.red()
+        )
+        embed.set_thumbnail(url=image_url)
+        embed.set_footer(text="⏳ Cooldown : 7 jours")
+
         await ctx.send(embed=embed)
-        print("Embed envoyé avec succès.")
-    except discord.HTTPException as e:
-        print(f"Erreur HTTP lors de l'envoi de l'embed: {e}")
-        await ctx.send("❌ Une erreur est survenue lors de l’envoi de l’embed. Veuillez réessayer plus tard.")
+        print("✅ Embed envoyé avec succès.")
+
     except Exception as e:
-        print(f"Erreur générale lors de l'envoi de l'embed: {e}")
-        await ctx.send("❌ Une erreur est survenue lors de l’envoi de l’embed.")
+        print(f"❌ Erreur attrapée dans la commande .berserk: {e}")
+        await ctx.send("❌ Une erreur critique est survenue lors de l’exécution de `.berserk`.")
 
-
+# Gestion des erreurs de la commande
 @berserk.error
 async def berserk_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
@@ -4934,9 +4940,9 @@ async def berserk_error(ctx, error):
     elif isinstance(error, commands.CommandOnCooldown):
         await ctx.send(f"🕒 Cette commande est en cooldown. Réessaie dans {round(error.retry_after / 3600 / 24, 2)} jours.")
     else:
-        print(f"Erreur inattendue : {error}")
+        print(f"❌ Erreur inattendue dans le handler d’erreur : {error}")
         await ctx.send("❌ Une erreur est survenue.")
-        raise error  # relancer l'erreur pour ne pas la masquer
+        raise error
 
 ARMURE_ID = 1363821649002238142
 ANTI_ROB_ID = 1363964754678513664
