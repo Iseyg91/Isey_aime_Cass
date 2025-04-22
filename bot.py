@@ -4763,7 +4763,7 @@ async def haki(ctx, user: discord.Member):
         title="⚡ Haki des Rois ⚡",
         description=f"{user.mention} a été frappé par le Haki des Rois !",
         color=discord.Color.purple(),
-        timestamp=datetime.datetime.utcnow()
+        timestamp=datetime.utcnow()
     )
     embed.set_image(url="https://static.wikia.nocookie.net/onepiece/images/4/42/Haoshoku_Haki_Choc.png/revision/latest?cb=20160221111336&path-prefix=fr")
     await ctx.send(embed=embed)
@@ -4776,6 +4776,9 @@ async def haki_error(ctx, error):
     if isinstance(error, commands.MissingRole):
         print("[ERREUR] Permission manquante pour utiliser .haki")
         await ctx.send("Vous n'avez pas le rôle requis pour utiliser cette commande.")
+    elif isinstance(error, commands.MissingRequiredArgument):
+        print("[ERREUR] Argument manquant : utilisateur")
+        await ctx.send("Vous devez mentionner un utilisateur : `.haki @utilisateur`")
     else:
         print(f"[ERREUR] Erreur dans haki : {type(error).__name__} - {error}")
         await ctx.send("Une erreur est survenue lors de l'exécution de la commande.")
