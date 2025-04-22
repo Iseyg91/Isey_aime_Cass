@@ -5531,7 +5531,7 @@ async def ajouter_quete(
     await interaction.response.send_message(embed=embed)
 
 # Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
-insert_collector_into_db()
+insert_quetes_into_db()
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
