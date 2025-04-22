@@ -2911,7 +2911,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -2930,7 +2930,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -2949,7 +2949,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -2968,7 +2968,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -2987,7 +2987,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -3006,7 +3006,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
@@ -3025,7 +3025,7 @@ ITEMS = [
     "usable": False,
     "use_effect": "???",
     "requirements": {},  # Aucun requirement
-    "role_id": null,  # Aucun rôle à donner
+    "role_id": None,  # Aucun rôle à donner
     "remove_after_purchase": {
         "roles": False,
         "items": False
