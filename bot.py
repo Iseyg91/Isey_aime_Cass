@@ -4544,6 +4544,12 @@ async def heal(ctx):
         await ctx.author.remove_roles(malus_role)
         await ctx.send(f"Le rôle malus a été retiré à {ctx.author.mention}.")
 
+    # Retirer le rôle de soin (HEAL_ID)
+    heal_role = discord.utils.get(ctx.guild.roles, id=HEAL_ID)
+    if heal_role in ctx.author.roles:
+        await ctx.author.remove_roles(heal_role)
+        await ctx.send(f"Le rôle de soin a été retiré à {ctx.author.mention}.")
+
     # Créer l'embed avec l'image spécifiée
     embed = discord.Embed(title="Soin Exorciste", description="Le Nen a été retiré grâce à l'exorciste.", color=discord.Color.green())
     embed.set_image(url="https://preview.redd.it/q1xtzkr219371.jpg?width=1080&crop=smart&auto=webp&s=ce05b77fe67949cc8f6c39c01a9dd93c77af1fe8")
