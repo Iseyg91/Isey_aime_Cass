@@ -4567,12 +4567,15 @@ async def imperial(ctx, cible: discord.Member):
     if ARME_DEMONIAQUE_ID not in [r.id for r in auteur.roles]:
         return await ctx.send("❌ Tu n'as pas le pouvoir démoniaque pour utiliser cette commande.")
 
+    # Vérifie que la cible n'est pas un bot
     if cible.bot:
         return await ctx.send("❌ Tu ne peux pas cibler un bot.")
 
+    # Vérifie que l'utilisateur ne cible pas lui-même
     if auteur.id == cible.id:
         return await ctx.send("❌ Tu ne peux pas te voler toi-même.")
 
+    # Récupère l'ID du serveur
     guild_id = ctx.guild.id
 
     # Fonction pour récupérer ou créer les données
@@ -4586,9 +4589,11 @@ async def imperial(ctx, cible: discord.Member):
     data_auteur = get_or_create_user_data(auteur.id)
     data_cible = get_or_create_user_data(cible.id)
 
+    # Calcul des totaux
     total_auteur = data_auteur["cash"] + data_auteur["bank"]
     total_cible = data_cible["cash"] + data_cible["bank"]
 
+    # Vérifie si l'auteur est plus riche que la cible
     if total_cible <= total_auteur:
         return await ctx.send("❌ Tu ne peux voler que quelqu'un de plus riche que toi.")
 
@@ -4600,6 +4605,10 @@ async def imperial(ctx, cible: discord.Member):
     # Prélève en priorité du cash, puis de la banque
     vol_cash = min(vol_total, data_cible["cash"])
     vol_bank = vol_total - vol_cash
+
+    # Vérifie que l'auteur peut voler l'argent
+    if vol_total > total_cible:
+        return await ctx.send("❌ Il n'y a pas assez de fonds disponibles à voler.")
 
     # Mise à jour des comptes
     collection.update_one(
@@ -4628,7 +4637,7 @@ async def imperial(ctx, cible: discord.Member):
     embed.set_image(url="https://pm1.aminoapps.com/6591/d1e3c1527dc792f004068d914ca00c411031ccd2_hq.jpg")
     
     await ctx.send(embed=embed)
-
+    
 @bot.command()
 @commands.has_role("DEMON_ID")
 async def demon(ctx):
