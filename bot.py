@@ -5462,6 +5462,20 @@ async def help(ctx: commands.Context):
     
     await ctx.send(embed=embed, view=view)
 
+# Fonction pour insérer des quêtes de départ dans la base de données
+def insert_quetes_into_db():
+    # Quêtes à insérer au démarrage
+    quetes_debut = [
+        {"id": 1, "nom": "Quête de début", "description": "Commencez votre aventure !", "emoji": "🌟", "recompense": "100"},
+        {"id": 2, "nom": "Quête de récolte", "description": "Récoltez des ressources.", "emoji": "🌾", "recompense": "200"}
+    ]
+    
+    for quete in quetes_debut:
+        # Vérifier si la quête existe déjà dans la base de données
+        if not collection32.find_one({"id": quete["id"]}):
+            collection32.insert_one(quete)
+
+# Commande pour ajouter une quête
 @bot.tree.command(name="quêtes", description="Ajoute une quête et récompense un joueur.")
 @app_commands.describe(
     id="ID de la quête",
@@ -5489,7 +5503,7 @@ async def ajouter_quete(
         "recompense": recompense
     }
 
-    # Insertion dans MongoDB
+    # Vérifier si la quête existe déjà
     if collection32.find_one({"id": id}):
         return await interaction.response.send_message(
             embed=discord.Embed(
@@ -5500,6 +5514,7 @@ async def ajouter_quete(
             ephemeral=True
         )
 
+    # Insérer la quête dans la base de données
     collection32.insert_one(quete_data)
 
     # Ajouter les coins à l'utilisateur
@@ -5530,7 +5545,7 @@ async def ajouter_quete(
 
     await interaction.response.send_message(embed=embed)
 
-# Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
+# Appel de la fonction pour insérer les quêtes de départ lors du démarrage du bot
 insert_quetes_into_db()
 
 # Token pour démarrer le bot (à partir des secrets)
