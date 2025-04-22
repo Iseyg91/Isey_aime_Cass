@@ -5748,6 +5748,26 @@ async def creer_guilde(ctx):
     except asyncio.TimeoutError:
         return await ctx.send("⏳ Temps écoulé. Recommence la commande.")
 
+    # Demander une PFP pour la guilde
+    await ctx.send("🎨 Envoie une image pour la photo de profil de ta guilde (PFP) :")
+    try:
+        msg_pfp = await bot.wait_for("message", check=check_msg, timeout=60)
+        pfp_url = msg_pfp.attachments[0].url if msg_pfp.attachments else None
+        if not pfp_url:
+            return await ctx.send("❌ Tu n'as pas envoyé d'image pour la PFP.")
+    except asyncio.TimeoutError:
+        return await ctx.send("⏳ Temps écoulé. Recommence la commande.")
+
+    # Demander une bannière pour la guilde
+    await ctx.send("🎨 Envoie une image pour la bannière de ta guilde :")
+    try:
+        msg_banniere = await bot.wait_for("message", check=check_msg, timeout=60)
+        banniere_url = msg_banniere.attachments[0].url if msg_banniere.attachments else None
+        if not banniere_url:
+            return await ctx.send("❌ Tu n'as pas envoyé d'image pour la bannière.")
+    except asyncio.TimeoutError:
+        return await ctx.send("⏳ Temps écoulé. Recommence la commande.")
+
     # Déduire les coins
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
@@ -5766,6 +5786,8 @@ async def creer_guilde(ctx):
         "guild_id": guild_id,
         "guild_name": nom_guilde,
         "description": description,
+        "pfp_url": pfp_url,
+        "banniere_url": banniere_url,
         "bank": 0,
         "vault": 0,
         "membres": [
@@ -5797,11 +5819,21 @@ async def afficher_guilde(ctx):
     banque = guilde.get("bank", 0)
     coffre_fort = guilde.get("vault", 0)
     membres = guilde.get("membres", [])
+    pfp_url = guilde.get("pfp_url")
+    banniere_url = guilde.get("banniere_url")
 
     embed = discord.Embed(
         title=f"📘 Informations sur la guilde : {guild_name}",
         color=discord.Color.blue()
     )
+
+    # Ajouter la PFP si elle existe
+    if pfp_url:
+        embed.set_thumbnail(url=pfp_url)
+
+    # Ajouter la bannière si elle existe
+    if banniere_url:
+        embed.set_image(url=banniere_url)
 
     embed.add_field(name="Description", value=description, inline=False)
     embed.add_field(name="Banque", value=f"{banque:,} <:ecoEther:1341862366249357374>", inline=True)
@@ -5822,6 +5854,19 @@ async def afficher_guilde(ctx):
 
     await ctx.send(embed=embed)
 
+@bot.command(name="reset-teams")
+async def reset_teams(ctx):
+    # Vérifier si l'utilisateur a l'ID correct
+    if ctx.author.id != 792755123587645461:
+        return await ctx.send("Tu n'as pas la permission d'utiliser cette commande.")
+
+    # Effacer toutes les guildes de la base de données
+    result = collection35.delete_many({})
+    
+    if result.deleted_count > 0:
+        await ctx.send(f"✅ Toutes les guildes ont été supprimées avec succès. {result.deleted_count} guildes supprimées.")
+    else:
+        await ctx.send("❌ Aucune guilde trouvée à supprimer.")
 
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
