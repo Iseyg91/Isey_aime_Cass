@@ -4670,6 +4670,8 @@ async def imperial(ctx, cible: discord.Member = None):
     
     await ctx.send(embed=embed)
 
+DEMON_ID = 1363817629781069907
+
 @bot.command()
 @commands.has_role("DEMON_ID")
 async def demon(ctx):
@@ -4680,6 +4682,13 @@ async def demon(ctx):
     )
     embed.set_image(url="https://static.wikia.nocookie.net/owarinoseraph/images/2/26/Episode_24_-_Screenshot_190.png/revision/latest?cb=20160105015023")
     await ctx.send(embed=embed)
+
+@demon.error
+async def demon_error(ctx, error):
+    if isinstance(error, commands.MissingRole):
+        await ctx.send("Vous n'avez pas le rôle requis pour accéder à cette commande.")
+    else:
+        await ctx.send(f"Une erreur s'est produite : {error}")
 
 # ID des rôles
 HAKI_ROI_ID = 1363817645249527879
