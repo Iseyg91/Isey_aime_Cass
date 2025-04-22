@@ -5192,6 +5192,122 @@ async def oeil(ctx):
     else:
         await ctx.send("Le rôle nécessaire n'a pas pu être trouvé.")
 
+#------------------------------------------------------------------------- Commandes d'aide : +aide, /help
+@bot.hybrid_command(name="help", description="Affiche l'aide économique pour Etherya Economie")
+async def help(ctx: commands.Context):
+    banner_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/BANNER_ETHERYA-topaz.png?raw=true"  # URL de la bannière
+    embed = discord.Embed(
+        title="🏡 **Accueil Etherya Economie **",
+        description=f"Hey, bienvenue {ctx.author.mention} sur la page d'accueil de Etherya Economie! 🎉\n\n"
+                    "Ici, vous trouverez toutes les informations nécessaires pour comprendre l'économie efficacement. 🌟",
+        color=discord.Color(0x1abc9c)
+    )
+    embed.set_thumbnail(url=bot.user.avatar.url)
+    embed.set_footer(text="Développé avec ❤️ par Iseyg. Merci pour votre soutien !")
+    embed.set_image(url=banner_url)  # Ajout de la bannière en bas de l'embed
+
+    # Informations générales
+    embed.add_field(name="📚 **Informations**", value=f"• **Mon préfixe** : !!\n• **Nombre de commandes** : 43", inline=False)
+
+    # Création du menu déroulant
+    select = discord.ui.Select(
+        placeholder="Choisissez une catégorie 👇", 
+        options=[
+            discord.SelectOption(label="Jeux", description="🪙 Commandes pour jouer a l'économie", emoji="💸"),
+            discord.SelectOption(label="Items & Badges", description="📦Commandes pour accéder aux Items & Badges", emoji="🛒"),
+            discord.SelectOption(label="Pourvoir", description="🌊Commandes pour attaquer d'autre joueur ou encore se défendre ", emoji="🪭"),
+            discord.SelectOption(label="Crédits", description="💖 Remerciements et crédits", emoji="🙏")
+        ], 
+        custom_id="help_select"
+    )
+
+    # Définir la méthode pour gérer l'interaction du menu déroulant
+    async def on_select(interaction: discord.Interaction):
+        category = interaction.data['values'][0]
+        new_embed = discord.Embed(color=discord.Color(0x1abc9c))
+        new_embed.set_image(url=banner_url)  # Ajout de la bannière dans chaque catégorie
+        if category == "Jeux":
+            new_embed.title = "💴 **Commandes pour jouer a l'économie**"
+            new_embed.description = "Bienvenue dans la section Economie !"
+            new_embed.add_field(name="💰 !!bal", value="Affiche ton solde actuel en **cash**,**bank** et **total**.", inline=False)
+            new_embed.add_field(name="🏹 !!dy", value="Récupère une **somme quotidienne**.", inline=False)
+            new_embed.add_field(name="🍀 !!collect", value="Récupère des Coins.", inline=False)
+            new_embed.add_field(name="💼 !!work", value="Travaille pour gagner de l'argent !", inline=False)
+            new_embed.add_field(name="💥 !!slut", value="Comettre un **slut** pour gagner de l'argent ou risquer une amende.", inline=False)
+            new_embed.add_field(name="🚨 !!crime", value="Comettre un **crime** pour gagner de l'argent ou risquer une amende.", inline=False)
+            new_embed.add_field(name="🏆 !!lb (-cash, -bank)", value="Affiche le **classement** des joueurs avec leur cash, banque ou encore en total.", inline=False)
+            new_embed.add_field(name="💥 !!rob <@user>", value="Tente de **voler** un autre utilisateur (risque d'échec).", inline=False)
+            new_embed.add_field(name="💸 !!with <amount>", value="Retire une certaine somme d'argent de la **banque**.", inline=False)
+            new_embed.add_field(name="💳 !!dep <amount>", value="Dépose une certaine somme d'argent dans ta **banque**.", inline=False)
+            new_embed.add_field(name="🛍 !!buy c", value="Achat d'**un chicken** pour jouer au cf.", inline=False)
+            new_embed.add_field(name="🎲 !!cf <amount>", value="Joue au **chicken fight*** avec un certain montant.", inline=False)
+            new_embed.add_field(name="🍒 !!bj <amount>", value="Joue au **blackjack** avec une certaine somme.", inline=False)
+            new_embed.add_field(name="🎰 !!rr <amount>", value="Joue à la **roulette russe** avec une certaine somme.", inline=False)
+            new_embed.add_field(name="💸 !!roulette <amount> <space>", value="Mise à la **roulette** avec un certain montant.", inline=False)
+            new_embed.add_field(name="💰 !!pay <@user> <amount>", value="Envoie de l'argent à un autre utilisateur.", inline=False)
+            new_embed.set_footer(text="♥️ by Iseyg")
+        if category == ="Items & Badges":
+            new_embed.title = "📦 **Commandes pour accéder aux Items & Badges**"
+            new_embed.description = "Bienvenue dans la section Items & Badges !"
+            new_embed.add_field(name="🛒 /item-store", value="Accède au **magasin d'items** pour acheter des objets.", inline=False)
+            new_embed.add_field(name="📜 /item-info", value="Affiche les **détails** d'un item spécifique.", inline=False)
+            new_embed.add_field(name="💸 /item-buy", value="Permet d'acheter un item en utilisant ton solde.", inline=False)
+            new_embed.add_field(name="💰 /item-sell", value="Permet de **vendre** un item de ton inventaire à un autre joueur.", inline=False)
+            new_embed.add_field(name="📦 /item-inventory", value="Affiche les items que tu possèdes dans ton **inventaire**.", inline=False)
+            new_embed.add_field(name="⚡️ /item-use", value="Utilise un item de ton inventaire pour activer ses effets.", inline=False)
+            new_embed.add_field(name="🏆 /item-leaderboard", value="Affiche le **classement** des joueurs de l'items spécifié.", inline=False)
+            new_embed.add_field(name="🎖 /badge-store", value="Accède au **musée de badges** pour voir les badges uniques.", inline=False)
+            new_embed.add_field(name="🎖 /badge-inventory", value="Affiche les badges que tu possèdes dans ton inventaire.", inline=False)
+            new_embed.add_field(name="🏅 /rewards", value="Récupère une **récompense quotidienne**.", inline=False)
+            new_embed.set_footer(text="♥️ by Iseyg")
+        if category == "Pourvoir":
+            new_embed.title = "🗃️ **Commandes pour attaquer d'autre joueur ou encore se défendre**"
+            new_embed.description = "Bienvenue dans la section Pouvoir !"
+            new_embed.add_field(name="!!nen", value="Cet objet permet d'utiliser le Nen aléatoirement, avec un serment pour chaque technique. La spécialisation est inaccessible.", inline=False)
+            new_embed.add_field(name="!!renforcement", value="Offre à son utilisateur un anti-rob de 24h grâce a un serment de nen mais ne peux pas le refaire pendant 1 semaine.", inline=False)
+            new_embed.add_field(name="!!emission <@user>", value="Maudit quelqu'un grâce a son propre nen et lui offre un collect de -20% (cooldown 1 semaine)", inline=False)
+            new_embed.add_field(name="!!manipulation", value="Manipule sa propre banque et offre un collect de 1% toutes les 4h pendant 24h (cooldown 1 semaines)", inline=False)
+            new_embed.add_field(name="!!matérialisation", value="Matérialise un objet aléatoire de la boutique (sauf exception) (tous les mois)", inline=False)
+            new_embed.add_field(name="!!transformation <@user>", value="Permet de transformer son aura en éclair et FOUDROYER la banque de quelqu'un est de lui retirer 25% de celle-ci (cooldown : 2 semaines)", inline=False)
+            new_embed.add_field(name="!!heal", value="Permet de retirer le nen que quelqu'un nous a poser grâce à un exorciste !", inline=False)
+            new_embed.add_field(name="!!imperial <@user>", value="Permet d'utiliser le démon dans votre arme et vous permet de voler votre adversaire", inline=False)
+            new_embed.add_field(name="!!demon", value="Donne accès a tous les équipements de contrôle des démons", inline=False)
+            new_embed.add_field(name="!!haki <@user>", value="Paralyse ainsi il n’aura pas accès aux salons économiques.", inline=False)
+            new_embed.add_field(name="!!ultra", value="Vous activez l'Ultra Instinct ultime, esquivant toutes les attaques pendant (temps d'immunité). Après utilisation, 5 jours de repos sont nécessaires pour le réutiliser.", inline=False)
+            new_embed.add_field(name="!!berserk <@user>", value="Berserk te consume, tu détruis sans gain. Roll 100 : cible perd tout, tu obtiens 'L'incarnation de la Rage'. Roll ≤ 10 : perds 15% de ta banque. 7 jours de cooldown.", inline=False)
+            new_embed.add_field(name="!!armure", value="Offre une protection anti-rob de 1h. L'armure s'auto-consomme après l'utilisation.", inline=False)
+            new_embed.add_field(name="!!infini", value="Vous donne un anti-rob", inline=False)
+            new_embed.add_field(name="!!pokeball <@user>", value="Permet de voler un objet aléatoire à une personne aléatoire, ou d'obtenir rien.", inline=False)
+            new_embed.add_field(name="!!float", value="Accès au salon (nom du salon) pendant 15 minutes, utilisable une fois par jour", inline=False)
+            new_embed.add_field(name="!!oeil", value="Voir l'avenir et entrevoir le prochain restock pendant 10 sec, cooldown de 1 semaine.", inline=False)
+            new_embed.set_footer(text="♥️ by Iseyg")
+        elif category == "Crédits":
+            new_embed.title = "💖 **Crédits et Remerciements**"
+            new_embed.description = """
+            Un immense merci à **Iseyg** pour le développement de ce bot incroyable ! 🙏  
+            Sans lui, ce bot ne serait rien de plus qu'un concept. Grâce à sa passion, son travail acharné et ses compétences exceptionnelles, ce projet a pris vie et continue de grandir chaque jour. 🚀
+
+            Nous tenons également à exprimer notre gratitude envers **toute la communauté**. 💙  
+            Votre soutien constant, vos retours et vos idées font de ce bot ce qu'il est aujourd'hui. Chacun de vous, que ce soit par vos suggestions, vos contributions ou même simplement en utilisant le bot, fait une différence. 
+
+            Merci à **tous les développeurs, contributeurs et membres** qui ont aidé à faire évoluer ce projet et l’ont enrichi avec leurs talents et leurs efforts. 🙌
+
+            Et bien sûr, un grand merci à vous, **utilisateurs**, pour votre enthousiasme et votre confiance. Vous êtes la raison pour laquelle ce bot continue d’évoluer. 🌟
+
+            Restons unis et continuons à faire grandir cette aventure ensemble ! 🌍
+            """
+            new_embed.set_footer(text="♥️ by Iseyg")
+
+        await interaction.response.edit_message(embed=new_embed)
+
+    select.callback = on_select  # Attacher la fonction de callback à l'élément select
+
+    # Afficher le message avec le menu déroulant
+    view = discord.ui.View()
+    view.add_item(select)
+    
+    await ctx.send(embed=embed, view=view)
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
