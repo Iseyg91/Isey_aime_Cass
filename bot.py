@@ -3916,66 +3916,103 @@ BADGES = [
         "emoji": "<:gon:1363923253134889082>",
         "title": "Badge Hunter X Hunter",
         "description": "Badge Collector.",
+        "price": 100,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 10,
+        "tradeable": True,
+        "usable": False,
+        "use_effect": "???",
+        "requirements": {},
+        "role_id": None,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": False
     },
     {
         "id": 2,
         "emoji": "<:hxh:1363923320256463088>",
         "title": "Badge Gon",
         "description": "Badge Collector",
+        "price": 150,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 5,
+        "tradeable": True,
+        "usable": False,
+        "use_effect": "???",
+        "requirements": {},
+        "role_id": None,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": False
     },
 ]
 
+# Fonction pour obtenir les badges dans un format de page avec pagination
+def get_badge_embed(page: int = 0, items_per_page=10):
+    start = page * items_per_page
+    end = start + items_per_page
+    badges_page = BADGES[start:end]
+
+    embed = discord.Embed(title="🛒 Boutique de Badges", color=discord.Color.purple())
+
+    for badge in badges_page:
+        formatted_price = f"{badge['price']:,}".replace(",", " ")
+        name_line = f"ID: {badge['id']} | {formatted_price} {badge['emoji_price']} - {badge['title']} {badge['emoji']}"
+
+        # Seulement la description, sans les "requirements" et "bonus"
+        value = badge["description"]
+
+        embed.add_field(name=name_line, value=value, inline=False)
+
+    total_pages = (len(BADGES) - 1) // items_per_page + 1
+    embed.set_footer(text=f"Page {page + 1}/{total_pages}")
+    return embed
+
+# Vue pour les boutons de navigation
+class BadgePaginator(discord.ui.View):
+    def __init__(self, user):
+        super().__init__(timeout=60)
+        self.page = 0
+        self.user = user
+
+    async def update(self, interaction):
+        embed = get_badge_embed(self.page)
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
+    async def prev(self, interaction, button):
+        if interaction.user.id != self.user.id:
+            return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+        if self.page > 0:
+            self.page -= 1
+            await self.update(interaction)
+
+    @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
+    async def next(self, interaction, button):
+        if interaction.user.id != self.user.id:
+            return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
+        if (self.page + 1) * 10 < len(BADGES):
+            self.page += 1
+            await self.update(interaction)
+
+# Commande pour afficher la boutique de badges
 @bot.tree.command(name="badge-store", description="Affiche la boutique de badges")
 async def badge_store(interaction: discord.Interaction):
-    badges = list(collection19.find({}))
-    if not badges:
-        return await interaction.response.send_message("Aucun badge disponible pour l’instant.")
-
-    def get_badge_embed(page: int = 0, items_per_page=10):
-        start = page * items_per_page
-        end = start + items_per_page
-        badges_page = BADGES[start:end]
-
-        embed = discord.Embed(title="Collection de Badges", color=discord.Color.purple())
-
-        for badge in badges_page:
-            name_line = f"ID: {badge['id']} | {badge['title']} {badge['emoji']}"
-            value = badge["description"]
-            embed.add_field(name=name_line, value=value, inline=False)
-
-        total_pages = (len(BADGES) - 1) // items_per_page + 1
-        embed.set_footer(text=f"Page {page + 1}/{total_pages}")
-        return embed
-
-    class BadgePaginator(discord.ui.View):
-        def __init__(self, user):
-            super().__init__(timeout=60)
-            self.page = 0
-            self.user = user
-
-        async def update(self, interaction):
-            await interaction.response.edit_message(embed=get_badge_embed(self.page), view=self)
-
-        @discord.ui.button(label="◀️", style=discord.ButtonStyle.secondary)
-        async def prev(self, interaction, button):
-            if interaction.user.id != self.user.id:
-                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-            if self.page > 0:
-                self.page -= 1
-                await self.update(interaction)
-
-        @discord.ui.button(label="▶️", style=discord.ButtonStyle.secondary)
-        async def next(self, interaction, button):
-            if interaction.user.id != self.user.id:
-                return await interaction.response.send_message("❌ Tu ne peux pas utiliser ces boutons.", ephemeral=True)
-            if (self.page + 1) * 10 < len(BADGES):
-                self.page += 1
-                await self.update(interaction)
-
     view = BadgePaginator(interaction.user)
-    await interaction.response.send_message(embed=get_badge_embed(), view=view)
+    embed = get_badge_embed(0)  # Initial page (0)
+    await interaction.channel.send(embed=embed, view=view)  # Envoi à tout le monde dans le canal
 
-# Appel de la fonction pour insérer les items dans la base de données lors du démarrage du bot
+# Fonction pour insérer les badges dans la base de données lors du démarrage du bot
+def insert_badge_into_db():
+    for badge in BADGES:
+        if not collection19.find_one({"id": badge["id"]}):
+            collection19.insert_one(badge)
+
+# Appel de la fonction pour insérer les badges dans la base de données lors du démarrage du bot
 insert_badge_into_db()
 
 @bot.tree.command(name="badge-inventory", description="Affiche ton inventaire de badges")
