@@ -5924,6 +5924,212 @@ async def ginvite(ctx, member: discord.Member):
 
     await ctx.send(f"Une invitation a été envoyée à {member.mention}.")
 
+# Commande .cdep : Déposer des coins dans le coffre-fort de la guild
+@bot.command(name="cdep")
+async def cdep(ctx, amount: int):
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Vérifier les coins de l'utilisateur
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not user_data or user_data.get("cash", 0) < amount:
+        return await ctx.send("Tu n'as pas assez de coins pour faire ce dépôt.")
+
+    # Déposer les coins dans le coffre-fort
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$inc": {"vault": amount}},
+    )
+    # Déduire les coins du joueur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": user_id},
+        {"$inc": {"cash": -amount}},
+    )
+
+    await ctx.send(f"{amount} coins ont été déposés dans le coffre-fort de la guilde.")
+
+# Commande .cwith : Retirer des coins du coffre-fort de la guild
+@bot.command(name="cwith")
+async def cwith(ctx, amount: int):
+    guild_id = ctx.guild.id
+
+    # Récupérer les informations de la guilde
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or guilde.get("vault", 0) < amount:
+        return await ctx.send("Le coffre-fort de la guilde n'a pas assez de coins.")
+
+    # Retirer les coins du coffre-fort
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$inc": {"vault": -amount}},
+    )
+    
+    # Ajouter les coins à la banque
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$inc": {"bank": amount}},
+    )
+
+    await ctx.send(f"{amount} coins ont été retirés du coffre-fort de la guilde.")
+
+# Commande .gban : Bannir un membre de la guilde
+@bot.command(name="gban")
+async def gban(ctx, member: discord.Member):
+    guild_id = ctx.guild.id
+
+    # Vérifier si l'utilisateur est dans la guilde
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or not any(membre['user_id'] == member.id for membre in guilde['membres']):
+        return await ctx.send(f"{member.mention} n'est pas dans la guilde.")
+
+    # Bannir le membre de la guilde
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$pull": {"membres": {"user_id": member.id}}},
+    )
+
+    await ctx.send(f"{member.mention} a été banni de la guilde.")
+
+# Commande .gdelete : Supprimer une guilde
+@bot.command(name="gdelete")
+async def gdelete(ctx, guild_id: int):
+    # Vérifier que l'utilisateur est autorisé à supprimer la guilde (par exemple, propriétaire)
+    if ctx.author.id != 792755123587645461:  # ISEY_ID
+        return await ctx.send("Tu n'as pas la permission de supprimer cette guilde.")
+    
+    # Supprimer la guilde
+    collection35.delete_one({"guild_id": guild_id})
+
+    await ctx.send(f"La guilde avec l'ID {guild_id} a été supprimée.")
+
+# Commande .gdep : Déposer des coins dans la banque de la guilde
+@bot.command(name="gdep")
+async def gdep(ctx, amount: str):
+    guild_id = ctx.guild.id
+
+    if amount == "all":
+        # Déposer tout l'argent dans la banque
+        user_data = collection.find_one({"guild_id": guild_id, "user_id": ctx.author.id})
+        amount = user_data.get("cash", 0)
+
+        if amount == 0:
+            return await ctx.send("Tu n'as pas de coins à déposer.")
+
+    # Déposer les coins dans la banque de la guilde
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$inc": {"bank": int(amount)}},
+    )
+
+    # Déduire les coins du joueur
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": ctx.author.id},
+        {"$inc": {"cash": -int(amount)}},
+    )
+
+    await ctx.send(f"{amount} coins ont été déposés dans la banque de la guilde.")
+
+# Commande .gkick : Expulser un membre de la guilde
+@bot.command(name="gkick")
+async def gkick(ctx, member: discord.Member):
+    guild_id = ctx.guild.id
+
+    # Vérifier si le membre est dans la guilde
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or not any(membre['user_id'] == member.id for membre in guilde['membres']):
+        return await ctx.send(f"{member.mention} n'est pas dans la guilde.")
+
+    # Expulser le membre
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$pull": {"membres": {"user_id": member.id}}},
+    )
+
+    await ctx.send(f"{member.mention} a été expulsé de la guilde.")
+
+# Commande .gleave : Quitter la guilde
+@bot.command(name="gleave")
+async def gleave(ctx):
+    guild_id = ctx.guild.id
+    user_id = ctx.author.id
+
+    # Vérifier si l'utilisateur est dans la guilde
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or not any(membre['user_id'] == user_id for membre in guilde['membres']):
+        return await ctx.send("Tu n'es pas dans cette guilde.")
+
+    # Quitter la guilde
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$pull": {"membres": {"user_id": user_id}}},
+    )
+
+    await ctx.send(f"{ctx.author.mention} a quitté la guilde.")
+
+# Commande .gowner : Transférer la propriété de la guilde
+@bot.command(name="gowner")
+async def gowner(ctx, new_owner: discord.Member):
+    guild_id = ctx.guild.id
+
+    # Vérifier si l'utilisateur est le propriétaire actuel (par exemple, le créateur)
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or not any(membre['user_id'] == ctx.author.id and membre['role'] == 'Créateur' for membre in guilde['membres']):
+        return await ctx.send("Tu n'es pas le propriétaire de la guilde.")
+
+    # Transférer la propriété
+    collection35.update_one(
+        {"guild_id": guild_id, "membres.user_id": ctx.author.id},
+        {"$set": {"membres.$.role": "Membre"}},
+    )
+    collection35.update_one(
+        {"guild_id": guild_id, "membres.user_id": new_owner.id},
+        {"$set": {"membres.$.role": "Créateur"}},
+    )
+
+    await ctx.send(f"La propriété de la guilde a été transférée à {new_owner.mention}.")
+
+# Commande .gunban : Débannir un membre de la guilde
+@bot.command(name="gunban")
+async def gunban(ctx, member: discord.Member):
+    guild_id = ctx.guild.id
+
+    # Vérifier si le membre est banni
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or not any(membre['user_id'] == member.id and membre['role'] == 'Banni' for membre in guilde['membres']):
+        return await ctx.send(f"{member.mention} n'est pas banni de cette guilde.")
+
+    # Débannir le membre
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$pull": {"membres": {"user_id": member.id, "role": "Banni"}}},
+    )
+
+    await ctx.send(f"{member.mention} a été débanni de la guilde.")
+
+# Commande .gwith : Retirer des coins de la banque de la guilde
+@bot.command(name="gwith")
+async def gwith(ctx, amount: int):
+    guild_id = ctx.guild.id
+
+    # Récupérer les informations de la guilde
+    guilde = collection35.find_one({"guild_id": guild_id})
+    if not guilde or guilde.get("bank", 0) < amount:
+        return await ctx.send("La banque de la guilde n'a pas assez de coins.")
+
+    # Retirer les coins de la banque
+    collection35.update_one(
+        {"guild_id": guild_id},
+        {"$inc": {"bank": -amount}},
+    )
+
+    # Ajouter les coins au joueur (ici on les ajoute à l'auteur de la commande)
+    collection.update_one(
+        {"guild_id": guild_id, "user_id": ctx.author.id},
+        {"$inc": {"cash": amount}},
+    )
+
+    await ctx.send(f"{amount} coins ont été retirés de la banque de la guilde.")
+
 # Token pour démarrer le bot (à partir des secrets)
 # Lancer le bot avec ton token depuis l'environnement  
 keep_alive()
