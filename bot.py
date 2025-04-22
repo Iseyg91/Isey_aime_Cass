@@ -4915,6 +4915,15 @@ async def berserk(ctx, target: discord.Member):
 
     await ctx.send(embed=embed)
 
+@berserk.error
+async def berserk_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Tu dois mentionner une cible ! Exemple : `.berserk @NomDuMembre`")
+    elif isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f"🕒 Cette commande est en cooldown. Réessaie dans {round(error.retry_after / 3600 / 24, 2)} jours.")
+    else:
+        raise error  # pour ne pas masquer d'autres erreurs
+
 ARMURE_ID = 1363821649002238142
 ANTI_ROB_ID = 1363964754678513664
 
