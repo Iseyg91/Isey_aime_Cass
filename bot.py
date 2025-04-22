@@ -5002,7 +5002,10 @@ async def pokeball(ctx):
 # Identifiants
 FLOAT_ID = 1363946902730575953
 ROLE_ID = 1364121382908067890
-COOLDOWN_TIME = datetime.timedelta(days=1)
+from datetime import timedelta
+
+# Maintenant, vous pouvez utiliser timedelta directement
+COOLDOWN_TIME = timedelta(days=1)
 
 # Dictionnaire pour stocker le dernier usage de la commande .float par utilisateur
 float_last_used = {}
@@ -5053,7 +5056,10 @@ async def float(ctx):
 # Identifiants
 OEIL_ID = 1363949082653098094
 ROLE_ID = 1364123507532890182
-COOLDOWN_TIME = datetime.timedelta(weeks=1)
+from datetime import timedelta
+
+# Maintenant, vous pouvez utiliser timedelta directement
+COOLDOWN_TIME = timedelta(week=1)
 
 # Dictionnaire pour stocker le dernier usage de la commande .oeil par utilisateur
 oeil_last_used = {}
