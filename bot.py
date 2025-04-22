@@ -4847,49 +4847,49 @@ async def berserk(ctx, target: discord.Member = None):
 
     roll = random.randint(1, 100)
 
-    # Récupération données
+    # Récupération des données
     author_data = get_or_create_user_data(guild_id, author_id)
     target_data = get_or_create_user_data(guild_id, target_id)
 
     result = ""
     image_url = "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/unnamed.jpg?raw=true"
 
-if roll <= 10:
-    perte = int(author_data["bank"] * 0.15)
-    collection.update_one({"guild_id": guild_id, "user_id": author_id}, {"$inc": {"bank": -perte}})
-    result = f"🎲 Roll: {roll}\n⚠️ L’armure se retourne contre toi ! Tu perds **15%** de ta propre banque soit **{perte:,}**."
+    # Logique du roll
+    if roll <= 10:
+        perte = int(author_data["bank"] * 0.15)
+        collection.update_one({"guild_id": guild_id, "user_id": author_id}, {"$inc": {"bank": -perte}})
+        result = f"🎲 Roll: {roll}\n⚠️ L’armure se retourne contre toi ! Tu perds **15%** de ta propre banque soit **{perte:,}**."
 
-elif roll == 100:
-    perte = target_data["bank"]
-    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
+    elif roll == 100:
+        perte = target_data["bank"]
+        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
 
-    eclipse_role = ctx.guild.get_role(ECLIPSE_ROLE_ID)
-    if eclipse_role:
-        try:
-            await ctx.author.add_roles(eclipse_role)
-        except discord.Forbidden:
-            await ctx.send("❌ Je n’ai pas les permissions pour te donner le rôle Éclipse.")
-        except Exception as e:
-            await ctx.send(f"❌ Une erreur est survenue lors de l’ajout du rôle : {e}")
+        eclipse_role = ctx.guild.get_role(ECLIPSE_ROLE_ID)
+        if eclipse_role:
+            try:
+                await ctx.author.add_roles(eclipse_role)
+            except discord.Forbidden:
+                await ctx.send("❌ Je n’ai pas les permissions pour te donner le rôle Éclipse.")
+            except Exception as e:
+                await ctx.send(f"❌ Une erreur est survenue lors de l’ajout du rôle : {e}")
+        else:
+            await ctx.send("⚠️ Le rôle Éclipse n’a pas été trouvé sur le serveur.")
+
+        result = (
+            f"🎲 Roll: {roll}\n💥 **Effet Éclipse !**\n"
+            f"→ {target.mention} perd **100%** de sa banque soit **{perte:,}**.\n"
+            f"→ Tu deviens **L’incarnation de la Rage**."
+        )
+
     else:
-        await ctx.send("⚠️ Le rôle Éclipse n’a pas été trouvé sur le serveur.")
+        perte = int(target_data["bank"] * (roll / 100))
+        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
+        result = (
+            f"🎲 Roll: {roll}\n🎯 {target.mention} perd **{roll}%** de sa banque soit **{perte:,}**.\n"
+            f"Tu ne gagnes rien. Juste le chaos."
+        )
 
-    result = (
-        f"🎲 Roll: {roll}\n💥 **Effet Éclipse !**\n"
-        f"→ {target.mention} perd **100%** de sa banque soit **{perte:,}**.\n"
-        f"→ Tu deviens **L’incarnation de la Rage**."
-    )
-
-else:
-    perte = int(target_data["bank"] * (roll / 100))
-    collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"bank": -perte}})
-    result = (
-        f"🎲 Roll: {roll}\n🎯 {target.mention} perd **{roll}%** de sa banque soit **{perte:,}**.\n"
-        f"Tu ne gagnes rien. Juste le chaos."
-    )
-
-
-    # Embed
+    # Embed du résultat
     embed = discord.Embed(title="🔥 Berserk Activé ! 🔥", description=result, color=discord.Color.red())
     embed.set_image(url=image_url)
     embed.set_footer(text=f"Par {ctx.author.display_name}", icon_url=ctx.author.display_avatar.url)
