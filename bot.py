@@ -4922,13 +4922,17 @@ async def berserk(ctx, target: discord.Member):
     embed.set_thumbnail(url=image_url)
     embed.set_footer(text="⏳ Cooldown : 7 jours")
 
-    # Tentative d'envoi de l'embed avec gestion des erreurs
+# Tentative d'envoi de l'embed avec gestion des erreurs
     try:
         await ctx.send(embed=embed)
         print("Embed envoyé avec succès.")
+    except discord.HTTPException as e:
+        print(f"Erreur HTTP lors de l'envoi de l'embed: {e}")
+        await ctx.send("❌ Une erreur est survenue lors de l’envoi de l’embed. Veuillez réessayer plus tard.")
     except Exception as e:
-        print(f"Erreur lors de l'envoi de l'embed: {e}")
+        print(f"Erreur générale lors de l'envoi de l'embed: {e}")
         await ctx.send("❌ Une erreur est survenue lors de l’envoi de l’embed.")
+
 
 @berserk.error
 async def berserk_error(ctx, error):
