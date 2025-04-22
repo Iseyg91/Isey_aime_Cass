@@ -4366,18 +4366,41 @@ async def manipulation(ctx):
 
 from datetime import datetime  # Assurez-vous d'importer datetime de cette manière
 
+# ID d'objets matérialisables
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
+
+# Cooldown en heures
+MATERIALISATION_COOLDOWN_HOURS = 6
+
+# Cooldown en heures
+MATERIALISATION_COOLDOWN_HOURS = 6
 
 @bot.command(name="materialisation")
 async def materialisation(ctx):
     user_id = ctx.author.id
     guild_id = ctx.guild.id
+    now = datetime.utcnow()
 
-    # Récupérer un item aléatoire depuis la boutique
-    items = list(collection16.find({"quantity": {"$gt": 0}}))  # uniquement ceux en stock
+    # Vérifie le cooldown
+    cd_doc = collection27.find_one({"user_id": user_id, "guild_id": guild_id})
+    if cd_doc:
+        last_use = cd_doc.get("last_use")
+        if last_use and now < last_use + timedelta(hours=MATERIALISATION_COOLDOWN_HOURS):
+            remaining = (last_use + timedelta(hours=MATERIALISATION_COOLDOWN_HOURS)) - now
+            hours, remainder = divmod(remaining.total_seconds(), 3600)
+            minutes = remainder // 60
+            embed = discord.Embed(
+                title="⏳ Cooldown actif",
+                description=f"Tu dois encore attendre **{int(hours)}h {int(minutes)}m** avant de matérialiser un item.",
+                color=discord.Color.orange()
+            )
+            return await ctx.send(embed=embed)
+
+    # Récupère un item aléatoire de la boutique (en stock uniquement)
+    items = list(collection16.find({"quantity": {"$gt": 0}, "id": {"$in": MATERIALISATION_IDS}}))
     if not items:
         embed = discord.Embed(
-            title="<:classic_x_mark:1362711858829725729> Aucune item disponible",
+            title="❌ Aucun item disponible",
             description="Il n'y a pas d'items à matérialiser actuellement.",
             color=discord.Color.red()
         )
@@ -4385,7 +4408,7 @@ async def materialisation(ctx):
 
     selected_item = random.choice(items)
 
-    # Ajout à l'inventaire simple (collection7)
+    # Met à jour l'inventaire simple
     existing = collection7.find_one({"user_id": user_id, "guild_id": guild_id})
     if existing:
         inventory = existing.get("items", {})
@@ -4401,7 +4424,7 @@ async def materialisation(ctx):
             "items": {str(selected_item["id"]): 1}
         })
 
-    # Ajout à l'inventaire structuré (collection17)
+    # Ajoute à l'inventaire structuré
     collection17.insert_one({
         "guild_id": guild_id,
         "user_id": user_id,
@@ -4409,21 +4432,23 @@ async def materialisation(ctx):
         "item_name": selected_item["title"],
         "emoji": selected_item.get("emoji"),
         "price": selected_item["price"],
-        "acquired_at": datetime.utcnow()
+        "obtained_at": now
     })
 
-    # Réduction du stock boutique
-    collection16.update_one(
-        {"id": selected_item["id"]},
-        {"$inc": {"quantity": -1}}
+    # Met à jour le cooldown
+    collection27.update_one(
+        {"user_id": user_id, "guild_id": guild_id},
+        {"$set": {"last_use": now}},
+        upsert=True
     )
 
-    # Confirmation visuelle
+    # Message de confirmation avec image
     embed = discord.Embed(
-        title="<:Check:1362710665663615147> Matérialisation réussie",
-        description=f"Tu as matérialisé **1x {selected_item['title']}** {selected_item.get('emoji', '')} !",
+        title="✨ Matérialisation réussie",
+        description=f"Tu as matérialisé **{selected_item['emoji']} {selected_item['title']}** !",
         color=discord.Color.green()
     )
+    embed.set_image(url="https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20EMBED%20NEN/Materi.png?raw=true")
     await ctx.send(embed=embed)
 
 @bot.command(
