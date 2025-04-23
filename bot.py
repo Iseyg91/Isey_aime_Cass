@@ -3812,16 +3812,23 @@ async def collect_income(ctx: commands.Context):
     collected = []
     cooldowns = []
 
-    for config in COLLECT_ROLES_CONFIG:
+    for i, config in enumerate(COLLECT_ROLES_CONFIG):
         role = guild.get_role(config["role_id"])
-        if not role:
-            continue  # Rôle non trouvé dans le serveur
-
-        # Si le membre n'a pas le rôle OU si le rôle est auto, on passe
-        if role not in member.roles or config.get("auto", False):
+        if role is None:
+            print(f"[DEBUG] Rôle introuvable pour l'ID {config['role_id']}")
             continue
 
-        # Vérifie cooldown
+        if config.get("auto", False):
+            print(f"[DEBUG] Rôle {role.name} ignoré car auto")
+            continue
+
+        if role not in member.roles:
+            print(f"[DEBUG] {member.display_name} n'a pas le rôle {role.name}")
+            continue
+
+        print(f"[DEBUG] Traitement du rôle {role.name} pour {member.display_name}")
+
+        # Vérifie le cooldown
         cd_data = collection5.find_one({
             "guild_id": guild.id,
             "user_id": member.id,
@@ -3834,9 +3841,10 @@ async def collect_income(ctx: commands.Context):
             if elapsed < config["cooldown"]:
                 remaining = config["cooldown"] - elapsed
                 cooldowns.append((remaining, role))
+                print(f"[DEBUG] Cooldown actif pour {role.name} : {int(remaining)} sec restantes")
                 continue
 
-        # Donne la récompense
+        # Traitement éco
         eco_data = collection.find_one({
             "guild_id": guild.id,
             "user_id": member.id
@@ -3844,9 +3852,9 @@ async def collect_income(ctx: commands.Context):
 
         amount = config.get("amount", 0)
         target = config.get("target", "cash")
-
         eco_data[target] = eco_data.get(target, 0) + amount
 
+        # Update dans la BDD
         collection.update_one(
             {"guild_id": guild.id, "user_id": member.id},
             {"$set": {target: eco_data[target]}},
@@ -3867,7 +3875,7 @@ async def collect_income(ctx: commands.Context):
             note=f"Collect manuel → {target}"
         )
 
-    # Envoi du résultat
+    # Affichage final
     if collected:
         embed = discord.Embed(
             title=f"{member.display_name}",
@@ -3891,8 +3899,6 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
-
-
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
 @app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
