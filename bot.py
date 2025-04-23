@@ -3868,7 +3868,6 @@ async def collect_income(ctx: commands.Context):
             note=f"Collect manuel → {target}"
         )
 
-    # Affichage
     if collected:
         embed = discord.Embed(
             title=f"{member.display_name}",
@@ -3877,22 +3876,24 @@ async def collect_income(ctx: commands.Context):
         )
         embed.set_thumbnail(url=member.display_avatar.url)
         await ctx.send(embed=embed)
+        return
 
-    elif cooldowns:
+    if cooldowns:
         shortest = min(cooldowns, key=lambda x: x[0])
         remaining_minutes = int(shortest[0] // 60) or 1
         embed = discord.Embed(
-            description=f"<:classic_x_mark:1362711858829725729> You can next collect income dans **{remaining_minutes}min** (`{shortest[1].name}`)",
+            description=f"<:classic_x_mark:1362711858829725729> Tu as déjà collecté récemment ! Prochain collect dans **{remaining_minutes}min** (`{shortest[1].name}`)",
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
+        return
 
-    else:
-        embed = discord.Embed(
-            description="❌ Tu n'as aucun rôle avec `collect` disponible.",
-            color=discord.Color.orange()
-        )
-        await ctx.send(embed=embed)
+    embed = discord.Embed(
+        description="❌ Tu n'as aucun rôle avec `collect` disponible.",
+        color=discord.Color.orange()
+    )
+    await ctx.send(embed=embed)
+
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
 @app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
