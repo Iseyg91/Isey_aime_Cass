@@ -3812,23 +3812,15 @@ async def collect_income(ctx: commands.Context):
     collected = []
     cooldowns = []
 
-    for i, config in enumerate(COLLECT_ROLES_CONFIG):
+    for config in COLLECT_ROLES_CONFIG:
         role = guild.get_role(config["role_id"])
-        if role is None:
-            print(f"[DEBUG] Rôle introuvable pour l'ID {config['role_id']}")
-            continue
-
-        if config.get("auto", False):
-            print(f"[DEBUG] Rôle {role.name} ignoré car auto")
+        if role is None or config.get("auto", False):
             continue
 
         if role not in member.roles:
-            print(f"[DEBUG] {member.display_name} n'a pas le rôle {role.name}")
             continue
 
-        print(f"[DEBUG] Traitement du rôle {role.name} pour {member.display_name}")
-
-        # Vérifie le cooldown
+        # Check cooldown
         cd_data = collection5.find_one({
             "guild_id": guild.id,
             "user_id": member.id,
@@ -3836,15 +3828,17 @@ async def collect_income(ctx: commands.Context):
         })
         last_collect = cd_data.get("last_collect") if cd_data else None
 
-        if last_collect:
-            elapsed = (now - last_collect).total_seconds()
-            if elapsed < config["cooldown"]:
-                remaining = config["cooldown"] - elapsed
-                cooldowns.append((remaining, role))
-                print(f"[DEBUG] Cooldown actif pour {role.name} : {int(remaining)} sec restantes")
-                continue
+        try:
+            if last_collect:
+                elapsed = (now - last_collect).total_seconds()
+                if elapsed < config["cooldown"]:
+                    remaining = config["cooldown"] - elapsed
+                    cooldowns.append((remaining, role))
+                    continue
+        except Exception as e:
+            print(f"[DEBUG] Erreur sur cooldown pour {role.name}: {e}")
 
-        # Traitement éco
+        # Traitement eco
         eco_data = collection.find_one({
             "guild_id": guild.id,
             "user_id": member.id
@@ -3854,7 +3848,6 @@ async def collect_income(ctx: commands.Context):
         target = config.get("target", "cash")
         eco_data[target] = eco_data.get(target, 0) + amount
 
-        # Update dans la BDD
         collection.update_one(
             {"guild_id": guild.id, "user_id": member.id},
             {"$set": {target: eco_data[target]}},
@@ -3875,7 +3868,7 @@ async def collect_income(ctx: commands.Context):
             note=f"Collect manuel → {target}"
         )
 
-    # Affichage final
+    # Affichage
     if collected:
         embed = discord.Embed(
             title=f"{member.display_name}",
@@ -3893,6 +3886,7 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.red()
         )
         await ctx.send(embed=embed)
+
     else:
         embed = discord.Embed(
             description="❌ Tu n'as aucun rôle avec `collect` disponible.",
