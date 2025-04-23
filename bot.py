@@ -3814,7 +3814,13 @@ async def collect_income(ctx: commands.Context):
 
     for config in COLLECT_ROLES_CONFIG:
         role = discord.utils.get(guild.roles, id=config["role_id"])
-        if role not in member.roles or config.get("auto", False):
+
+        # Ignorer si l'utilisateur n'a pas le rôle
+        if role not in member.roles:
+            continue
+
+        # Ignorer les rôles auto (traités ailleurs)
+        if config.get("auto", False):
             continue
 
         cd_data = collection5.find_one({"guild_id": guild.id, "user_id": member.id, "role_id": role.id})
@@ -3834,7 +3840,6 @@ async def collect_income(ctx: commands.Context):
         amount = config.get("amount", 0)
         target = config.get("target", "cash")
 
-        # Assurez-vous que la clé 'target' existe
         eco_data[target] = eco_data.get(target, 0) + amount
 
         collection.update_one(
@@ -3879,6 +3884,7 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
+
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
 @app_commands.describe(item_id="ID de l'item à restock", quantity="Nouvelle quantité à définir")
