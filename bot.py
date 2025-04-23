@@ -532,6 +532,19 @@ async def ping(ctx):
 def is_owner(ctx):
     return ctx.author.id == ISEY_ID
 
+@bot.command()
+async def restart(ctx):
+    if is_owner(ctx):
+        embed = discord.Embed(
+            title="Redémarrage du Bot",
+            description="Le bot va redémarrer maintenant...",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+        os.execv(sys.executable, ['python'] + sys.argv)  # Redémarre le bot
+    else:
+        await ctx.send("Seul l'owner peut redémarrer le bot.")
+
 @bot.hybrid_command()
 async def shutdown(ctx):
     if is_owner(ctx):
