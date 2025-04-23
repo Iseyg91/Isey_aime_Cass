@@ -3813,17 +3813,20 @@ async def collect_income(ctx: commands.Context):
     cooldowns = []
 
     for config in COLLECT_ROLES_CONFIG:
-        role = discord.utils.get(guild.roles, id=config["role_id"])
+        role = guild.get_role(config["role_id"])
+        if not role:
+            continue  # Rôle non trouvé dans le serveur
 
-        # Ignorer si l'utilisateur n'a pas le rôle
-        if role not in member.roles:
+        # Si le membre n'a pas le rôle OU si le rôle est auto, on passe
+        if role not in member.roles or config.get("auto", False):
             continue
 
-        # Ignorer les rôles auto (traités ailleurs)
-        if config.get("auto", False):
-            continue
-
-        cd_data = collection5.find_one({"guild_id": guild.id, "user_id": member.id, "role_id": role.id})
+        # Vérifie cooldown
+        cd_data = collection5.find_one({
+            "guild_id": guild.id,
+            "user_id": member.id,
+            "role_id": role.id
+        })
         last_collect = cd_data.get("last_collect") if cd_data else None
 
         if last_collect:
@@ -3833,9 +3836,11 @@ async def collect_income(ctx: commands.Context):
                 cooldowns.append((remaining, role))
                 continue
 
-        eco_data = collection.find_one({"guild_id": guild.id, "user_id": member.id}) or {
-            "guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0
-        }
+        # Donne la récompense
+        eco_data = collection.find_one({
+            "guild_id": guild.id,
+            "user_id": member.id
+        }) or {"guild_id": guild.id, "user_id": member.id, "cash": 1500, "bank": 0}
 
         amount = config.get("amount", 0)
         target = config.get("target", "cash")
@@ -3854,13 +3859,15 @@ async def collect_income(ctx: commands.Context):
             upsert=True
         )
 
-        collected.append(f"1 - {role.mention} | <:ecoEther:1341862366249357374>**{amount}** ({target})")
+        collected.append(f"{role.mention} | <:ecoEther:1341862366249357374>**{amount}** ({target})")
+
         await log_eco_channel(
             bot, guild.id, member,
             f"Collect ({role.name})", amount, eco_data[target] - amount, eco_data[target],
             note=f"Collect manuel → {target}"
         )
 
+    # Envoi du résultat
     if collected:
         embed = discord.Embed(
             title=f"{member.display_name}",
@@ -3884,6 +3891,7 @@ async def collect_income(ctx: commands.Context):
             color=discord.Color.orange()
         )
         await ctx.send(embed=embed)
+
 
 
 @bot.tree.command(name="restock", description="Restock un item dans la boutique")
