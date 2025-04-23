@@ -5485,7 +5485,7 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="!!armure", value="Offre une protection anti-rob de 1h. L'armure s'auto-consomme après l'utilisation.", inline=False)
             new_embed.add_field(name="!!infini", value="Vous donne un anti-rob", inline=False)
             new_embed.add_field(name="!!pokeball <@user>", value="Permet de voler un objet aléatoire à une personne ciblé, ou d'obtenir rien.", inline=False)
-            new_embed.add_field(name="!!float", value="Accès au salon (nom du salon) pendant 15 minutes, utilisable une fois par jour", inline=False)
+            new_embed.add_field(name="!!float", value="Accès au salon <#1355158032195256491> pendant 15 minutes, utilisable une fois par jour", inline=False)
             new_embed.add_field(name="!!oeil", value="Voir l'avenir et entrevoir le prochain restock pendant 10 sec, cooldown de 1 semaine.", inline=False)
             new_embed.set_footer(text="♥️ by Iseyg")
         if category == "Guild":
