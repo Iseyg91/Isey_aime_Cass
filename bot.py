@@ -1966,20 +1966,19 @@ async def rob(ctx, user: discord.User):
         ))
 
     # Get data
-    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"wallet": 1500, "bank": 0}
-    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id}) or {"wallet": 1500, "bank": 0}
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {"cash": 1500, "bank": 0}
+    target_data = collection.find_one({"guild_id": guild_id, "user_id": target_id}) or {"cash": 1500, "bank": 0}
     collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$setOnInsert": user_data}, upsert=True)
     collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$setOnInsert": target_data}, upsert=True)
 
-    # Target wallet check
-    if target_data["wallet"] <= 0:
+    if target_data["cash"] <= 0:
         return await ctx.send(embed=discord.Embed(
             description=f"{user.display_name} n’a pas de monnaie à voler.",
             color=discord.Color.red()
         ))
 
     # Success calculation
-    robber_total = user_data["wallet"] + user_data["bank"]
+    robber_total = user_data["cash"] + user_data["bank"]
     rob_chance = max(80 - (robber_total // 1000), 10)
     success = random.randint(1, 100) <= rob_chance
 
@@ -1991,12 +1990,13 @@ async def rob(ctx, user: discord.User):
 
     if success:
         percentage = random.randint(1, 50)
-        stolen = round((percentage / 100) * target_data["wallet"], 2)
+        stolen = round((percentage / 100) * target_data["cash"], 2)
+        stolen = min(stolen, target_data["cash"])
 
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": stolen}})
-        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"wallet": -stolen}})
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": stolen}})
+        collection.update_one({"guild_id": guild_id, "user_id": target_id}, {"$inc": {"cash": -stolen}})
 
-        await log_eco_channel(bot, guild_id, ctx.author, "Vol", stolen, user_data["wallet"], user_data["wallet"] + stolen, f"Volé à {user.display_name}")
+        await log_eco_channel(bot, guild_id, ctx.author, "Vol", stolen, user_data["cash"], user_data["cash"] + stolen, f"Volé à {user.display_name}")
 
         return await ctx.send(embed=discord.Embed(
             description=f"💰 Tu as volé **{stolen:.2f}** à **{user.display_name}** !",
@@ -2004,12 +2004,12 @@ async def rob(ctx, user: discord.User):
         ).set_author(name=ctx.author.display_name, icon_url=ctx.author.avatar.url))
     else:
         percentage = random.uniform(1, 5)
-        loss = round((percentage / 100) * user_data["wallet"], 2)
-        loss = min(loss, user_data["wallet"])
+        loss = round((percentage / 100) * user_data["cash"], 2)
+        loss = min(loss, user_data["cash"])
 
-        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"wallet": -loss}})
+        collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -loss}})
 
-        await log_eco_channel(bot, guild_id, ctx.author, "Échec vol", -loss, user_data["wallet"], user_data["wallet"] - loss, f"Échec de vol sur {user.display_name}")
+        await log_eco_channel(bot, guild_id, ctx.author, "Échec vol", -loss, user_data["cash"], user_data["cash"] - loss, f"Échec de vol sur {user.display_name}")
 
         return await ctx.send(embed=discord.Embed(
             description=f"🚨 Tu as échoué et perdu **{loss:.2f}** !",
