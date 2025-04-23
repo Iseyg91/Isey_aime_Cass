@@ -1769,7 +1769,7 @@ class BlackjackView(discord.ui.View):
             await self.end_game(interaction, "lose")
         else:
             embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())
-            embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
+            embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {calculate_hand_value(self.player_hand)}**", inline=False)
             embed.add_field(name="🤖 Main du croupier", value=f"{card_emojis[dealer_hand[0]][0]} 🂠", inline=False)
             embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
