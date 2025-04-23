@@ -991,7 +991,7 @@ async def work(ctx: commands.Context):
     user_id = user.id
     now = datetime.utcnow()
 
-    # Cooldown check (collection6)
+    # Cooldown check
     cooldown_data = collection6.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     last_work_time = cooldown_data.get("last_work_time")
 
@@ -1009,32 +1009,32 @@ async def work(ctx: commands.Context):
             embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
             return await ctx.send(embed=embed)
 
-    # Random amount (200 - 2000)
+    # Gain aléatoire
     amount = random.randint(100, 1000)
 
-    # Récupération ou création des données d'utilisateur (collection économie)
+    # Récupération ou création des données utilisateur
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
     if not user_data:
         user_data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
         collection.insert_one(user_data)
 
-    initial_cash = user_data.get("cash", 0)
+    initial_cash = user_data.get("cash", 1500)
 
-    # Update cooldown
+    # Mise à jour du cooldown
     collection6.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_work_time": now}},
         upsert=True
     )
 
-    # Update balance (cash)
+    # Mise à jour du cash
     collection.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$inc": {"cash": amount}},
         upsert=True
     )
 
-    # Message dynamique
+    # Log + messages variés
     messages = [
         f"Tu as travaillé dur et gagné **{amount} <:ecoEther:1341862366249357374>**. Bien joué !",
         f"Bravo ! Tu as gagné **{amount} <:ecoEther:1341862366249357374>** après ton travail.",
@@ -1048,7 +1048,6 @@ async def work(ctx: commands.Context):
     ]
     message = random.choice(messages)
 
-    # Log
     await log_eco_channel(
         bot,
         guild_id,
@@ -1060,7 +1059,6 @@ async def work(ctx: commands.Context):
         f"{user.mention} a gagné **{amount} <:ecoEther:1341862366249357374>** pour son travail."
     )
 
-    # Embed final
     embed = discord.Embed(
         description=message,
         color=discord.Color.green()
@@ -1084,9 +1082,9 @@ async def slut(ctx: commands.Context):
     user = ctx.author
     guild_id = ctx.guild.id
     user_id = user.id
-
-    # Vérif CD 30 min
     now = datetime.utcnow()
+
+    # Cooldown 30 min
     cooldown_data = collection3.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     last_slut_time = cooldown_data.get("last_slut_time")
 
@@ -1097,13 +1095,17 @@ async def slut(ctx: commands.Context):
             minutes_left = int(remaining.total_seconds() // 60)
             return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois encore patienter **{minutes_left} minutes** avant de retenter une nouvelle aventure sexy.")
 
-    # Déterminer le gain ou perte
+    # Déterminer le résultat
     outcome = random.choice(["gain", "loss"])
     amount = random.randint(100, 1000)
 
-    # Récupérer solde
-    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
-    balance_before = user_data.get("cash", 0)
+    # Récupérer ou créer données joueur
+    user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id})
+    if not user_data:
+        user_data = {"guild_id": guild_id, "user_id": user_id, "cash": 1500, "bank": 0}
+        collection.insert_one(user_data)
+
+    balance_before = user_data.get("cash", 1500)
 
     if outcome == "gain":
         messages = [
@@ -1118,7 +1120,6 @@ async def slut(ctx: commands.Context):
         ]
         message = random.choice(messages)
 
-        # Update balance
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"cash": amount}},
@@ -1140,7 +1141,6 @@ async def slut(ctx: commands.Context):
         ]
         message = random.choice(messages)
 
-        # Update balance
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"cash": -amount}},
@@ -1150,14 +1150,14 @@ async def slut(ctx: commands.Context):
         balance_after = balance_before - amount
         await log_eco_channel(bot, guild_id, user, "Perte après slut", -amount, balance_before, balance_after)
 
-    # Update CD
+    # Mise à jour du cooldown
     collection3.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_slut_time": now}},
         upsert=True
     )
 
-    # Embed résultat
+    # Embed
     embed = discord.Embed(
         title="💋 Résultat de ta prestation",
         description=message,
