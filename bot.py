@@ -5598,8 +5598,10 @@ async def quetes(interaction: discord.Interaction):
 
 @bot.tree.command(name="quete-faite", description="Valide une quête et donne les récompenses à un utilisateur.")
 @app_commands.describe(quest_id="ID de la quête", user="Utilisateur à récompenser")
-@commands.has_permissions(administrator=True)
 async def quete_faite(interaction: discord.Interaction, quest_id: int, user: discord.User):
+    if not interaction.user.guild_permissions.administrator:
+        return await interaction.response.send_message("❌ Tu n'as pas la permission d'utiliser cette commande.", ephemeral=True)
+
     quest = collection32.find_one({"id": quest_id})
     if not quest:
         return await interaction.response.send_message("❌ Quête introuvable.", ephemeral=True)
