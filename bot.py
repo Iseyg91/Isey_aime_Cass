@@ -30,7 +30,7 @@ import logging
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
 start_time = time.time()
-bot = commands.Bot(command_prefix=".", intents=intents, help_command=None)
+bot = commands.Bot(command_prefix="!!", intents=intents, help_command=None)
 
 #Configuration du Bot:
 # --- ID Owner Bot ---
@@ -5422,6 +5422,7 @@ async def help(ctx: commands.Context):
             discord.SelectOption(label="Jeux", description="🪙 Commandes pour jouer a l'économie", emoji="💸"),
             discord.SelectOption(label="Items & Badges", description="📦Commandes pour accéder aux Items & Badges", emoji="🛒"),
             discord.SelectOption(label="Pouvoir", description="🌊Commandes pour attaquer d'autre joueur ou encore se défendre ", emoji="🪭"),
+            discord.SelectOption(label="Guild", description="📍Commande pour gérer votre Guild", emoji="🪄"),
             discord.SelectOption(label="Crédits", description="💖 Remerciements et crédits", emoji="🙏")
         ], 
         custom_id="help_select"
@@ -5486,6 +5487,24 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="!!pokeball <@user>", value="Permet de voler un objet aléatoire à une personne ciblé, ou d'obtenir rien.", inline=False)
             new_embed.add_field(name="!!float", value="Accès au salon (nom du salon) pendant 15 minutes, utilisable une fois par jour", inline=False)
             new_embed.add_field(name="!!oeil", value="Voir l'avenir et entrevoir le prochain restock pendant 10 sec, cooldown de 1 semaine.", inline=False)
+            new_embed.set_footer(text="♥️ by Iseyg")
+        if category == "Guild":
+            new_embed.title = "🛡️**Commandes pour gérer votre Guild**"
+            new_embed.description = "Bienvenue dans la section Guild !"
+            new_embed.add_field(name="!!gcreate", value="Crée une guild. Coût : 5000 coins.", inline=False)
+            new_embed.add_field(name="!!g", value="Affiche les informations de votre guild.", inline=False)
+            new_embed.add_field(name="!!cdep <amount>", value="Dépose des coins dans le coffre-fort de la guild. Accès restreint.", inline=False)
+            new_embed.add_field(name="!!cwith <amount>", value="Retire des coins du coffre-fort de la guild. Accès restreint.", inline=False)
+            new_embed.add_field(name="!!gban <@user>", value="Bannit un membre de la guild (empêche de la rejoindre à nouveau).", inline=False)
+            new_embed.add_field(name="!!gdelete <guildid>", value="Supprime définitivement une guild (admin only).", inline=False)
+            new_embed.add_field(name="!!gdep <amount/all>", value="Dépose des coins dans la banque de la guild.", inline=False)
+            new_embed.add_field(name="!!gkick <@user>", value="Expulse un membre de la guild.", inline=False)
+            new_embed.add_field(name="!!gleave", value="Quitte la guild actuelle.", inline=False)
+            new_embed.add_field(name="!!gowner <@user>", value="Transfère la propriété de la guild à un autre membre.", inline=False)
+            new_embed.add_field(name="!!gunban <@user>", value="Débannit un ancien membre, lui permettant de rejoindre à nouveau la guild.", inline=False)
+            new_embed.add_field(name="!!gwith <amount>", value="Retire des coins de la banque de la guild.", inline=False)
+            new_embed.add_field(name="/dep-guild-inventory", value="Dépose un item de votre inventaire personnel dans celui de votre guild.", inline=False)
+            new_embed.add_field(name="/with-guild-inventory", value="Retire un item de l'inventaire de votre guild vers le vôtre.", inline=False)
             new_embed.set_footer(text="♥️ by Iseyg")
         elif category == "Crédits":
             new_embed.title = "💖 **Crédits et Remerciements**"
