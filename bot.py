@@ -4867,26 +4867,6 @@ async def imperial(ctx, cible: discord.Member = None):
     
     await ctx.send(embed=embed)
 
-DEMON_ID = 1363817629781069907
-
-@bot.command()
-@commands.has_role(DEMON_ID)
-async def demon(ctx):
-    embed = discord.Embed(
-        title="Accès aux équipements de contrôle des démons",
-        description="Vous avez désormais accès à tous les équipements de contrôle des démons.",
-        color=discord.Color.red()
-    )
-    embed.set_image(url="https://static.wikia.nocookie.net/owarinoseraph/images/2/26/Episode_24_-_Screenshot_190.png/revision/latest?cb=20160105015023")
-    await ctx.send(embed=embed)
-
-@demon.error
-async def demon_error(ctx, error):
-    if isinstance(error, commands.MissingRole):
-        await ctx.send("Vous n'avez pas le rôle requis pour accéder à cette commande.")
-    else:
-        await ctx.send(f"Une erreur s'est produite : {error}")
-
 # ID des rôles
 HAKI_ROI_ID = 1363817645249527879
 HAKI_SUBIS_ID = 1364109450197078026  # Rôle attribué pendant 7 jours
@@ -5473,7 +5453,6 @@ async def help(ctx: commands.Context):
             new_embed.add_field(name="!!transformation <@user>", value="Permet de transformer son aura en éclair et FOUDROYER la banque de quelqu'un est de lui retirer 25% de celle-ci (cooldown : 2 semaines)", inline=False)
             new_embed.add_field(name="!!heal", value="Permet de retirer le nen que quelqu'un nous a poser grâce à un exorciste !", inline=False)
             new_embed.add_field(name="!!imperial <@user>", value="Permet d'utiliser le démon dans votre arme et vous permet de voler votre adversaire", inline=False)
-            new_embed.add_field(name="!!demon", value="Donne accès a tous les équipements de contrôle des démons", inline=False)
             new_embed.add_field(name="!!haki <@user>", value="Paralyse ainsi il n’aura pas accès aux salons économiques.", inline=False)
             new_embed.add_field(name="!!ultra", value="Vous activez l'Ultra Instinct ultime, esquivant toutes les attaques pendant (temps d'immunité). Après utilisation, 5 jours de repos sont nécessaires pour le réutiliser.", inline=False)
             new_embed.add_field(name="!!berserk <@user>", value="Berserk te consume, tu détruis sans gain. Roll 100 : cible perd tout, tu obtiens 'L'incarnation de la Rage'. Roll ≤ 10 : perds 15% de ta banque. 7 jours de cooldown.", inline=False)
