@@ -1233,7 +1233,6 @@ async def crime(ctx: commands.Context):
     guild_id = ctx.guild.id
     user_id = user.id
 
-    # Vérification du cooldown de 30 minutes
     now = datetime.utcnow()
     cooldown_data = collection4.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     last_crime_time = cooldown_data.get("last_crime_time")
@@ -1245,11 +1244,9 @@ async def crime(ctx: commands.Context):
             minutes_left = int(remaining.total_seconds() // 60)
             return await ctx.send(f"<:classic_x_mark:1362711858829725729> Tu dois attendre encore **{minutes_left} minutes** avant de pouvoir recommencer.")
 
-    # Choisir entre gain ou perte
     outcome = random.choice(["gain", "loss"])
     amount = random.randint(100, 1000)
 
-    # Récupérer le solde avant pour le log
     user_data = collection.find_one({"guild_id": guild_id, "user_id": user_id}) or {}
     balance_before = user_data.get("cash", 0)
 
@@ -1278,7 +1275,6 @@ async def crime(ctx: commands.Context):
         ]
         message = random.choice(messages)
 
-        # Mise à jour du solde
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"cash": amount}},
@@ -1287,6 +1283,12 @@ async def crime(ctx: commands.Context):
 
         balance_after = balance_before + amount
         await log_eco_channel(bot, guild_id, user, "Gain après crime", amount, balance_before, balance_after)
+
+        embed = discord.Embed(
+            title="💸 Tu as réussi ton crime !",
+            description=message,
+            color=discord.Color.green()
+        )
 
     else:
         messages = [
@@ -1313,7 +1315,6 @@ async def crime(ctx: commands.Context):
         ]
         message = random.choice(messages)
 
-        # Mise à jour du solde
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
             {"$inc": {"cash": -amount}},
@@ -1323,27 +1324,24 @@ async def crime(ctx: commands.Context):
         balance_after = balance_before - amount
         await log_eco_channel(bot, guild_id, user, "Perte après crime", -amount, balance_before, balance_after)
 
-    # Mettre à jour le cooldown
+        embed = discord.Embed(
+            title="🚨 Échec du crime !",
+            description=message,
+            color=discord.Color.red()
+        )
+
     collection4.update_one(
         {"guild_id": guild_id, "user_id": user_id},
         {"$set": {"last_crime_time": now}},
         upsert=True
     )
 
-    # Embed final
-    embed = discord.Embed(
-        title="💥 Résultat de ton crime",
-        description=message,
-        color=discord.Color.red()
-    )
     embed.set_footer(text=f"Action effectuée par {user}", icon_url=user.display_avatar.url)
-
     await ctx.send(embed=embed)
 
 @crime.error
 async def crime_error(ctx, error):
     await ctx.send("<:classic_x_mark:1362711858829725729> Une erreur est survenue lors de la commande.")
-
 
 @bot.command(name="buy", aliases=["chicken", "c", "h", "i", "k", "e", "n"])
 async def buy_item(ctx, item: str = "chicken"):
@@ -2201,12 +2199,18 @@ async def russianroulette(ctx, arg: str):
         else:
             bet = int(arg)
 
-        # Nouvelle vérification de la limite
+        if bet < 1:
+            return await ctx.send(embed=discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> La mise minimale est de 1 coin.",
+                color=discord.Color.from_rgb(255, 92, 92)
+            ))
+
         if bet > 10000:
             return await ctx.send(embed=discord.Embed(
                 description=f"<:classic_x_mark:1362711858829725729> La mise maximale autorisée est de 10,000 coins.",
                 color=discord.Color.from_rgb(255, 92, 92)
             ))
+
 
         user_cash = get_user_cash(guild_id, user.id)
 
@@ -2373,10 +2377,13 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
         active_roulette_players.remove(user_id)
         return await ctx.send(f"Tu n'as pas assez d'argent ! Tu as {cash} en cash.")
 
+    if bet < 1:
+        active_roulette_players.remove(user_id)
+        return await ctx.send("⛔ La mise minimale est de 1 coin !")
+
     if bet > 5000:
         active_roulette_players.remove(user_id)
         return await ctx.send("⛔ La mise maximale est de 5000 !")
-
 
     # Déduction du montant parié
     collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -bet}})
