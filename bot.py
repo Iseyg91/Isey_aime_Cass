@@ -2435,7 +2435,7 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
     if win:
         collection.update_one(
             {"guild_id": guild_id, "user_id": user_id},
-            {"$inc": {"cash": int(bet * multiplier))}},
+            {"$inc": {"cash": int(bet * multiplier)}},
         )
         result_str = f"The ball landed on: **{spin_result}**!\n\n**Winners:**\n{ctx.author.mention} won <:ecoEther:1341862366249357374> {int(bet * multiplier)}"
     else:
