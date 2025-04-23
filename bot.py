@@ -259,7 +259,7 @@ COLLECT_ROLES_CONFIG = [
         "amount": 250,
         "cooldown": 3600,
         "auto": False,
-        "target": "cash"  # ou "bank"
+        "target": "bank"  # ou "bank"
     },
     {
         "role_id": 1363969965572755537,
@@ -279,6 +279,62 @@ COLLECT_ROLES_CONFIG = [
         "role_id": 1363948445282341135,
         "amount": 5000,
         "cooldown": 7200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157729362313308,
+        "amount": 500,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157728024072395,
+        "amount": 1000,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157726032035881,
+        "amount": 1500,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157725046243501,
+        "amount": 2000,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157723960049787,
+        "amount": 2500,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157722907279380,
+        "amount": 3000,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157721812435077 ,
+        "amount": 3500,
+        "cooldown": 14200,
+        "auto": False,
+        "target": "bank"
+    },
+    {
+        "role_id": 1355157720730439701  ,
+        "amount": 4000,
+        "cooldown": 14200,
         "auto": False,
         "target": "bank"
     }
@@ -1770,7 +1826,7 @@ class BlackjackView(discord.ui.View):
         else:
             embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())
             embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in self.player_hand]) + f"\n**Total : {calculate_hand_value(self.player_hand)}**", inline=False)
-            embed.add_field(name="🤖 Main du croupier", value=f"{card_emojis[dealer_hand[0]][0]} 🂠", inline=False)
+            embed.add_field(name="🤖 Main du croupier", value=f"{card_emojis[self.dealer_hand[0]][0]} 🂠", inline=False)
             embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
 
