@@ -2649,26 +2649,25 @@ from pymongo import MongoClient
 import asyncio
 from datetime import datetime, timedelta
 
-# Exemple d'items dans la boutique avec vérification des rôles ou des items
 ITEMS = [
     {
-        "id": 81,
-        "emoji": "<:armure:1363599057863311412>",
-        "title": "Armure du Berserker",
-        "description": "Offre à son utilisateur un anti-rob de 1h (au bout des 1h l'armure s'auto-consumme) et permet aussi d'utiliser la Rage du Berserker (après l'utilisation de la rage l'armure s'auto-consumme aussi) (Uniquement quand l'armure est portée)",
-        "price": 100000,
+        "id": 8,
+        "emoji": "<:infini:1363615903404785734>",
+        "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟙",
+        "description": "L'infini protège des robs pendant 1h (utilisable 1 fois par items)",
+        "price": 25000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 3,
         "tradeable": True,
         "usable": True,
-        "use_effect": "Equipe l'armure du berserker et procure une protection au rob de 1h (le temps de l'armure) et permet d'activé la Rage du Berserker si l'utilisateur le souhaite.",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363821649002238142,  # ID du rôle à donner lors de l'utilisation
-        "role_duration": 3600,  # Durée en secondes (1 heure ici)
+        "use_effect": "L'infini protège des robs pendant 1h ",
+        "requirements": {},
+        "role_id": 1363939565336920084,
         "remove_after_purchase": {
-            "roles": True,  # Supprimer le rôle après l'achat
-            "items": False  # Ne pas supprimer l'item après l'achat
-        }
+            "roles": False,
+            "items": False
+        },
+        "used": True
     },
     {
         "id": 66,
@@ -2678,80 +2677,57 @@ ITEMS = [
         "price": 50000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 5,
-        "tradeable": True,  # Correction de `true` en `True`
+        "tradeable": True,
         "usable": True,
         "use_effect": "Retire le rôle, faite !!heal",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363873859912335400,  # ID du rôle à donner lors de l'utilisation
-        "role_duration": 3600,  # Durée en secondes (1 heure ici)
+        "requirements": {},
+        "role_id": 1363873859912335400,
+        "role_duration": 3600,
         "remove_after_purchase": {
-            "roles": False,  # Ne pas retirer immédiatement le rôle après l'achat
-            "items": False  # Ne pas supprimer l'item après l'achat
+            "roles": False,
+            "items": False
         },
-        "used": True,  # Ajout d'un champ pour savoir si l'objet a été utilisé
-        "remove_role_after_use": True  # Retirer le rôle uniquement après utilisation
+        "used": True,
+        "remove_role_after_use": True
     },
- {
-    "id": 15,
-    "emoji": "<:nen:1363607663010775300>",
-    "title": "Nen | ℝ𝕆𝕃𝕃",
-    "description": "Cet objet vous permet d'utiliser le Nen (le nen vous est donné aléatoirement) comme vous le souhaitez. Chaque technique utilise un serment de nen. *(La spécialisation n’y figure pas car vous n’êtes pas assez fort lol)*\n\n__**Renforcement :**__\n**+renforcement** : Offre à son utilisateur un anti-rob de 24h, mais ne peut pas le refaire pendant 1 semaine.\n\n__**Émission :**__\n**+emission @user** : Maudit quelqu’un grâce à son propre nen et lui inflige un collect de -20% *(cooldown : 1 semaine)*.\n\n__**Manipulation :**__\n**+manipulation** : Manipule sa propre banque et offre un collect de 1% toutes les 4h pendant 24h *(cooldown : 1 semaine)*.\n\n__**Matérialisation :**__\n**+materialisation** : Matérialise un objet aléatoire de la boutique *(cooldown : 2 sem)*.\n\n__**Transformation :**__\n**+transformation** : Permet de transformer son aura et **FOUDROYER** la banque de quelqu’un, retirant 25% de celle-ci *(cooldown : 2 semaines)*.\n\n__**Spécialisation :**__\nDonne accès à tout .",
-    "price": 500000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Une fois le nen utilisé celui-ci vous attribue un nen aléatoirement avec la commande !!rollnen (avec 19.9% de chance pour chaque sauf la spécialisation qui est à 0.5%)",
-    "requirements": {
-        "items": [7]
-    },
-    "role_id": 1363928528587984998,
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
-},
     {
-        "id": 7,
-        "emoji": "<:licence:1363609202211422268>",
-        "title": "Licence Hunter ",
-        "description": "Donne accès a toutes les techniques De Hunter x Hunter, plus donne accès a un salon avec des quêtes",
-        "price": 250000,
+        "id": 88,
+        "emoji": "<:infini:1363615925776941107>",
+        "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟚",
+        "description": "L'infini protège des robs pendant 3h (utilisable 1 fois par items)",
+        "price": 50000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
-        "quantity": 1,
-        "tradeable": True,  # Correction de `true` en `True`
+        "quantity": 2,
+        "tradeable": True,
         "usable": True,
-        "use_effect": "Donne le rôle licence hunter et donne accès au nen et au quêtes destiné au hunter",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363817603713339512,  # Rôle à donner lors de l'utilisation
+        "use_effect": "L'infini protège des robs pendant 3h ",
+        "requirements": {},
+        "role_id": 1363939567627145660,
         "remove_after_purchase": {
             "roles": False,
             "items": False
         },
         "used": True
     },
- {
-    "id": 22,
-    "emoji": "<:imperiale:1363601099990241601>",
-    "title": " Arme démoniaque impériale",
-    "description": "Cette objet vous permet d'utiliser le démon dans votre arme et vous permet de voler votre adversaire ",
-    "price": 500000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 3,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Un /roll 50 devra être fait et vous permettra de voler le pourcentage de ce roll à l’utilisateur de votre choix à condition que celui-ci soit plus riche que vous ",
-    "requirements": {
-        "items": [31]
+    {
+        "id": 81,
+        "emoji": "<:armure:1363599057863311412>",
+        "title": "Armure du Berserker",
+        "description": "Offre à son utilisateur un anti-rob de 1h... (voir description complète)",
+        "price": 100000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 3,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363821649002238142,
+        "role_duration": 3600,
+        "remove_after_purchase": {
+            "roles": True,
+            "items": False
+        }
     },
-    "role_id": 1363817586466361514,
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
-},
     {
         "id": 31,
         "emoji": "<:demoncontrole:1363600359611695344>",
@@ -2760,11 +2736,11 @@ ITEMS = [
         "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 3,
-        "tradeable": True,  # Correction de `true` en `True`
+        "tradeable": True,
         "usable": True,
-        "use_effect": "Donne accès a tous les équipements de contrôle des démons",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363817629781069907,  # Rôle à donner lors de l'utilisation
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363817629781069907,
         "remove_after_purchase": {
             "roles": False,
             "items": False
@@ -2772,18 +2748,117 @@ ITEMS = [
         "used": True
     },
     {
-        "id": 99,
-        "emoji": "<:ultrainstinct:1363601650123801027>",
-        "title": "Ultra Instinct ",
-        "description": "Vous utilisez la forme ultime du Ultra Instinct. Vous pouvez seulement l’utiliser pendant (mettre le temps d’immunité). Lorsque vous utilisez cette forme ultime, vous anticipez toutes attaques et vous l’esquivez (donc immunisé). Malheureusement cette forme utilise énormément de votre ki, il vous faudra donc 5 jours de repos pour réutiliser cette forme",
-        "price": 750000,
+        "id": 888,
+        "emoji": "<:infini:1363615948090638490>",
+        "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟛",
+        "description": "L'infini protège des robs pendant 6h (utilisable 1 fois par items)",
+        "price": 100000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 1,
-        "tradeable": True,  # Correction de `true` en `True`
+        "tradeable": True,
         "usable": True,
-        "use_effect": "Donne accès a l'Ultra Instinct",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363821033060307106,  # Rôle à donner lors de l'utilisation
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363939486844850388,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
+    },
+    {
+        "id": 91,
+        "emoji": "<:oeildemoniaque:1363947226501484746>",
+        "title": "Œil démoniaque",
+        "description": "Permet de voir l'avenir grâce au pouvoir de Kishirika...",
+        "price": 100000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 2,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363949082653098094,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
+    },
+    {
+        "id": 7,
+        "emoji": "<:licence:1363609202211422268>",
+        "title": "Licence Hunter ",
+        "description": "...",
+        "price": 250000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 1,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363817603713339512,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
+    },
+    {
+        "id": 4,
+        "emoji": "<:naturoermite:1363945371448905810>",
+        "title": "Mode Ermite",
+        "description": "...",
+        "price": 250000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 2,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363948445282341135,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
+    },
+    {
+        "id": 15,
+        "emoji": "<:nen:1363607663010775300>",
+        "title": "Nen | ℝ𝕆𝕃𝕃",
+        "description": "...",
+        "price": 500000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 2,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {
+            "items": [7]
+        },
+        "role_id": 1363928528587984998,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
+    },
+    {
+        "id": 22,
+        "emoji": "<:imperiale:1363601099990241601>",
+        "title": " Arme démoniaque impériale",
+        "description": "...",
+        "price": 500000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 3,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {
+            "items": [31]
+        },
+        "role_id": 1363817586466361514,
         "remove_after_purchase": {
             "roles": False,
             "items": False
@@ -2794,175 +2869,99 @@ ITEMS = [
         "id": 45,
         "emoji": "<:hakidesrois:1363623066667843616>",
         "title": "Haki des Rois",
-        "description": "Apprenez le haki des rois comme les Empereurs des mers. Faites +haki <@user> pour le paralyser ainsi il n’aura pas accès aux salons économiques",
+        "description": "...",
         "price": 500000,
         "emoji_price": "<:ecoEther:1341862366249357374>",
         "quantity": 2,
-        "tradeable": True,  # Correction de `true` en `True`
+        "tradeable": True,
         "usable": True,
-        "use_effect": "Donne accès a l'Haki des Rois",
-        "requirements": {},  # Aucun requirement
-        "role_id": 1363817645249527879,  # Rôle à donner lors de l'utilisation
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363817645249527879,
         "remove_after_purchase": {
             "roles": False,
             "items": False
         },
         "used": True
     },
- {
-    "id": 28,
-    "emoji": "<:rage:1363599799043227940>",
-    "title": " Rage du Berserker",
-    "description": "Tu perds tout contrôle. L’armure du Berserker te consume, et avec elle, ta dernière part d’humanité. Tu ne voles pas. Tu ne gagnes rien. Tu détruis, par pure haine. Ton seul objectif : voir l’ennemi ruiné. ",
-    "price": 500000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Utilisable une seule fois avec !!berserk <@user> → roll 100, % retiré à la banque de la cible (ex : roll 67 = -67%). Nécessite l’armure du Berserker. Cooldown de 7j après achat. Objet détruit après usage.",
-    "requirements": {
-        "items": [81]
+    {
+        "id": 28,
+        "emoji": "<:rage:1363599799043227940>",
+        "title": " Rage du Berserker",
+        "description": "...",
+        "price": 500000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 2,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {
+            "items": [81]
+        },
+        "role_id": 1363821333624127618,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
     },
-    "role_id": 1363821333624127618,
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
+    {
+        "id": 23,
+        "emoji": "<:pokeball:1363942456676061346>",
+        "title": "Pokeball",
+        "description": "...",
+        "price": 500000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 1,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363942048075481379,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
     },
-    "used": True
- },
- {
-    "id": 8,
-    "emoji": "<:infini:1363615903404785734>",
-    "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟙",
-    "description": "L'infini protège des robs pendant 1h (utilisable 1 fois par items)",
-    "price": 25000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 3,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "L'infini protège des robs pendant 1h ",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363939565336920084,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
+    {
+        "id": 34,
+        "emoji": "<:nanashimura:1363942592156405830>",
+        "title": "Float",
+        "description": "...",
+        "price": 500000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 2,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363946902730575953,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
     },
-    "used": True
- },
- {
-    "id": 88,
-    "emoji": "<:infini:1363615925776941107>",
-    "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟚",
-    "description": "L'infini protège des robs pendant 3h (utilisable 1 fois par items)",
-    "price": 50000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "L'infini protège des robs pendant 3h ",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363939567627145660,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
+    {
+        "id": 99,
+        "emoji": "<:ultrainstinct:1363601650123801027>",
+        "title": "Ultra Instinct ",
+        "description": "...",
+        "price": 750000,
+        "emoji_price": "<:ecoEther:1341862366249357374>",
+        "quantity": 1,
+        "tradeable": True,
+        "usable": True,
+        "use_effect": "...",
+        "requirements": {},
+        "role_id": 1363821033060307106,
+        "remove_after_purchase": {
+            "roles": False,
+            "items": False
+        },
+        "used": True
     },
-    "used": True
- },
- {
-    "id": 888,
-    "emoji": "<:infini:1363615948090638490>",
-    "title": "Infini | ℕ𝕀𝕍𝔼𝔸𝕌 𝟛",
-    "description": "L'infini protège des robs pendant 6h (utilisable 1 fois par items)",
-    "price": 100000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 1,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "L'infini protège des robs pendant 6h ",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363939486844850388,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
- },
- {
-    "id": 23,
-    "emoji": "<:pokeball:1363942456676061346>",
-    "title": "Pokeball",
-    "description": "Cet objet vous permet de voler un objet d’une personne au hasard ",
-    "price": 500000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 1,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Vous donne l'accès de voler un objet au hasard de l'inventaire d'un joueur",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363942048075481379,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
- },
- {
-    "id": 34,
-    "emoji": "<:nanashimura:1363942592156405830>",
-    "title": "Float",
-    "description": "Vous utilisez l’un des alters provenant du One for all, et plus précisément de Nana Shimura. En l’utilisant, vous pouvez voler aussi haut que personne ne peut y accéder.",
-    "price": 500000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "La commande +float vous donne accès au salon (nom du salon) durant 15min mais seulement possible 1/jour.",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363946902730575953,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
- },
- {
-    "id": 91,
-    "emoji": "<:oeildemoniaque:1363947226501484746>",
-    "title": "Œil démoniaque",
-    "description": "Permet de voir l'avenir grâce au pouvoir de Kishirika et d'entrevoir le prochain restock pendant 10 sec ! (cooldown 1 semaine)",
-    "price": 100000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Permet de visioner le prochain restock pendant 10 seconde",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363949082653098094,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
- },
- {
-    "id": 4,
-    "emoji": "<:naturoermite:1363945371448905810>",
-    "title": "Mode Ermite",
-    "description": "Ce mode autrefois maîtrisé par Naruto lui même, il vous confère l’énergie de la nature. Grâce à cela, vous pourrez avoir plus d’ezryn !!!",
-    "price": 250000,
-    "emoji_price": "<:ecoEther:1341862366249357374>",
-    "quantity": 2,
-    "tradeable": True,
-    "usable": True,
-    "use_effect": "Vous donne un collect qui vous donne 5,000 <:ecoEther:1341862366249357374> toute les 2 heures",
-    "requirements": {},  # Aucun requirement
-    "role_id": 1363948445282341135,  # Rôle à donner lors de l'utilisation
-    "remove_after_purchase": {
-        "roles": False,
-        "items": False
-    },
-    "used": True
- },
 {
     "id": 202,
     "emoji": "<:bc1s1:1364217784439144488>",
