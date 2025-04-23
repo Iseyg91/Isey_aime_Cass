@@ -5413,7 +5413,7 @@ async def help(ctx: commands.Context):
     embed.set_image(url=banner_url)  # Ajout de la bannière en bas de l'embed
 
     # Informations générales
-    embed.add_field(name="📚 **Informations**", value=f"• **Mon préfixe** : !!\n• **Nombre de commandes** : 43", inline=False)
+    embed.add_field(name="📚 **Informations**", value=f"• **Mon préfixe** : !!\n• **Nombre de commandes** : 57", inline=False)
 
     # Création du menu déroulant
     select = discord.ui.Select(
