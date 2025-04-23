@@ -1313,7 +1313,7 @@ async def buy_item(ctx, item: str = "chicken"):
     balance = balance_data.get("cash", 0) if balance_data else 0
 
     items_for_sale = {
-        "chicken": 100,
+        "chicken": 10,
     }
 
     if item in items_for_sale:
