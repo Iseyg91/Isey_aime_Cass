@@ -2335,6 +2335,11 @@ async def roulette(ctx: commands.Context, bet: int, space: str):
         active_roulette_players.remove(user_id)
         return await ctx.send(f"Tu n'as pas assez d'argent ! Tu as {cash} en cash.")
 
+    if bet > 5000:
+        active_roulette_players.remove(user_id)
+        return await ctx.send("⛔ La mise maximale est de 5000 !")
+
+
     # Déduction du montant parié
     collection.update_one({"guild_id": guild_id, "user_id": user_id}, {"$inc": {"cash": -bet}})
 
