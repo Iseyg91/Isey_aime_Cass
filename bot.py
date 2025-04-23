@@ -275,6 +275,13 @@ COLLECT_ROLES_CONFIG = [
         "auto": True,
         "target": "bank"
     }
+    {
+        "role_id": 1363948445282341135,
+        "amount": 5000,
+        "cooldown": 7200,
+        "auto": True,
+        "target": "bank"
+    }
 ]
 
 # --- Boucle Auto Collect ---
@@ -1350,7 +1357,7 @@ async def cock_fight(ctx, amount: str):
     user_id = user.id
 
     config = get_cf_config(guild_id)
-    max_bet = config.get("max_bet", 20000)
+    max_bet = config.get("max_bet", 7500)
     max_chance = config.get("max_chance", 100)
     start_chance = config.get("start_chance", 50)
 
@@ -1803,7 +1810,7 @@ async def blackjack(ctx: commands.Context, mise: str = None):
 
     if mise == "all":
         user_data = get_or_create_user_data(ctx.guild.id, ctx.author.id)
-        max_bet = 15000  # La mise maximale
+        max_bet = 5000  # La mise maximale
 
         if user_data["cash"] <= max_bet:
             mise = user_data["cash"]  # Mise toute la somme disponible
@@ -2155,6 +2162,13 @@ async def russianroulette(ctx, arg: str):
             bet = get_user_cash(guild_id, user.id) // 2
         else:
             bet = int(arg)
+
+        # Nouvelle vérification de la limite
+        if bet > 10000:
+            return await ctx.send(embed=discord.Embed(
+                description=f"<:classic_x_mark:1362711858829725729> La mise maximale autorisée est de 10,000 coins.",
+                color=discord.Color.from_rgb(255, 92, 92)
+            ))
 
         user_cash = get_user_cash(guild_id, user.id)
 
