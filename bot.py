@@ -274,7 +274,7 @@ COLLECT_ROLES_CONFIG = [
         "cooldown": 3600,
         "auto": True,
         "target": "bank"
-    }
+    },
     {
         "role_id": 1363948445282341135,
         "amount": 5000,
