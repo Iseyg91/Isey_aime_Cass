@@ -1740,6 +1740,10 @@ def calculate_hand_value(hand):
         aces -= 1
     return total
 
+# Fonction pour afficher le nombre de cartes du croupier
+def dealer_cards_count(dealer_hand):
+    return len(dealer_hand)
+
 class BlackjackView(discord.ui.View):
     def __init__(self, ctx, player_hand, dealer_hand, bet, player_data, max_bet):
         super().__init__(timeout=60)
@@ -1769,7 +1773,6 @@ class BlackjackView(discord.ui.View):
             embed.add_field(name="🤖 Main du croupier", value=card_emojis[self.dealer_hand[0]][0] + " 🂠", inline=False)
             embed.add_field(name="💰 Mise", value=f"{self.bet} <:ecoEther:1341862366249357374>", inline=False)
             await interaction.response.edit_message(embed=embed, view=self)
-
 
     @discord.ui.button(label="Stand", style=discord.ButtonStyle.blurple, emoji="🛑")
     async def stand(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1849,6 +1852,8 @@ async def blackjack(ctx: commands.Context, mise: str = None):
 
         if mise <= 0:
             return await ctx.send(embed=discord.Embed(description="Tu dois miser une somme supérieure à 0.", color=discord.Color.red()))
+        if mise < 1:
+            return await ctx.send(embed=discord.Embed(description="La mise minimale est de 1 <:ecoEther:1341862366249357374>.", color=discord.Color.red()))
         if mise > max_bet:
             return await ctx.send(embed=discord.Embed(description=f"La mise maximale est de {max_bet} <:ecoEther:1341862366249357374>.", color=discord.Color.red()))
         if user_data["cash"] < mise:
@@ -1868,7 +1873,8 @@ async def blackjack(ctx: commands.Context, mise: str = None):
 
     embed = discord.Embed(title="🃏 Blackjack", color=discord.Color.blue())
     embed.add_field(name="🧑 Ta main", value=" ".join([card_emojis[c][0] for c in player_hand]) + f"\n**Total : {calculate_hand_value(player_hand)}**", inline=False)
-    embed.add_field(name="🤖 Main du croupier", value=card_emojis[dealer_hand[0]][0] + " 🂠", inline=False)
+    embed.add_field(name="🤖 Main du croupier", value=f"{card_emojis[dealer_hand[0]][0]} 🂠 **Cartes visibles : {dealer_cards_count(dealer_hand)}**", inline=False)
+    embed.add_field(name="💰 Mise", value=f"{mise} <:ecoEther:1341862366249357374>", inline=False)
     await ctx.send(embed=embed, view=BlackjackView(ctx, player_hand, dealer_hand, mise, user_data, max_bet))
 
 @bot.command(name="bj-max-mise", aliases=["set-max-bj"])
