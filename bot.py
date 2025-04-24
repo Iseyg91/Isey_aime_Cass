@@ -1,31 +1,31 @@
-import discord
-from discord.ext import commands, tasks
-from discord import app_commands, Embed, ButtonStyle, ui
-from discord.ui import Button, View, Select, Modal, TextInput
-from discord.utils import get
-from discord import TextStyle
-from functools import wraps
 import os
 import io
+import sys
+import re
+import math
+import time
 import random
 import asyncio
-import time
-import re
+import logging
+import platform
 import subprocess
-import sys
-import math
 import traceback
-from keep_alive import keep_alive
-from datetime import datetime, timedelta  # Tu as déjà la bonne importation pour datetime et timedelta
+from functools import wraps
+from typing import Optional
+from datetime import datetime, timedelta
 from collections import defaultdict, deque
+import psutil
+import pytz
+import discord
+from discord import app_commands, Embed, ButtonStyle, TextStyle, Interaction
+from discord.ext import commands, tasks
+from discord.ui import Button, View, Select, Modal, TextInput
+from discord.utils import get
 import pymongo
 from pymongo import MongoClient
 from motor.motor_asyncio import AsyncIOMotorClient
-import psutil
-import pytz
-import platform
-from discord import Interaction
-import logging
+from keep_alive import keep_alive
+
 
 token = os.environ['ETHERYA']
 intents = discord.Intents.all()
@@ -1043,11 +1043,6 @@ async def pay_error(ctx, error):
     )
     await ctx.send(embed=embed)
 
-from datetime import datetime, timedelta
-import random
-import discord
-from discord.ext import commands
-
 @bot.hybrid_command(name="work", aliases=["wk"], description="Travaille et gagne de l'argent !")
 async def work(ctx: commands.Context):
     if ctx.guild is None:
@@ -1970,8 +1965,6 @@ async def set_max_bj_mise_error(ctx, error):
         )
         await ctx.send(embed=embed)
 
-from datetime import datetime, timedelta
-
 @bot.hybrid_command(name="rob", description="Voler entre 1% et 50% du portefeuille d'un autre utilisateur.")
 async def rob(ctx, user: discord.User):
     guild_id = ctx.guild.id
@@ -2532,12 +2525,6 @@ async def daily(ctx: commands.Context):
         note="Commande /daily"
     )
 
-from discord import app_commands
-from typing import Optional
-import discord
-from discord.ext import commands
-from discord.ui import Button, View
-
 @bot.hybrid_command(
     name="leaderboard",
     aliases=["lb"],
@@ -2648,12 +2635,6 @@ async def leaderboard(
     embed = get_page(0)
     await ctx.send(embed=embed, view=view)
 
-import discord
-from discord.ext import commands
-from discord import app_commands
-from pymongo import MongoClient
-import asyncio
-from datetime import datetime, timedelta
 
 ITEMS = [
     {
@@ -4643,10 +4624,6 @@ async def manipulation(ctx):
     except discord.Forbidden:
         pass
 
-import random
-from datetime import datetime, timedelta
-import discord
-
 # ID d'objets matérialisables
 MATERIALISATION_IDS = [1363817636793810966, 1363817593252876368]
 
@@ -5066,12 +5043,6 @@ async def ultra_error(ctx, error):
     else:
         await ctx.send("⚠️ Une erreur inconnue s'est produite.")
 
-import discord
-from discord.ext import commands
-from datetime import datetime
-import random
-import traceback  # pour logs d'erreurs détaillés
-
 # Paramètres
 RAGE_ID = 1363821333624127618
 ECLIPSE_ROLE_ID = 1364115033197510656
@@ -5390,7 +5361,6 @@ async def float(ctx):
 # Identifiants
 OEIL_ID = 1363949082653098094
 ROLE_ID = 1364123507532890182
-from datetime import timedelta
 
 COOLDOWN_TIME = timedelta(weeks=1)
 
