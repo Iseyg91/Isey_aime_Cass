@@ -241,7 +241,7 @@ daily_rewards = {
     2: {"coins": 2000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.2.png?raw=true"},
     3: {"coins": 3000, "badge": 2, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.3.png?raw=true"},
     4: {"coins": 4000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.4.png?raw=true"},
-    5: {"coins": 5000, "badge": None, "item": 1, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.5.png?raw=true"},
+    5: {"coins": 5000, "badge": None, "item": 66, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.5.png?raw=true"},
     6: {"coins": 6000, "badge": None, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.6.png?raw=true"},
     7: {"coins": 7000, "badge": 1, "item": None, "image_url": "https://github.com/Iseyg91/Isey_aime_Cass/blob/main/IMAGE%20SEASON/image.7.png?raw=true"}
 }
